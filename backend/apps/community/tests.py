@@ -1,7 +1,9 @@
-from django.test import TestCase
+from django.test import TestCase, RequestFactory
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
+from rest_framework.request import Request
 from .models import CommunityPost, CommunityPostImage, PostReaction
+from .serializers import CommunityPostSerializer
 
 User = get_user_model()
 
@@ -27,11 +29,6 @@ class CommunityModelsTest(TestCase):
 
     def test_community_post_is_pinned_default_false(self):
         self.assertFalse(self.post.is_pinned)
-
-
-from django.test import RequestFactory
-from rest_framework.request import Request
-from .serializers import CommunityPostSerializer
 
 
 class CommunityPostSerializerTest(TestCase):
