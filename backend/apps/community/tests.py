@@ -1,5 +1,6 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.db import IntegrityError
 from .models import CommunityPost, CommunityPostImage, PostReaction
 
 User = get_user_model()
@@ -21,7 +22,7 @@ class CommunityModelsTest(TestCase):
 
     def test_post_reaction_unique_together(self):
         PostReaction.objects.create(post=self.post, user=self.user)
-        with self.assertRaises(Exception):
+        with self.assertRaises(IntegrityError):
             PostReaction.objects.create(post=self.post, user=self.user)
 
     def test_community_post_is_pinned_default_false(self):
