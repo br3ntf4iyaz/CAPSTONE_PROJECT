@@ -26,13 +26,22 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'delete', 'head', 'options']
 
     def get_queryset(self):
+        from django.db.models import Count, Exists, OuterRef, Value, BooleanField
+        user = self.request.user
+        reactions_for_user = PostReaction.objects.filter(
+            post=OuterRef('pk'), user_id=user.pk
+        )
         qs = CommunityPost.objects \
             .select_related('author', 'author__profile') \
-            .prefetch_related('images', 'reactions') \
-            .annotate(pin_order=models.Case(
-                models.When(is_pinned=True, then=0), default=1,
-                output_field=models.IntegerField(),
-            )) \
+            .prefetch_related('images') \
+            .annotate(
+                pin_order=models.Case(
+                    models.When(is_pinned=True, then=0), default=1,
+                    output_field=models.IntegerField(),
+                ),
+                like_count=Count('reactions', distinct=True),
+                is_liked=Exists(reactions_for_user) if user.is_authenticated else Value(False, output_field=BooleanField()),
+            ) \
             .order_by('pin_order', '-created_at')
         barangay = self.request.query_params.get('barangay')
         if barangay:
@@ -43,11 +52,6 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         post = serializer.save(author=self.request.user)
         for i, f in enumerate(self.request.FILES.getlist('images')[:4]):
             CommunityPostImage.objects.create(post=post, image=f, order=i)
-
-    def get_serializer_context(self):
-        ctx = super().get_serializer_context()
-        ctx['request'] = self.request
-        return ctx
 
     def destroy(self, request, *args, **kwargs):
         post = self.get_object()

@@ -23,8 +23,8 @@ class CommunityPostSerializer(serializers.ModelSerializer):
     author_barangay = serializers.SerializerMethodField()
     author_avatar = serializers.SerializerMethodField()
     images = CommunityPostImageSerializer(many=True, read_only=True)
-    like_count = serializers.IntegerField(source='reactions.count', read_only=True)
-    is_liked = serializers.SerializerMethodField()
+    like_count = serializers.IntegerField(read_only=True)
+    is_liked = serializers.BooleanField(read_only=True)
     is_own = serializers.SerializerMethodField()
 
     class Meta:
@@ -55,12 +55,6 @@ class CommunityPostSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             return request.build_absolute_uri(obj.author.avatar.url) if request else None
         return None
-
-    def get_is_liked(self, obj):
-        request = self.context.get('request')
-        if request and request.user.is_authenticated:
-            return obj.reactions.filter(user=request.user).exists()
-        return False
 
     def get_is_own(self, obj):
         request = self.context.get('request')

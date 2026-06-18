@@ -52,7 +52,12 @@ class CommunityPostSerializerTest(TestCase):
         self.assertEqual(s.data['images'], [])
 
     def test_serializer_has_like_count_and_is_liked(self):
-        s = CommunityPostSerializer(self.post, context={'request': self.request})
+        from django.db.models import Count, Exists, OuterRef, Value, BooleanField
+        annotated = CommunityPost.objects.annotate(
+            like_count=Count('reactions', distinct=True),
+            is_liked=Value(False, output_field=BooleanField()),
+        ).get(pk=self.post.pk)
+        s = CommunityPostSerializer(annotated, context={'request': self.request})
         self.assertEqual(s.data['like_count'], 0)
         self.assertFalse(s.data['is_liked'])
 
