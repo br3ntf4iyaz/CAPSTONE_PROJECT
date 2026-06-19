@@ -1,13 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import {
   Users, Building2, ArrowRight, MapPin, CheckCircle2,
   TrendingUp, Shield,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
-import type { CommunityPost } from '@/api/community'
+import type { CommunityPost, CommunityPostPage } from '@/api/community'
 import { useAuthStore } from '@/store/authStore'
 import { cn, toArray } from '@/utils'
 
@@ -46,6 +46,8 @@ export default function CommunityHubPage() {
   const [postContent, setPostContent] = useState('')
   const [postImage, setPostImage] = useState<File | null>(null)
   const [showPostForm, setShowPostForm] = useState(false)
+  const [selectedBarangay, setSelectedBarangay] = useState<string | null>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
 
   const { data: orgs = [] } = useQuery<YouthOrg[]>({
     queryKey: ['community-hub-orgs'],
@@ -57,10 +59,31 @@ export default function CommunityHubPage() {
     queryFn: () => apiClient.get('/sk-requirements/barangays/').then(r => toArray<SKBarangay>(r.data)).catch(() => []),
   })
 
-  const { data: posts = [] } = useQuery<CommunityPost[]>({
-    queryKey: ['community-posts'],
-    queryFn: () => communityApi.list().then(p => p.results),
+  const {
+    data: postsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<CommunityPostPage>({
+    queryKey: ['community-posts', selectedBarangay],
+    queryFn: ({ pageParam }) =>
+      communityApi.list(pageParam as number, selectedBarangay ?? undefined),
+    getNextPageParam: (last, pages) => last.next ? pages.length + 1 : undefined,
+    initialPageParam: 1,
   })
+
+  const posts = postsData?.pages.flatMap(p => p.results) ?? []
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage() },
+      { threshold: 0.1 }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const createPostMutation = useMutation({
     mutationFn: (data: FormData | { content: string }) => communityApi.create(data),
@@ -307,6 +330,14 @@ export default function CommunityHubPage() {
               </div>
             </div>
           ))}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} />
+          {isFetchingNextPage && (
+            <div className="flex justify-center py-4">
+              <div className="w-5 h-5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
 
           {posts.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-8">No posts yet. Be the first to share an accomplishment.</p>
