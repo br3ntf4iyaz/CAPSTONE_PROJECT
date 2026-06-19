@@ -40,13 +40,13 @@ export const communityApi = {
       }),
 
   create: (data: FormData | { content: string }) =>
-    apiClient.post<CommunityPost>('/community/posts/', data),
+    apiClient.post<CommunityPost>('/community/posts/', data).then(r => r.data),
 
-  delete: (id: number) => apiClient.delete(`/community/posts/${id}/`),
+  delete: (id: number) => apiClient.delete<void>(`/community/posts/${id}/`),
 
   react: (id: number) =>
-    apiClient.post<{ liked: boolean; count: number }>(`/community/posts/${id}/react/`),
+    apiClient.post<{ liked: boolean; count: number }>(`/community/posts/${id}/react/`).then(r => r.data),
 
   pin: (id: number) =>
-    apiClient.post<{ is_pinned: boolean }>(`/community/posts/${id}/pin/`),
+    apiClient.post<{ is_pinned: boolean }>(`/community/posts/${id}/pin/`).then(r => r.data),
 }
