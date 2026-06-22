@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 17px;
+  }
+  body {
+    @apply bg-paper-50 text-ink-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+    font-family: 'Manrope', system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  h1, h2, h3 {
+    font-family: 'Bricolage Grotesque', 'Manrope', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+  code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  * { @apply box-border; }
+  h1 { @apply text-3xl font-bold; }
+  h2 { @apply text-2xl font-semibold; }
+  h3 { @apply text-xl font-semibold; }
+}
+
+@layer components {
+  /* ── Eyebrow / small label ──────────────────────────────────────────── */
+  /* Used widely across LYDO admin too. Kept the class name; restyled to
+     municipal-modern (Manrope uppercase, no monospace newspaper feel). */
+  .eyebrow {
+    @apply inline-block text-xs font-semibold uppercase tracking-[0.14em] text-primary-700;
+  }
+  .eyebrow-on-dark {
+    @apply inline-block text-xs font-semibold uppercase tracking-[0.14em] text-accent-300;
+  }
+
+  /* Reveal: staggered fade-up on enter */
+  .reveal {
+    opacity: 0;
+    animation: fade-up 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+    animation-delay: var(--delay, 0ms);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { animation: none; opacity: 1; }
+  }
+  @keyframes fade-up {
+    0%   { opacity: 0; transform: translateY(12px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Buttons ──────────────────────────────────────────────────────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-semibold px-5 py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2 shadow-sm;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-paper-50 text-primary-700 font-semibold px-5 py-3 rounded-xl border border-primary-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 bg-accent-400 hover:bg-accent-500 active:bg-accent-600 text-ink-900 font-bold px-5 py-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-400 focus-visible:ring-offset-2 shadow-sm;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 text-primary-700 hover:text-primary-900 hover:bg-primary-50 font-semibold px-5 py-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 focus-visible:ring-offset-2;
+  }
+  .btn-on-dark {
+    @apply inline-flex items-center justify-center gap-2 bg-white hover:bg-accent-50 text-primary-800 font-semibold px-5 py-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-primary-700 shadow-sm;
+  }
+  .btn-ghost-on-dark {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent border border-white/30 hover:border-white/60 hover:bg-white/5 text-white font-semibold px-5 py-3 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-300 focus-visible:ring-offset-2 focus-visible:ring-offset-primary-700;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-alert-500 hover:bg-alert-600 text-white font-semibold px-5 py-3 rounded-xl transition-colors;
+  }
+  .btn-sm { @apply px-3 py-1.5 text-sm; }
+
+  /* ── Cards ────────────────────────────────────────────────────────── */
+  .card {
+    @apply bg-white rounded-2xl border border-ink-100 shadow-sm dark:bg-gray-900 dark:border-gray-800;
+  }
+  .card-flat {
+    @apply bg-white rounded-2xl border border-ink-100 dark:bg-gray-900 dark:border-gray-800;
+  }
+  .card-tint {
+    @apply bg-primary-50 rounded-2xl border border-primary-100 dark:bg-primary-900/20 dark:border-primary-800;
+  }
+
+  /* ── Forms ────────────────────────────────────────────────────────── */
+  .input {
+    @apply w-full px-4 py-3 bg-white border border-ink-200 rounded-xl text-base text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-400 focus:border-primary-500 transition-colors dark:bg-gray-800 dark:border-gray-700 dark:text-gray-100 dark:placeholder-gray-500;
+  }
+  .input-error { @apply border-alert-400 focus:ring-alert-400 focus:border-alert-500; }
+  .label { @apply block text-base font-semibold text-ink-800 mb-2 dark:text-gray-300; }
+  .error-msg { @apply text-alert-600 text-sm mt-1.5 font-medium; }
+
+  /* ── Badges / chips ───────────────────────────────────────────────── */
+  .chip {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold;
+  }
+  .chip-primary { @apply chip bg-primary-50 text-primary-700; }
+  .chip-accent  { @apply chip bg-accent-100 text-accent-800; }
+  .chip-alert   { @apply chip bg-alert-50  text-alert-700; }
+  .chip-neutral { @apply chip bg-ink-100   text-ink-700; }
+
+  /* legacy badge aliases (LYDO admin uses these names) */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-blue   { @apply badge bg-primary-50 text-primary-700; }
+  .badge-yellow { @apply badge bg-accent-100 text-accent-800; }
+  .badge-green  { @apply badge bg-emerald-50 text-emerald-700; }
+  .badge-red    { @apply badge bg-alert-50 text-alert-700; }
+  .badge-gray   { @apply badge bg-ink-100 text-ink-700; }
+  .badge-purple { @apply badge bg-violet-50 text-violet-700; }
+
+  /* ── Page Typography ──────────────────────────────────────────────── */
+  .page-header   { @apply mb-6; }
+  .page-title    { @apply font-display text-3xl font-bold text-ink-900 tracking-tightish dark:text-gray-100; }
+  .page-subtitle { @apply text-base text-ink-500 mt-1 dark:text-gray-400; }
+  .section-title { @apply font-display text-2xl font-bold text-ink-900 mb-4 tracking-tightish dark:text-gray-200; }
+
+  /* ── Stat cards (LYDO admin compatibility) ────────────────────────── */
+  .stat-card { @apply card p-5 flex items-center gap-4; }
+  .stat-icon { @apply w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0; }
+
+  /* ── Tables ───────────────────────────────────────────────────────── */
+  .table-wrap { @apply card overflow-hidden; }
+  table { @apply w-full text-base; }
+  thead th {
+    @apply text-left text-sm font-semibold text-ink-500 uppercase tracking-wider px-4 py-3 bg-paper-50 border-b border-ink-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700;
+  }
+  tbody td { @apply px-4 py-4 border-b border-ink-100/50 text-ink-700 dark:border-gray-800 dark:text-gray-300; }
+  tbody tr:last-child td { @apply border-b-0; }
+  tbody tr:hover { @apply bg-paper-50 dark:bg-gray-800/50; }
+
+  /* ── Hide scrollbar ──────────────────────────────────────────────── */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* ── Skeleton shimmer ─────────────────────────────────────────────── */
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  .skeleton {
+    @apply rounded-xl bg-ink-100 dark:bg-gray-800;
+    background-image: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.5) 50%, transparent 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+  }
+
+  /* ── PH flag accent stripe (decorative bar — civic identity) ──────── */
+  .ph-stripe {
+    background: linear-gradient(
+      to right,
+      theme('colors.primary.600') 0%,
+      theme('colors.primary.600') 33.3%,
+      theme('colors.alert.500') 33.3%,
+      theme('colors.alert.500') 66.6%,
+      theme('colors.accent.400') 66.6%,
+      theme('colors.accent.400') 100%
+    );
+  }
+}

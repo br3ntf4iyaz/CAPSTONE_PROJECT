@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LYDO — System Wireframes</title>
+<style>
+:root{--p:#4F46E5;--p2:#EEF2FF;--p3:#3730A3;--t1:#111827;--t2:#374151;--t3:#6B7280;--t4:#9CA3AF;--b1:#E5E7EB;--b2:#D1D5DB;--s:#F3F4F6;--f:#FFFFFF;--g-bg:#D1FAE5;--g-t:#065F46;--a-bg:#FEF3C7;--a-t:#92400E;--r-bg:#FEE2E2;--r-t:#991B1B;--bl-bg:#DBEAFE;--bl-t:#1E40AF}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#E2E4E9;padding:40px;color:var(--t1)}
+.doc-hdr{background:#fff;border:1px solid var(--b2);border-radius:10px;padding:18px 24px 16px;margin-bottom:36px;display:flex;align-items:flex-start;justify-content:space-between}
+.doc-title{font-size:17px;font-weight:700;color:var(--t1);letter-spacing:-.4px}
+.doc-meta{font-size:11px;color:var(--t3);margin-top:3px}
+.doc-right{display:flex;gap:6px;flex-direction:column;align-items:flex-end}
+.tag{display:inline-flex;align-items:center;padding:3px 9px;border-radius:99px;font-size:10px;font-weight:600}
+.tag-p{background:var(--p2);color:var(--p3)}
+.tag-gray{background:var(--s);color:var(--t3);border:1px solid var(--b1)}
+.legend{display:flex;gap:12px;font-size:9px;color:var(--t4)}
+.legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:3px}
+.sec{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--t3);margin:36px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--b2);display:flex;align-items:center;gap:8px}
+.sec-num{width:18px;height:18px;background:var(--p);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;flex-shrink:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+.wfi{}
+.wf-label{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:.03em;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.wf-num{width:15px;height:15px;background:var(--p);border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;color:#fff;font-weight:700;flex-shrink:0}
+.wf-path{font-size:9px;color:var(--t4);margin-top:5px;text-align:center}
+.frame{background:#fff;border:1px solid #C7CBD4;border-radius:8px;overflow:hidden;height:490px;display:flex;flex-direction:column;box-shadow:0 4px 16px rgba(0,0,0,.09),0 1px 3px rgba(0,0,0,.05)}
+.tb{height:40px;border-bottom:1px solid var(--b1);display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;background:#fff}
+.logo{font-size:12px;font-weight:700;color:var(--p);letter-spacing:-.3px}
+.logo-dark{color:#E0E7FF}
+.sp{flex:1}
+.tb-icon{width:22px;height:22px;border-radius:5px;background:var(--s);display:flex;align-items:center;justify-content:center}
+.ic{width:10px;height:10px;border-radius:2px;background:var(--t3)}
+.ic-r{border-radius:50%}
+.av{width:24px;height:24px;border-radius:50%;background:var(--p2);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:var(--p3);flex-shrink:0}
+.av-dark{background:#1F2937;color:#9CA3AF}
+.notif-dot{position:relative}
+.notif-dot::after{content:'';position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#EF4444;border:1px solid #fff}
+.layout{display:flex;flex:1;overflow:hidden}
+.sb{width:168px;border-right:1px solid var(--b1);padding:8px 5px;flex-shrink:0;display:flex;flex-direction:column;gap:1px;overflow:hidden}
+.sb-dark{background:#111827;border-right-color:#1F2937}
+.sb-sec{font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--t4);padding:6px 7px 2px;margin-top:3px}
+.sb-sec-dark{color:#374151}
+.ni{display:flex;align-items:center;gap:7px;padding:5.5px 7px;border-radius:5px;font-size:10.5px;color:var(--t3)}
+.ni.on{background:var(--p2);color:var(--p);font-weight:600}
+.ni-dark{color:#6B7280}
+.ni-dark.on{background:#1F2937;color:#E5E7EB}
+.nii{width:12px;height:12px;background:currentColor;border-radius:2px;opacity:.7;flex-shrink:0}
+.nii.rnd{border-radius:50%}
+.sb-foot{margin-top:auto;padding:7px 5px 2px;border-top:1px solid var(--b1);display:flex;align-items:center;gap:6px}
+.sb-foot-dark{border-top-color:#1F2937}
+.sb-fn{font-size:9.5px;font-weight:500;color:var(--t2)}
+.sb-fn-dark{color:#9CA3AF}
+.sb-fs{font-size:8.5px;color:var(--t4)}
+.ct{flex:1;padding:12px;background:#F8FAFC;overflow:hidden}
+.ct-w{background:#fff}
+.pg-title{font-size:13px;font-weight:700;color:var(--t1);margin-bottom:1px}
+.pg-sub{font-size:9.5px;color:var(--t3);margin-bottom:10px}
+.card{background:#fff;border:1px solid var(--b1);border-radius:7px;padding:9px 11px}
+.row{display:flex;gap:8px}
+.col{flex:1;min-width:0}
+.lbl{font-size:9.5px;font-weight:600;color:var(--t2);margin-bottom:2px;display:block}
+.input{height:24px;background:#fff;border:1px solid var(--b2);border-radius:5px;width:100%;display:flex;align-items:center;padding:0 8px;font-size:9.5px;color:var(--t4);gap:5px}
+.input-v{color:var(--t1)}
+.btn{height:26px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:600;padding:0 11px}
+.btn-p{background:var(--p);color:#fff}
+.btn-o{background:#fff;border:1px solid var(--b2);color:var(--t2)}
+.btn-sm{height:20px;font-size:9px;padding:0 8px}
+.btn-fw{width:100%}
+.bdg{display:inline-flex;align-items:center;padding:1.5px 6px;border-radius:3px;font-size:9px;font-weight:600}
+.bdg-g{background:var(--g-bg);color:var(--g-t)}
+.bdg-a{background:var(--a-bg);color:var(--a-t)}
+.bdg-r{background:var(--r-bg);color:var(--r-t)}
+.bdg-b{background:var(--bl-bg);color:var(--bl-t)}
+.bdg-gray{background:var(--s);color:var(--t3)}
+.bdg-p{background:var(--p2);color:var(--p3)}
+.ln{height:6px;background:var(--b1);border-radius:3px}
+.ln-sm{height:5px;background:var(--b1);border-radius:2px}
+.div{height:1px;background:var(--b1);margin:7px 0}
+.ph{background:var(--s);border:1px solid var(--b1);border-radius:5px;display:flex;align-items:center;justify-content:center}
+.ph-i{width:14px;height:10px;background:var(--b2);border-radius:2px}
+.bar{height:4px;background:var(--b1);border-radius:2px;overflow:hidden}
+.bar-f{height:100%;background:var(--p);border-radius:2px}
+.bar-g{background:#10B981}
+.bar-a{background:#F59E0B}
+.chip{display:inline-flex;align-items:center;height:18px;padding:0 7px;border-radius:99px;font-size:9px;font-weight:600;border:1px solid}
+.chip-on{background:var(--p);color:#fff;border-color:var(--p)}
+.chip-off{background:#fff;color:var(--t3);border-color:var(--b2)}
+.stat{background:#fff;border:1px solid var(--b1);border-radius:7px;padding:8px 10px}
+.stat-l{font-size:8.5px;color:var(--t3);font-weight:500;text-transform:uppercase;letter-spacing:.04em}
+.stat-v{font-size:19px;font-weight:700;color:var(--t1);line-height:1.2;margin-top:1px}
+.stat-d{font-size:8.5px;color:#059669;margin-top:1px}
+.tbl{border:1px solid var(--b1);border-radius:7px;overflow:hidden}
+.t-head{background:var(--s);display:grid;padding:5px 10px;border-bottom:1px solid var(--b1)}
+.t-row{display:grid;padding:6px 10px;background:#fff;border-bottom:1px solid var(--b1)}
+.t-row:last-child{border-bottom:none}
+.th{font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t3)}
+.td{font-size:10px;color:var(--t2)}
+.auth-wrap{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:16px 20px;background:#F8FAFC;overflow:hidden}
+.auth-box{width:100%;max-width:280px}
+.auth-ico{width:30px;height:30px;background:var(--p);border-radius:7px;margin:0 auto 8px}
+.auth-title{font-size:14px;font-weight:700;text-align:center;color:var(--t1);margin-bottom:2px}
+.auth-sub{font-size:9.5px;color:var(--t3);text-align:center;margin-bottom:12px}
+.or-row{display:flex;align-items:center;gap:6px;margin:8px 0}
+.or-ln{flex:1;height:1px;background:var(--b1)}
+.or-t{font-size:9px;color:var(--t4)}
+.auth-footer{text-align:center;font-size:9.5px;color:var(--t3);margin-top:9px}
+.link{color:var(--p);font-weight:600}
+.steps{display:flex;align-items:flex-start;gap:0;margin-bottom:12px}
+.step{display:flex;flex-direction:column;align-items:center;flex:1}
+.step-c{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;border:2px solid}
+.s-done{background:var(--p);border-color:var(--p);color:#fff}
+.s-active{background:#fff;border-color:var(--p);color:var(--p)}
+.s-idle{background:#fff;border-color:var(--b2);color:var(--t4)}
+.step-lbl{font-size:8.5px;color:var(--t3);margin-top:3px;text-align:center;line-height:1.3}
+.step-ln{flex:1;height:2px;background:var(--b1);margin-top:-11px}
+.step-ln-done{background:var(--p)}
+.chat-bot{background:var(--s);border-radius:0 6px 6px 6px;padding:6px 8px;font-size:9.5px;color:var(--t2);max-width:82%;margin-bottom:5px}
+.chat-user{background:var(--p);border-radius:6px 6px 0 6px;padding:6px 8px;font-size:9.5px;color:#fff;max-width:82%;margin-left:auto;margin-bottom:5px}
+</style>
+</head>
+<body>
+
+<div class="doc-hdr">
+  <div>
+    <div class="doc-title">LYDO — Lucena Youth Development Office Portal</div>
+    <div class="doc-meta">Low-Fidelity Wireframes &nbsp;·&nbsp; Capstone Documentation &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; June 2026</div>
+  </div>
+  <div class="doc-right">
+    <div style="display:flex;gap:6px">
+      <span class="tag tag-p">14 Screens</span>
+      <span class="tag tag-gray">2 User Roles</span>
+      <span class="tag tag-gray">6 Modules</span>
+    </div>
+    <div class="legend">
+      <span><span class="legend-dot" style="background:#4F46E5"></span>Youth Portal</span>
+      <span><span class="legend-dot" style="background:#111827"></span>Admin Portal</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SECTION 1 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">01</span> Authentication &amp; Onboarding</div>
+<div class="grid3">
+
+  <!-- 01 Login -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">01</span> Login</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div></div>
+      <div class="auth-wrap">
+        <div class="auth-box">
+          <div class="auth-ico"></div>
+          <div class="auth-title">Sign in to LYDO</div>
+          <div class="auth-sub">Lucena Youth Development Office Portal</div>
+          <div class="card" style="padding:13px">
+            <div style="margin-bottom:8px"><span class="lbl">Email address</span><div class="input"><span>you@email.com</span></div></div>
+            <div style="margin-bottom:8px"><span class="lbl">Password</span><div class="input"><span>••••••••</span><div class="sp"></div><div style="width:9px;height:7px;background:var(--b2);border-radius:1px"></div></div></div>
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:10px"><div style="width:12px;height:12px;border:1.5px solid var(--b2);border-radius:2px;flex-shrink:0"></div><span style="font-size:9px;color:var(--t3)">Remember me</span><span style="margin-left:auto;font-size:9px" class="link">Forgot password?</span></div>
+            <div class="btn btn-p btn-fw">Sign In</div>
+            <div class="or-row"><div class="or-ln"></div><span class="or-t">or</span><div class="or-ln"></div></div>
+            <div class="btn btn-o btn-fw" style="gap:6px"><div style="width:12px;height:12px;background:var(--b2);border-radius:2px"></div>Continue with Google</div>
+          </div>
+          <div class="auth-footer">New to LYDO? <span class="link">Create account</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-path">/login · Public</div>
+  </div>
+
+  <!-- 02 Register -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">02</span> Registration</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div></div>
+      <div class="auth-wrap" style="padding-top:12px">
+        <div class="auth-box">
+          <div class="auth-ico"></div>
+          <div class="auth-title">Create your account</div>
+          <div class="auth-sub">Join the Lucena youth community</div>
+          <div class="card" style="padding:12px">
+            <div class="row" style="margin-bottom:7px"><div class="col"><span class="lbl">First name</span><div class="input"><span>Juan</span></div></div><div class="col"><span class="lbl">Last name</span><div class="input"><span>dela Cruz</span></div></div></div>
+            <div style="margin-bottom:7px"><span class="lbl">Email address</span><div class="input"><span>juan@email.com</span></div></div>
+            <div class="row" style="margin-bottom:7px"><div class="col"><span class="lbl">Password</span><div class="input"><span>••••••••</span></div></div><div class="col"><span class="lbl">Confirm</span><div class="input"><span>••••••••</span></div></div></div>
+            <div style="margin-bottom:8px"><span class="lbl">I am a</span><div class="input" style="justify-content:space-between"><span>Youth / SK Official / Youth Org</span><span style="font-size:8px;color:var(--t4)">▾</span></div></div>
+            <div style="display:flex;align-items:flex-start;gap:5px;margin-bottom:10px"><div style="width:12px;height:12px;border:1.5px solid var(--b2);border-radius:2px;flex-shrink:0;margin-top:1px"></div><span style="font-size:9px;color:var(--t3);line-height:1.4">I agree to the <span class="link">Terms of Service</span> and <span class="link">Privacy Policy</span></span></div>
+            <div class="btn btn-p btn-fw">Create Account</div>
+          </div>
+          <div class="auth-footer">Already have an account? <span class="link">Sign in</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-path">/register · Public</div>
+  </div>
+
+  <!-- 03 Verify Identity -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">03</span> Identity Verification</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="auth-wrap" style="padding-top:14px">
+        <div class="auth-box" style="max-width:290px">
+          <div style="margin-bottom:12px">
+            <div class="auth-title" style="text-align:left">Verify your identity</div>
+            <div class="auth-sub" style="text-align:left">Upload a government ID to unlock program applications.</div>
+          </div>
+          <div class="card" style="padding:12px">
+            <div style="margin-bottom:8px"><span class="lbl">Government ID Type</span><div class="input" style="justify-content:space-between"><span>Select ID type</span><span style="font-size:8px;color:var(--t4)">▾</span></div></div>
+            <div style="margin-bottom:8px"><span class="lbl">Front of ID</span>
+              <div style="border:2px dashed var(--b2);border-radius:6px;padding:16px 8px;text-align:center;background:#F8FAFC">
+                <div class="ph-i" style="width:28px;height:20px;margin:0 auto 5px"></div>
+                <div style="font-size:9.5px;font-weight:500;color:var(--t2)">Drag &amp; drop or click to upload</div>
+                <div style="font-size:8.5px;color:var(--t4);margin-top:1px">JPG, PNG · Max 5 MB</div>
+                <div class="btn btn-o btn-sm" style="margin:6px auto 0;width:64px">Browse</div>
+              </div>
+            </div>
+            <div style="background:var(--p2);border-radius:5px;padding:7px 9px;font-size:9px;color:var(--p3);margin-bottom:10px;line-height:1.5">Your ID is reviewed by our team within 24 hours. All data is encrypted and secure.</div>
+            <div class="btn btn-p btn-fw">Submit for Verification</div>
+          </div>
+          <div class="card" style="margin-top:8px;padding:8px 10px;display:flex;align-items:center;gap:8px">
+            <div style="width:24px;height:24px;background:var(--a-bg);border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;background:var(--a-t);border-radius:1px"></div></div>
+            <div style="flex:1"><div style="font-size:10px;font-weight:600;color:var(--t1)">Verification pending</div><div style="font-size:9px;color:var(--t3)">Submitted Jun 18 · Awaiting review</div></div>
+            <span class="bdg bdg-a">Pending</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="wf-path">/verify-identity · Youth</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SECTION 2 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">02</span> Youth Portal — Core Screens</div>
+<div class="grid2">
+
+  <!-- 04 Youth Dashboard -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">04</span> Youth Dashboard</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="tb-icon notif-dot"><div class="ic"></div></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni on"><div class="nii"></div>Dashboard</div>
+          <div class="ni"><div class="nii rnd"></div>Community</div>
+          <div class="ni"><div class="nii"></div>Learn</div>
+          <div class="ni"><div class="nii"></div>Participate</div>
+          <div class="ni"><div class="nii"></div>Opportunities</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Calendar</div>
+          <div class="ni"><div class="nii rnd"></div>Chatbot</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan dela Cruz</div><div class="sb-fs">Verified Youth</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="pg-title">Good morning, Juan</div>
+          <div class="pg-sub">Friday, June 19, 2026</div>
+          <div style="background:var(--a-bg);border-left:3px solid var(--a-t);border-radius:0 5px 5px 0;padding:7px 9px;margin-bottom:10px;display:flex;align-items:flex-start;gap:7px">
+            <div style="width:12px;height:12px;background:var(--a-t);border-radius:50%;flex-shrink:0;margin-top:1px"></div>
+            <div><div style="font-size:10px;font-weight:600;color:var(--a-t)">Application deadline approaching</div><div style="font-size:9px;color:var(--a-t);margin-top:1px;opacity:.8">Youth Leadership Bootcamp closes June 25. 2 days left.</div></div>
+          </div>
+          <div class="row" style="margin-bottom:10px">
+            <div class="stat col"><div class="stat-l">Programs</div><div class="stat-v">4</div><div class="stat-d">+1 this month</div></div>
+            <div class="stat col"><div class="stat-l">Submissions</div><div class="stat-v">7</div><div class="stat-d">3 approved</div></div>
+            <div class="stat col"><div class="stat-l">Badges</div><div class="stat-v">5</div><div class="stat-d">1 new</div></div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px">Upcoming Events</div>
+          <div class="tbl" style="margin-bottom:10px">
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td" style="font-weight:500">Youth Forum 2026<div style="font-size:8.5px;color:var(--t3)">Jun 22 · City Hall Auditorium</div></div><span class="bdg bdg-g">Registered</span></div>
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td" style="font-weight:500">Leadership Bootcamp<div style="font-size:8.5px;color:var(--t3)">Jun 25 · LYDO Office</div></div><span class="bdg bdg-a">Deadline</span></div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px">Recent Submissions</div>
+          <div class="tbl">
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td">Youth Livelihood PPA<div style="font-size:8.5px;color:var(--t3)">Jun 10 · PPA</div></div><span class="bdg bdg-g">Approved</span></div>
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td">SK Youth Policy Draft<div style="font-size:8.5px;color:var(--t3)">Jun 5 · Policy</div></div><span class="bdg bdg-a">Under Review</span></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/dashboard · Youth</div>
+  </div>
+
+  <!-- 05 Youth Profile -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">05</span> Youth Profile</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni"><div class="nii rnd"></div>Community</div>
+          <div class="ni on"><div class="nii rnd"></div>Profile</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Calendar</div>
+          <div class="ni"><div class="nii rnd"></div>Chatbot</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan dela Cruz</div><div class="sb-fs">Verified Youth</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="card" style="display:flex;align-items:flex-start;gap:10px;margin-bottom:9px">
+            <div style="width:44px;height:44px;border-radius:50%;background:var(--p2);display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:var(--p3);flex-shrink:0">J</div>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:var(--t1)">Juan dela Cruz</div>
+              <div style="font-size:9.5px;color:var(--t3)">Barangay Mayao Kanluran · SK Official</div>
+              <div style="display:flex;align-items:center;gap:5px;margin-top:4px">
+                <span class="bdg bdg-g">Verified</span>
+                <div style="flex:1"><div class="bar"><div class="bar-f" style="width:75%"></div></div></div>
+                <span style="font-size:8.5px;color:var(--p);font-weight:600">75%</span>
+              </div>
+              <div style="font-size:8.5px;color:var(--t4);margin-top:1px">Profile completeness</div>
+            </div>
+            <div class="btn btn-o btn-sm" style="gap:4px"><div style="width:8px;height:8px;background:var(--t3);border-radius:1px"></div>Edit</div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px">Personal Information</div>
+          <div class="card" style="margin-bottom:8px">
+            <div class="row" style="margin-bottom:6px"><div class="col"><span class="lbl">First Name</span><div class="input input-v"><span>Juan</span></div></div><div class="col"><span class="lbl">Last Name</span><div class="input input-v"><span>dela Cruz</span></div></div></div>
+            <div class="row" style="margin-bottom:6px"><div class="col"><span class="lbl">Birthday</span><div class="input input-v"><span>Jan 15, 2005</span></div></div><div class="col"><span class="lbl">Gender</span><div class="input input-v"><span>Male</span></div></div></div>
+            <div style="margin-bottom:6px"><span class="lbl">Barangay</span><div class="input input-v"><span>Mayao Kanluran</span></div></div>
+            <div><span class="lbl">Bio</span><div style="background:#fff;border:1px solid var(--b2);border-radius:5px;padding:5px 8px;font-size:9px;color:var(--t2);min-height:36px;line-height:1.4">Youth leader focused on education and livelihood programs in Lucena City.</div></div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px">Skills &amp; Interests</div>
+          <div class="card" style="display:flex;flex-wrap:wrap;gap:4px">
+            <span class="chip chip-on">Leadership</span>
+            <span class="chip chip-on">Public Speaking</span>
+            <span class="chip chip-off">Livelihood</span>
+            <span class="chip chip-off">Arts</span>
+            <span class="chip chip-off">+ Add</span>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/profile · Youth</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SECTION 3 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">03</span> Community &amp; Chatbot</div>
+<div class="grid2">
+
+  <!-- 06 Community Hub -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">06</span> Community Hub</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="tb-icon"><div class="ic"></div></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii rnd"></div>Community</div>
+          <div class="ni"><div class="nii"></div>Learn</div>
+          <div class="ni"><div class="nii"></div>Participate</div>
+          <div class="ni"><div class="nii"></div>Opportunities</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct" style="padding:10px">
+          <div class="card" style="margin-bottom:8px;padding:8px 10px">
+            <div style="display:flex;align-items:center;gap:7px">
+              <div class="av" style="width:28px;height:28px;font-size:10px">J</div>
+              <div style="flex:1;height:24px;background:var(--s);border-radius:99px;display:flex;align-items:center;padding:0 10px"><span style="font-size:9.5px;color:var(--t4)">Share your organization's accomplishments…</span></div>
+              <div class="btn btn-p btn-sm">Post</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap">
+            <span class="chip chip-on">All</span>
+            <span class="chip chip-off">Mayao K.</span>
+            <span class="chip chip-off">Gulang-Gulang</span>
+            <span class="chip chip-off">Cotta</span>
+          </div>
+          <!-- Pinned post -->
+          <div style="background:#FFFBEB;border:1px solid #FDE68A;border-left:3px solid #F59E0B;border-radius:0 6px 6px 0;padding:8px 10px;margin-bottom:7px">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:4px">
+              <div class="av" style="width:22px;height:22px;font-size:8px;background:#FEF3C7;color:var(--a-t)">LY</div>
+              <div style="flex:1"><div class="ln" style="width:60%"></div></div>
+              <span class="bdg bdg-a" style="font-size:8px">📌 Pinned</span>
+            </div>
+            <div class="ln-sm" style="width:95%;margin-bottom:3px"></div>
+            <div class="ln-sm" style="width:80%"></div>
+          </div>
+          <!-- Post with 2 images -->
+          <div class="card" style="margin-bottom:7px;padding:8px 10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <div class="av" style="width:24px;height:24px;font-size:9px">SK</div>
+              <div><div class="ln" style="width:70px;margin-bottom:2px"></div><div class="ln-sm" style="width:50px"></div></div>
+            </div>
+            <div class="ln-sm" style="width:95%;margin-bottom:2px"></div>
+            <div class="ln-sm" style="width:70%;margin-bottom:6px"></div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px;border-radius:5px;overflow:hidden;margin-bottom:6px">
+              <div class="ph" style="height:52px"></div>
+              <div class="ph" style="height:52px"></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:#EF4444"><div style="width:11px;height:10px;background:#FCA5A5;border-radius:50% 50% 50% 50% / 60% 60% 40% 40%"></div>12</div>
+          </div>
+          <!-- Text post -->
+          <div class="card" style="padding:8px 10px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <div class="av" style="width:24px;height:24px;font-size:9px">YO</div>
+              <div><div class="ln" style="width:60px;margin-bottom:2px"></div><div class="ln-sm" style="width:44px"></div></div>
+            </div>
+            <div class="ln-sm" style="width:95%;margin-bottom:2px"></div>
+            <div class="ln-sm" style="width:80%;margin-bottom:2px"></div>
+            <div class="ln-sm" style="width:60%;margin-bottom:6px"></div>
+            <div style="display:flex;align-items:center;gap:4px;font-size:9px;color:var(--t4)"><div style="width:11px;height:10px;background:var(--b2);border-radius:50% 50% 50% 50% / 60% 60% 40% 40%"></div>5</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/community · Youth</div>
+  </div>
+
+  <!-- 07 Chatbot -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">07</span> AI Chatbot</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii rnd"></div>Chatbot</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Opportunities</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct-w ct" style="display:flex;flex-direction:column;padding:0">
+          <div style="padding:10px 12px;border-bottom:1px solid var(--b1);display:flex;align-items:center;gap:8px;flex-shrink:0">
+            <div style="width:28px;height:28px;background:var(--p);border-radius:50%;display:flex;align-items:center;justify-content:center"><div style="width:12px;height:10px;background:rgba(255,255,255,.8);border-radius:2px"></div></div>
+            <div><div style="font-size:11px;font-weight:600;color:var(--t1)">LYDO Assistant</div><div style="font-size:9px;color:#10B981">● Online</div></div>
+          </div>
+          <div style="flex:1;padding:10px 12px;overflow:hidden;display:flex;flex-direction:column">
+            <div class="chat-bot">Hi Juan! I'm your LYDO assistant. How can I help you today?</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+              <span class="chip chip-off" style="height:16px;font-size:8.5px">Programs</span>
+              <span class="chip chip-off" style="height:16px;font-size:8.5px">Scholarships</span>
+              <span class="chip chip-off" style="height:16px;font-size:8.5px">SK Requirements</span>
+            </div>
+            <div class="chat-user">What programs are open for youth aged 18–24?</div>
+            <div class="chat-bot">There are 3 open programs for your age group:<br><br>1. <b>Youth Livelihood Training</b> — closes Jul 15<br>2. <b>Leadership Bootcamp</b> — closes Jun 25<br>3. <b>Arts &amp; Culture Grant</b> — rolling basis</div>
+            <div class="chat-user">How do I apply for the bootcamp?</div>
+            <div class="chat-bot">You can apply via Programs → Leadership Bootcamp → Apply. You'll need a 1-page motivation letter and 2 reference letters.</div>
+            <div style="display:flex;gap:3px;padding:6px 9px;background:var(--s);border-radius:0 6px 6px 6px;width:42px;margin-top:2px">
+              <div style="width:5px;height:5px;border-radius:50%;background:var(--t4)"></div>
+              <div style="width:5px;height:5px;border-radius:50%;background:var(--t4)"></div>
+              <div style="width:5px;height:5px;border-radius:50%;background:var(--t4)"></div>
+            </div>
+          </div>
+          <div style="padding:8px 12px;border-top:1px solid var(--b1);display:flex;gap:6px;flex-shrink:0">
+            <div class="input" style="flex:1">Type your message…</div>
+            <div class="btn btn-p btn-sm" style="width:28px;padding:0">→</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/chatbot · Youth</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SECTION 4 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">04</span> Programs &amp; Learning</div>
+<div class="grid2">
+
+  <!-- 08 Submission Wizard -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">08</span> Program Submission Wizard</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Learn</div>
+          <div class="ni"><div class="nii"></div>Calendar</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="pg-title">Submit Program / PPA</div>
+          <div class="pg-sub">Step 2 of 3 — Program Details</div>
+          <div class="steps">
+            <div class="step"><div class="step-c s-done">✓</div><div class="step-lbl">Type</div></div>
+            <div class="step-ln step-ln-done"></div>
+            <div class="step"><div class="step-c s-active">2</div><div class="step-lbl">Details</div></div>
+            <div class="step-ln"></div>
+            <div class="step"><div class="step-c s-idle">3</div><div class="step-lbl">Review</div></div>
+          </div>
+          <div style="display:flex;gap:5px;margin-bottom:10px">
+            <span class="bdg bdg-p" style="font-size:9px">PPA — Programs, Projects &amp; Activities</span>
+            <span class="bdg bdg-gray" style="font-size:9px">SK Submitter</span>
+          </div>
+          <div class="card" style="margin-bottom:8px">
+            <div style="margin-bottom:7px"><span class="lbl">Program / Activity Title</span><div class="input input-v"><span>Youth Livelihood Skills Training 2026</span></div></div>
+            <div style="margin-bottom:7px"><span class="lbl">Category</span><div class="input" style="justify-content:space-between"><span>Education &amp; Livelihood</span><span style="font-size:8px;color:var(--t4)">▾</span></div></div>
+            <div class="row" style="margin-bottom:7px"><div class="col"><span class="lbl">Start Date</span><div class="input input-v"><span>Jul 1, 2026</span></div></div><div class="col"><span class="lbl">End Date</span><div class="input input-v"><span>Jul 30, 2026</span></div></div></div>
+            <div class="row" style="margin-bottom:7px"><div class="col"><span class="lbl">Budget (₱)</span><div class="input input-v"><span>50,000</span></div></div><div class="col"><span class="lbl">Target Participants</span><div class="input input-v"><span>50</span></div></div></div>
+            <div><span class="lbl">Objectives / Description</span><div style="background:#fff;border:1px solid var(--b2);border-radius:5px;padding:5px 8px;font-size:9px;color:var(--t2);height:38px"></div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="btn btn-o" style="gap:5px"><span style="font-size:10px">←</span> Back</div>
+            <div style="display:flex;gap:6px"><div class="btn btn-o btn-sm">Save Draft</div><div class="btn btn-p">Next: Review →</div></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/submit · Youth (SK)</div>
+  </div>
+
+  <!-- 09 LMS Courses -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">09</span> LMS — Courses</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii"></div>Learn</div>
+          <div class="ni"><div class="nii"></div>Participate</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <div><div class="pg-title">Courses</div><div class="pg-sub">Self-paced learning for Lucena youth</div></div>
+            <div class="input" style="width:110px"><div style="width:9px;height:9px;background:var(--b2);border-radius:50%;margin-right:4px"></div><span>Search…</span></div>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:10px">
+            <span class="chip chip-on">All</span>
+            <span class="chip chip-off">In Progress</span>
+            <span class="chip chip-off">Completed</span>
+            <span class="chip chip-off">New</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div class="card" style="padding:8px 10px;display:flex;gap:8px">
+              <div class="ph" style="width:44px;height:44px;flex-shrink:0;border-radius:6px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:10.5px;font-weight:600;color:var(--t1);margin-bottom:1px">Youth Leadership Fundamentals</div>
+                <div style="font-size:8.5px;color:var(--t3);margin-bottom:5px">8 modules · 4h 30m · Leadership</div>
+                <div style="display:flex;align-items:center;gap:6px"><div class="bar" style="flex:1"><div class="bar-f bar-g" style="width:65%"></div></div><span style="font-size:8.5px;font-weight:600;color:var(--t2);white-space:nowrap">65%</span><span class="bdg bdg-g">In Progress</span></div>
+              </div>
+            </div>
+            <div class="card" style="padding:8px 10px;display:flex;gap:8px">
+              <div class="ph" style="width:44px;height:44px;flex-shrink:0;border-radius:6px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:10.5px;font-weight:600;color:var(--t1);margin-bottom:1px">Livelihood Skills for Youth</div>
+                <div style="font-size:8.5px;color:var(--t3);margin-bottom:5px">6 modules · 3h · Livelihood</div>
+                <div style="display:flex;align-items:center;gap:6px"><div class="bar" style="flex:1"><div class="bar-f" style="width:100%"></div></div><span style="font-size:8.5px;font-weight:600;color:var(--t2);white-space:nowrap">100%</span><span class="bdg bdg-b">Completed</span></div>
+              </div>
+            </div>
+            <div class="card" style="padding:8px 10px;display:flex;gap:8px">
+              <div class="ph" style="width:44px;height:44px;flex-shrink:0;border-radius:6px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:10.5px;font-weight:600;color:var(--t1);margin-bottom:1px">Civic Engagement &amp; Active Citizenship</div>
+                <div style="font-size:8.5px;color:var(--t3);margin-bottom:5px">5 modules · 2h 45m · Civics</div>
+                <div style="display:flex;align-items:center;gap:6px"><div class="bar" style="flex:1"><div class="bar-f" style="width:0%"></div></div><span style="font-size:8.5px;font-weight:600;color:var(--t2);white-space:nowrap">0%</span><span class="bdg bdg-gray">Not Started</span></div>
+              </div>
+            </div>
+            <div class="card" style="padding:8px 10px;display:flex;gap:8px">
+              <div class="ph" style="width:44px;height:44px;flex-shrink:0;border-radius:6px"></div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:10.5px;font-weight:600;color:var(--t1);margin-bottom:1px">Environmental Awareness &amp; Action</div>
+                <div style="font-size:8.5px;color:var(--t3);margin-bottom:5px">4 modules · 2h · Environment</div>
+                <div style="display:flex;align-items:center;gap:6px"><div class="bar" style="flex:1"><div class="bar-f" style="width:0%"></div></div><span style="font-size:8.5px;font-weight:600;color:var(--t2);white-space:nowrap">0%</span><span class="bdg bdg-gray">Not Started</span></div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/lms · Youth</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SECTION 5 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">05</span> Opportunities &amp; Participation</div>
+<div class="grid2">
+
+  <!-- 10 Opportunities Hub -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">10</span> Opportunities Hub</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii"></div>Opportunities</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Learn</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="pg-title">Opportunities</div>
+          <div class="pg-sub">Jobs, internships &amp; scholarships for Lucena youth</div>
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--b1);margin-bottom:10px">
+            <div style="padding:5px 10px;font-size:10px;font-weight:600;color:var(--p);border-bottom:2px solid var(--p);margin-bottom:-1px">Jobs <span class="bdg bdg-p" style="margin-left:3px">8</span></div>
+            <div style="padding:5px 10px;font-size:10px;color:var(--t3)">Internships <span class="bdg bdg-gray" style="margin-left:3px">5</span></div>
+            <div style="padding:5px 10px;font-size:10px;color:var(--t3)">Scholarships <span class="bdg bdg-gray" style="margin-left:3px">3</span></div>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:9px;flex-wrap:wrap">
+            <span class="chip chip-on">All</span>
+            <span class="chip chip-off">Full-time</span>
+            <span class="chip chip-off">Part-time</span>
+            <span class="chip chip-off">Remote</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="card" style="padding:8px 10px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px"><div><div style="font-size:10.5px;font-weight:600;color:var(--t1)">Youth Program Coordinator</div><div style="font-size:9px;color:var(--t3)">Lucena City LGU · Full-time</div></div><span class="bdg bdg-g">Open</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px"><span class="bdg bdg-gray" style="font-size:8.5px">₱18,000/mo</span><span class="bdg bdg-gray" style="font-size:8.5px">On-site</span><span class="bdg bdg-gray" style="font-size:8.5px">Deadline: Jul 15</span></div>
+              <div class="btn btn-p btn-sm">Apply Now</div>
+            </div>
+            <div class="card" style="padding:8px 10px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px"><div><div style="font-size:10.5px;font-weight:600;color:var(--t1)">Community Liaison Officer</div><div style="font-size:9px;color:var(--t3)">LYDO · Contract</div></div><span class="bdg bdg-g">Open</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px"><span class="bdg bdg-gray" style="font-size:8.5px">₱15,000/mo</span><span class="bdg bdg-gray" style="font-size:8.5px">Hybrid</span><span class="bdg bdg-gray" style="font-size:8.5px">Deadline: Jun 30</span></div>
+              <div class="btn btn-o btn-sm">View Details</div>
+            </div>
+            <div class="card" style="padding:8px 10px">
+              <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:4px"><div><div style="font-size:10.5px;font-weight:600;color:var(--t1)">Data Encoder – Youth Affairs</div><div style="font-size:9px;color:var(--t3)">City Hall · Part-time</div></div><span class="bdg bdg-a">Closing Soon</span></div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap"><span class="bdg bdg-gray" style="font-size:8.5px">₱8,000/mo</span><span class="bdg bdg-gray" style="font-size:8.5px">On-site</span><span class="bdg bdg-gray" style="font-size:8.5px">Deadline: Jun 22</span></div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/opportunities · Youth</div>
+  </div>
+
+  <!-- 11 Surveys & Polls -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">11</span> Surveys &amp; Feedback</div>
+    <div class="frame">
+      <div class="tb"><div class="logo">LYDO</div><div class="sp"></div><div class="av">J</div></div>
+      <div class="layout">
+        <nav class="sb">
+          <div class="ni"><div class="nii"></div>Dashboard</div>
+          <div class="ni on"><div class="nii"></div>Participate</div>
+          <div class="ni"><div class="nii"></div>Programs</div>
+          <div class="ni"><div class="nii"></div>Calendar</div>
+          <div class="sb-foot"><div class="av" style="width:22px;height:22px;font-size:8px">J</div><div><div class="sb-fn">Juan</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="pg-title">Participate</div>
+          <div class="pg-sub">Surveys, feedback &amp; polls — your voice matters</div>
+          <div style="background:var(--p2);border:1px solid #C7D2FE;border-radius:6px;padding:8px 10px;margin-bottom:10px;display:flex;align-items:center;gap:8px">
+            <div style="width:22px;height:22px;background:var(--p);border-radius:50%;flex-shrink:0"></div>
+            <div style="flex:1"><div style="font-size:10px;font-weight:600;color:var(--p3)">New survey available!</div><div style="font-size:9px;color:var(--p3);opacity:.8">Youth Needs Assessment 2026 — deadline Jul 31</div></div>
+            <div class="btn btn-p btn-sm">Answer</div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:6px">Active Surveys</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+            <div class="card" style="padding:8px 10px;display:flex;align-items:center;gap:8px">
+              <div style="width:32px;height:32px;background:var(--p2);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div style="width:12px;height:10px;background:var(--p);border-radius:1px"></div></div>
+              <div style="flex:1"><div style="font-size:10px;font-weight:600;color:var(--t1)">Youth Needs Assessment 2026</div><div style="font-size:9px;color:var(--t3)">12 questions · ~5 min · Ends Jul 31</div></div>
+              <div class="btn btn-p btn-sm">Start</div>
+            </div>
+            <div class="card" style="padding:8px 10px;display:flex;align-items:center;gap:8px">
+              <div style="width:32px;height:32px;background:#F0FDF4;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center"><div style="width:12px;height:10px;background:#10B981;border-radius:1px"></div></div>
+              <div style="flex:1"><div style="font-size:10px;font-weight:600;color:var(--t1)">Program Satisfaction Survey</div><div style="font-size:9px;color:var(--t3)">8 questions · ~3 min · Ends Jul 15</div></div>
+              <span class="bdg bdg-g">Done</span>
+            </div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:6px">Current Poll</div>
+          <div class="card">
+            <div style="font-size:10px;font-weight:600;color:var(--t1);margin-bottom:7px">What type of training program do you want most this year?</div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <div style="background:var(--p2);border-radius:4px;padding:4px 8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:9.5px;color:var(--p3);font-weight:600">Livelihood &amp; Skills</span><span style="font-size:9px;color:var(--p3)">42%</span></div>
+              <div style="background:var(--s);border-radius:4px;padding:4px 8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:9.5px;color:var(--t2)">Leadership &amp; Civic</span><span style="font-size:9px;color:var(--t3)">33%</span></div>
+              <div style="background:var(--s);border-radius:4px;padding:4px 8px;display:flex;align-items:center;justify-content:space-between"><span style="font-size:9.5px;color:var(--t2)">Arts &amp; Culture</span><span style="font-size:9px;color:var(--t3)">25%</span></div>
+            </div>
+            <div style="font-size:8.5px;color:var(--t4);margin-top:6px">247 votes · Closes in 3 days</div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/participate · Youth</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════ SECTION 6 ═══════════════════════════════ -->
+<div class="sec"><span class="sec-num">06</span> Admin Portal</div>
+<div class="grid3">
+
+  <!-- 12 Admin Dashboard -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">12</span> Admin Dashboard</div>
+    <div class="frame">
+      <div class="tb" style="background:#111827;border-bottom-color:#1F2937"><div class="logo logo-dark">LYDO Admin</div><div class="sp"></div><div class="tb-icon" style="background:#1F2937"><div class="ic" style="background:#6B7280"></div></div><div class="av av-dark">A</div></div>
+      <div class="layout">
+        <nav class="sb sb-dark">
+          <div class="ni ni-dark on"><div class="nii"></div>Dashboard</div>
+          <div class="ni ni-dark"><div class="nii rnd"></div>Users</div>
+          <div class="ni ni-dark"><div class="nii"></div>Verification</div>
+          <div class="ni ni-dark"><div class="nii"></div>Programs</div>
+          <div class="ni ni-dark"><div class="nii"></div>LMS</div>
+          <div class="ni ni-dark"><div class="nii"></div>Analytics</div>
+          <div class="ni ni-dark"><div class="nii"></div>Reports</div>
+          <div class="ni ni-dark"><div class="nii"></div>SK Tracker</div>
+          <div class="ni ni-dark"><div class="nii"></div>Calendar</div>
+          <div class="sb-foot sb-foot-dark"><div class="av av-dark" style="width:22px;height:22px;font-size:8px">A</div><div><div class="sb-fn sb-fn-dark">Admin User</div><div class="sb-fs">Super Admin</div></div></div>
+        </nav>
+        <main class="ct">
+          <div class="pg-title">Dashboard Overview</div>
+          <div class="pg-sub">June 2026 · All barangays</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px">
+            <div class="stat"><div class="stat-l">Total Users</div><div class="stat-v">1,284</div><div class="stat-d">+48 this month</div></div>
+            <div class="stat"><div class="stat-l">Verified Youth</div><div class="stat-v">847</div><div class="stat-d">66% of users</div></div>
+            <div class="stat"><div class="stat-l">Submissions</div><div class="stat-v">312</div><div class="stat-d">18 pending review</div></div>
+            <div class="stat"><div class="stat-l">Programs Active</div><div class="stat-v">9</div><div class="stat-d">3 closing soon</div></div>
+          </div>
+          <div style="background:var(--r-bg);border-left:3px solid #EF4444;border-radius:0 5px 5px 0;padding:7px 9px;margin-bottom:9px;display:flex;align-items:center;gap:7px">
+            <div style="flex:1"><div style="font-size:10px;font-weight:600;color:var(--r-t)">18 IDs awaiting verification</div><div style="font-size:9px;color:var(--r-t);opacity:.8">Oldest submitted 3 days ago</div></div>
+            <div class="btn btn-sm" style="background:var(--r-bg);border:1px solid #FCA5A5;color:var(--r-t)">Review →</div>
+          </div>
+          <div class="row" style="margin-bottom:9px">
+            <div class="col">
+              <div class="card" style="height:76px;display:flex;flex-direction:column;padding:7px 9px">
+                <div style="font-size:9px;font-weight:600;color:var(--t3);margin-bottom:5px">Users by Role</div>
+                <div style="display:flex;align-items:flex-end;gap:3px;flex:1">
+                  <div style="flex:2;background:#818CF8;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#34D399;height:55%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#FCD34D;height:30%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#F87171;height:10%;border-radius:2px 2px 0 0"></div>
+                </div>
+              </div>
+            </div>
+            <div class="col">
+              <div class="card" style="height:76px;display:flex;flex-direction:column;padding:7px 9px">
+                <div style="font-size:9px;font-weight:600;color:var(--t3);margin-bottom:5px">Submissions / Month</div>
+                <div style="display:flex;align-items:flex-end;gap:3px;flex:1">
+                  <div style="flex:1;background:#C7D2FE;height:40%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#C7D2FE;height:60%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#C7D2FE;height:50%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#818CF8;height:80%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#818CF8;height:100%;border-radius:2px 2px 0 0"></div>
+                  <div style="flex:1;background:#C7D2FE;height:70%;border-radius:2px 2px 0 0"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size:10px;font-weight:600;color:var(--t2);margin-bottom:5px">Work Queue</div>
+          <div class="tbl">
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td">ID Verifications <span class="bdg bdg-r" style="margin-left:4px">18</span></div><div class="btn btn-o btn-sm">Open</div></div>
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td">Submission Reviews <span class="bdg bdg-a" style="margin-left:4px">7</span></div><div class="btn btn-o btn-sm">Open</div></div>
+            <div class="t-row" style="grid-template-columns:1fr auto;align-items:center"><div class="td">New Organizations <span class="bdg bdg-b" style="margin-left:4px">3</span></div><div class="btn btn-o btn-sm">Open</div></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/admin/dashboard · Admin</div>
+  </div>
+
+  <!-- 13 Admin Users -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">13</span> User Management</div>
+    <div class="frame">
+      <div class="tb" style="background:#111827;border-bottom-color:#1F2937"><div class="logo logo-dark">LYDO Admin</div><div class="sp"></div><div class="av av-dark">A</div></div>
+      <div class="layout">
+        <nav class="sb sb-dark">
+          <div class="ni ni-dark"><div class="nii"></div>Dashboard</div>
+          <div class="ni ni-dark on"><div class="nii rnd"></div>Users</div>
+          <div class="ni ni-dark"><div class="nii"></div>Verification</div>
+          <div class="ni ni-dark"><div class="nii"></div>Programs</div>
+          <div class="ni ni-dark"><div class="nii"></div>Analytics</div>
+          <div class="ni ni-dark"><div class="nii"></div>Reports</div>
+          <div class="ni ni-dark"><div class="nii"></div>SK Tracker</div>
+          <div class="sb-foot sb-foot-dark"><div class="av av-dark" style="width:22px;height:22px;font-size:8px">A</div><div><div class="sb-fn sb-fn-dark">Admin</div></div></div>
+        </nav>
+        <main class="ct">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div><div class="pg-title">Users</div><div class="pg-sub">1,284 registered accounts</div></div>
+            <div class="btn btn-p btn-sm">+ Invite</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:9px">
+            <div class="input" style="flex:1"><div style="width:9px;height:9px;background:var(--b2);border-radius:50%;margin-right:4px"></div><span>Search by name or email…</span></div>
+            <div class="input" style="width:90px;justify-content:space-between"><span>Role: All</span><span style="font-size:8px;color:var(--t4)">▾</span></div>
+            <div class="input" style="width:90px;justify-content:space-between"><span>Status: All</span><span style="font-size:8px;color:var(--t4)">▾</span></div>
+          </div>
+          <div class="tbl">
+            <div class="t-head" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr">
+              <span class="th">Name / Email</span><span class="th">Role</span><span class="th">Barangay</span><span class="th">Status</span><span class="th">Actions</span>
+            </div>
+            <div class="t-row" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr;align-items:center">
+              <div class="td"><div style="font-weight:500">Juan dela Cruz</div><div style="font-size:8.5px;color:var(--t3)">juan@email.com</div></div>
+              <span class="bdg bdg-b td">SK</span><span class="td">Mayao K.</span><span class="bdg bdg-g">Verified</span><div class="btn btn-o btn-sm">Edit</div>
+            </div>
+            <div class="t-row" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr;align-items:center">
+              <div class="td"><div style="font-weight:500">Maria Santos</div><div style="font-size:8.5px;color:var(--t3)">maria@email.com</div></div>
+              <span class="bdg bdg-gray td">Youth</span><span class="td">Cotta</span><span class="bdg bdg-a">Pending</span><div class="btn btn-o btn-sm">Edit</div>
+            </div>
+            <div class="t-row" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr;align-items:center">
+              <div class="td"><div style="font-weight:500">Pedro Reyes</div><div style="font-size:8.5px;color:var(--t3)">pedro@email.com</div></div>
+              <span class="bdg bdg-p td">Org</span><span class="td">G-Gulang</span><span class="bdg bdg-g">Verified</span><div class="btn btn-o btn-sm">Edit</div>
+            </div>
+            <div class="t-row" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr;align-items:center">
+              <div class="td"><div style="font-weight:500">Ana Dela Rosa</div><div style="font-size:8.5px;color:var(--t3)">ana@email.com</div></div>
+              <span class="bdg bdg-gray td">Youth</span><span class="td">Ibabang Dupay</span><span class="bdg bdg-r">Rejected</span><div class="btn btn-o btn-sm">Edit</div>
+            </div>
+            <div class="t-row" style="grid-template-columns:2fr 1fr 1.2fr 0.8fr 0.7fr;align-items:center">
+              <div class="td"><div style="font-weight:500">Carlo Bautista</div><div style="font-size:8.5px;color:var(--t3)">carlo@email.com</div></div>
+              <span class="bdg bdg-b td">SK</span><span class="td">Gulang-Gulang</span><span class="bdg bdg-g">Verified</span><div class="btn btn-o btn-sm">Edit</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+            <span style="font-size:9px;color:var(--t3)">Showing 1–5 of 1,284 users</span>
+            <div style="display:flex;gap:4px">
+              <div class="btn btn-o btn-sm">← Prev</div>
+              <div class="btn btn-p btn-sm">1</div>
+              <div class="btn btn-o btn-sm">2</div>
+              <div class="btn btn-o btn-sm">3</div>
+              <div class="btn btn-o btn-sm">Next →</div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/admin/users · Admin</div>
+  </div>
+
+  <!-- 14 SK Tracker -->
+  <div class="wfi">
+    <div class="wf-label"><span class="wf-num">14</span> SK Compliance Tracker</div>
+    <div class="frame">
+      <div class="tb" style="background:#111827;border-bottom-color:#1F2937"><div class="logo logo-dark">LYDO Admin</div><div class="sp"></div><div class="av av-dark">A</div></div>
+      <div class="layout">
+        <nav class="sb sb-dark">
+          <div class="ni ni-dark"><div class="nii"></div>Dashboard</div>
+          <div class="ni ni-dark"><div class="nii rnd"></div>Users</div>
+          <div class="ni ni-dark"><div class="nii"></div>Verification</div>
+          <div class="ni ni-dark"><div class="nii"></div>Programs</div>
+          <div class="ni ni-dark"><div class="nii"></div>Analytics</div>
+          <div class="ni ni-dark on"><div class="nii"></div>SK Tracker</div>
+          <div class="ni ni-dark"><div class="nii"></div>Reports</div>
+          <div class="sb-foot sb-foot-dark"><div class="av av-dark" style="width:22px;height:22px;font-size:8px">A</div><div><div class="sb-fn sb-fn-dark">Admin</div></div></div>
+        </nav>
+        <main class="ct">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div><div class="pg-title">SK Compliance Tracker</div><div class="pg-sub">DILG Requirements · FY 2026</div></div>
+            <div class="input" style="width:60px;justify-content:space-between"><span>2026</span><span style="font-size:8px;color:var(--t4)">▾</span></div>
+          </div>
+          <div style="display:flex;gap:0;border-bottom:1px solid var(--b1);margin-bottom:9px">
+            <div style="padding:4px 8px;font-size:9.5px;font-weight:600;color:var(--p);border-bottom:2px solid var(--p);margin-bottom:-1px">Overview</div>
+            <div style="padding:4px 8px;font-size:9.5px;color:var(--t3)">M&amp;E Status</div>
+            <div style="padding:4px 8px;font-size:9.5px;color:var(--t3)">Documents</div>
+            <div style="padding:4px 8px;font-size:9.5px;color:var(--t3)">KK Assembly</div>
+            <div style="padding:4px 8px;font-size:9.5px;color:var(--t3)">DILG Req.</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:9px">
+            <div class="stat"><div class="stat-l">Barangays</div><div class="stat-v" style="font-size:16px">33</div></div>
+            <div class="stat"><div class="stat-l">Fully Compliant</div><div class="stat-v" style="font-size:16px;color:#059669">18</div></div>
+            <div class="stat"><div class="stat-l">Non-Compliant</div><div class="stat-v" style="font-size:16px;color:#DC2626">8</div></div>
+          </div>
+          <div style="font-size:9.5px;font-weight:600;color:var(--t2);margin-bottom:5px">Barangay Compliance</div>
+          <div class="tbl">
+            <div class="t-head" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr">
+              <span class="th">Barangay</span><span class="th">Submitted</span><span class="th">Pending</span><span class="th">Status</span>
+            </div>
+            <div class="t-row" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr;align-items:center"><span class="td" style="font-weight:500">Mayao Kanluran</span><span class="td">8/8</span><span class="td">0</span><span class="bdg bdg-g">Compliant</span></div>
+            <div class="t-row" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr;align-items:center"><span class="td" style="font-weight:500">Gulang-Gulang</span><span class="td">6/8</span><span class="td">2</span><span class="bdg bdg-a">Partial</span></div>
+            <div class="t-row" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr;align-items:center"><span class="td" style="font-weight:500">Cotta</span><span class="td">8/8</span><span class="td">0</span><span class="bdg bdg-g">Compliant</span></div>
+            <div class="t-row" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr;align-items:center"><span class="td" style="font-weight:500">Ibabang Dupay</span><span class="td">3/8</span><span class="td">5</span><span class="bdg bdg-r">Non-Compliant</span></div>
+            <div class="t-row" style="grid-template-columns:1.4fr 0.8fr 0.8fr 1fr;align-items:center"><span class="td" style="font-weight:500">Dalahican</span><span class="td">7/8</span><span class="td">1</span><span class="bdg bdg-a">Partial</span></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:8px">
+            <span style="font-size:9px;color:var(--t3)">Showing 5 of 33 barangays</span>
+            <div style="display:flex;gap:4px"><div class="btn btn-o btn-sm">View All</div><div class="btn btn-p btn-sm">Export CSV</div></div>
+          </div>
+        </main>
+      </div>
+    </div>
+    <div class="wf-path">/admin/sk-tracker · Admin</div>
+  </div>
+
+</div>
+
+<div style="margin-top:36px;padding-top:14px;border-top:1px solid var(--b2);font-size:10px;color:var(--t4);text-align:center">
+  LYDO — Lucena Youth Development Office &nbsp;·&nbsp; System Wireframes &nbsp;·&nbsp; 14 Screens across 6 Modules &nbsp;·&nbsp; v2.0 &nbsp;·&nbsp; June 2026
+</div>
+
+</body>
+</html>

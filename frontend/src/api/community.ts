@@ -6,6 +6,15 @@ export interface CommunityPostImage {
   order: number
 }
 
+export interface CommunityComment {
+  id: number
+  content: string
+  author_name: string
+  author_avatar: string | null
+  is_own: boolean
+  created_at: string
+}
+
 export interface CommunityPost {
   id: number
   content: string
@@ -19,6 +28,7 @@ export interface CommunityPost {
   author_avatar: string | null
   like_count: number
   is_liked: boolean
+  comment_count: number
   is_own: boolean
 }
 
@@ -40,7 +50,14 @@ export const communityApi = {
       }),
 
   create: (data: FormData | { content: string }) =>
-    apiClient.post<CommunityPost>('/community/posts/', data).then(r => r.data),
+    apiClient
+      .post<CommunityPost>('/community/posts/', data,
+        data instanceof FormData ? { headers: { 'Content-Type': undefined } } : undefined,
+      )
+      .then(r => r.data),
+
+  update: (id: number, content: string) =>
+    apiClient.patch<CommunityPost>(`/community/posts/${id}/`, { content }).then(r => r.data),
 
   delete: (id: number) => apiClient.delete<void>(`/community/posts/${id}/`),
 
@@ -49,4 +66,13 @@ export const communityApi = {
 
   pin: (id: number) =>
     apiClient.post<{ is_pinned: boolean }>(`/community/posts/${id}/pin/`).then(r => r.data),
+
+  listComments: (postId: number) =>
+    apiClient.get<CommunityComment[]>(`/community/posts/${postId}/comments/`).then(r => r.data),
+
+  createComment: (postId: number, content: string) =>
+    apiClient.post<CommunityComment>(`/community/posts/${postId}/comments/`, { content }).then(r => r.data),
+
+  deleteComment: (postId: number, commentId: number) =>
+    apiClient.delete<void>(`/community/posts/${postId}/comments/${commentId}/`),
 }
