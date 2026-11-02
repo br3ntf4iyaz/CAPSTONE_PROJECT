@@ -435,10 +435,10 @@ export default function YouthHomePage() {
                 style={{ ['--delay' as any]: '480ms' }}
               >
                 {[
-                  { value: statsQ.data ? `${statsQ.data.registered_youth.toLocaleString()}+` : '2,000+', label: 'Registered youth' },
-                  { value: statsQ.data ? `${statsQ.data.barangay_sk_councils}` : '40+',                  label: 'Barangay SK councils' },
-                  { value: statsQ.data ? `${statsQ.data.youth_organizations}+` : '50+',                  label: 'Youth organizations' },
-                  { value: statsQ.data ? `${statsQ.data.active_jobs}` : '30+',                           label: 'Open jobs' },
+                  { value: statsQ.data?.registered_youth != null ? `${statsQ.data.registered_youth.toLocaleString()}+` : '2,000+', label: 'Registered youth' },
+                  { value: statsQ.data?.barangay_sk_councils != null ? `${statsQ.data.barangay_sk_councils}` : '40+',                  label: 'Barangay SK councils' },
+                  { value: statsQ.data?.youth_organizations != null ? `${statsQ.data.youth_organizations}+` : '50+',                  label: 'Youth organizations' },
+                  { value: statsQ.data?.active_jobs != null ? `${statsQ.data.active_jobs}` : '30+',                           label: 'Open jobs' },
                 ].map(({ value, label }) => (
                   <div key={label} className="text-center">
                     <p className="font-display font-extrabold text-2xl text-accent-300 leading-none">{value}</p>
