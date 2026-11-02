@@ -13,6 +13,7 @@ import { useMe } from '@/hooks/useAuth'
 import { cn, formatDate } from '@/utils'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 
 interface AdminNotification {
   id: number
@@ -210,9 +211,7 @@ export default function AdminLayout() {
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 min-h-[72px]">
-          <div className="flex-shrink-0 w-8 h-8 bg-primary-700 rounded-lg flex items-center justify-center">
-            <Shield size={18} className="text-white" />
-          </div>
+          <LydoLogo size={32} className="rounded-full" />
           {!collapsed && (
             <div className="min-w-0">
               <p className="text-sm font-bold text-white leading-tight truncate">LGU Admin Portal</p>

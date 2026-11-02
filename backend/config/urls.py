@@ -1,7 +1,7 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
+from django.views.static import serve
 from django.conf import settings
-from django.conf.urls.static import static
 
 from apps.accounts.public_stats import PublicStatsView, DashboardStatsView
 
@@ -27,6 +27,9 @@ urlpatterns = [
     path("api/jobs/", include("apps.jobs.urls")),
     path("api/programs/", include("apps.programs.urls")),
     path("api/chatbot/", include("apps.chatbot.urls")),
+    path("api/ledger/", include("apps.ledger.urls")),
     path("api/verification/", include("apps.verification.urls")),
     path("api/community/", include("apps.community.urls")),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # static() is a no-op when DEBUG is off, so serve uploads explicitly.
+    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+]

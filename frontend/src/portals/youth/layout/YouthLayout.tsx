@@ -1,8 +1,9 @@
 ﻿import { useState, useRef, useEffect } from 'react'
 import { Outlet, NavLink, Link, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import YouthPublicLayout from './YouthPublicLayout'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 import {
-  Sparkles, Home, BookOpen, Users, Briefcase, CalendarDays,
+  Home, BookOpen, Users, Briefcase, CalendarDays,
   Library, MessageSquareWarning, User, LogOut, Bell, Menu, X,
   MessageCircle, FileText, Building2, ChevronDown, HandHeart, Newspaper,
   CheckCheck, ShieldCheck, ShieldAlert, ChevronRight, ChevronLeft, CreditCard,
@@ -452,6 +453,7 @@ function UserMenu({ user }: { user: NonNullable<ReturnType<typeof useAuthStore>[
   }
 
   const initials = `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase() || 'YU'
+  const avatarUrl = (user as any).avatar_url as string | null | undefined
 
   return (
     <div className="relative" ref={ref}>
@@ -459,8 +461,10 @@ function UserMenu({ user }: { user: NonNullable<ReturnType<typeof useAuthStore>[
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-paper-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
       >
-        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-          {initials}
+        <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 overflow-hidden">
+          {avatarUrl
+            ? <img src={avatarUrl} alt={user.first_name} className="w-full h-full object-cover" />
+            : initials}
         </div>
         <span className="hidden sm:block text-sm font-semibold text-ink-800 max-w-[100px] truncate">
           {user.first_name}
@@ -470,9 +474,16 @@ function UserMenu({ user }: { user: NonNullable<ReturnType<typeof useAuthStore>[
 
       {open && (
         <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-2xl shadow-lg border border-ink-100 z-50 py-1.5 overflow-hidden">
-          <div className="px-4 py-3 border-b border-ink-100">
-            <p className="text-sm font-semibold text-ink-900 truncate">{user.first_name} {user.last_name}</p>
-            <p className="text-xs text-ink-500 truncate">{user.email}</p>
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-ink-100">
+            <div className="w-10 h-10 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-bold flex-shrink-0 overflow-hidden">
+              {avatarUrl
+                ? <img src={avatarUrl} alt={user.first_name} className="w-full h-full object-cover" />
+                : initials}
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink-900 truncate">{user.first_name} {user.last_name}</p>
+              <p className="text-xs text-ink-500 truncate">{user.email}</p>
+            </div>
           </div>
           <Link
             to="/profile"
@@ -575,10 +586,7 @@ export default function YouthLayout() {
 
             {/* Brand */}
             <Link to="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg px-1">
-              <span className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary-600 text-white">
-                <Sparkles size={18} strokeWidth={2.5} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-accent-400 border-2 border-white" />
-              </span>
+              <LydoLogo size={36} />
               <span className="hidden sm:flex flex-col leading-none">
                 <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">LYDO</span>
                 <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">Lucena Youth</span>

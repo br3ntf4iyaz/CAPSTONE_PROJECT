@@ -1,12 +1,14 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   GraduationCap, Download, ArrowLeft, AlertCircle, RefreshCw,
-  Calendar, Hash, ExternalLink,
+  Calendar, Hash, ExternalLink, Eye, X, Loader2,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDate, cn } from '@/utils'
+import { useCertificateIntegrity, type IntegrityResult } from '@/api/ledger'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 /**
@@ -68,6 +70,8 @@ export default function YouthCertificatesPage() {
     queryFn: () =>
       apiClient.get('/recognition/certificates/').then(r => toArray<RecognitionCert>(r.data)).catch(() => []),
   })
+
+  const { data: integrity } = useCertificateIntegrity()
 
   const isLoading = courseCertsQ.isLoading || recognitionCertsQ.isLoading
   const isError = courseCertsQ.isError && recognitionCertsQ.isError
@@ -164,7 +168,9 @@ export default function YouthCertificatesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {certificates.map(cert => <CertificateCard key={cert.key} cert={cert} />)}
+          {certificates.map(cert => (
+            <CertificateCard key={cert.key} cert={cert} integrity={integrity?.results[cert.key]} />
+          ))}
         </div>
       )}
     </div>
@@ -173,7 +179,88 @@ export default function YouthCertificatesPage() {
 
 // ─── Pieces ───────────────────────────────────────────────────────────────────
 
-function CertificateCard({ cert }: { cert: UnifiedCertificate }) {
+/** Use the site's own /media path so the file loads same-origin (Django refuses to be framed cross-site). */
+function sameOriginUrl(url: string) {
+  try {
+    const u = new URL(url, window.location.origin)
+    return u.pathname.startsWith('/media/') ? u.pathname + u.search : url
+  } catch { return url }
+}
+
+/** Shows a certificate file inside the page, so it can be read without downloading it first. */
+function CertificateViewer({ cert, onClose }: { cert: UnifiedCertificate; onClose: () => void }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [isImage, setIsImage] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  useEffect(() => {
+    let revoke: string | null = null
+    let cancelled = false
+    fetch(sameOriginUrl(cert.fileUrl!))
+      .then(r => { if (!r.ok) throw new Error(String(r.status)); return r.blob() })
+      .then(b => {
+        if (cancelled) return
+        revoke = URL.createObjectURL(b)
+        setIsImage(b.type.startsWith('image/'))
+        setBlobUrl(revoke)
+      })
+      .catch(() => { if (!cancelled) setFailed(true) })
+    return () => { cancelled = true; if (revoke) URL.revokeObjectURL(revoke) }
+  }, [cert.fileUrl])
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6" onClick={onClose}>
+      <div
+        role="dialog" aria-modal="true" aria-label={`Certificate: ${cert.title}`}
+        className="flex h-full max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3 border-b border-ink-100 px-4 py-3">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-base font-bold text-ink-900">{cert.title}</p>
+            <p className="truncate font-mono text-xs text-ink-500">{cert.certNumber}</p>
+          </div>
+          {blobUrl && (
+            <a href={blobUrl} download={`${cert.certNumber}.pdf`} className="btn-secondary btn-sm">
+              <Download size={14} /> Download
+            </a>
+          )}
+          <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg p-2 text-ink-500 hover:bg-ink-100">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="relative flex-1 bg-ink-50">
+          {failed ? (
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+              <AlertCircle size={28} className="text-alert-600" />
+              <p className="text-sm font-semibold text-ink-800">Couldn't open this certificate here.</p>
+              <a href={cert.fileUrl!} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm">
+                <ExternalLink size={14} /> Open in a new tab
+              </a>
+            </div>
+          ) : !blobUrl ? (
+            <div className="flex h-full items-center justify-center text-ink-500">
+              <Loader2 size={24} className="animate-spin" />
+            </div>
+          ) : isImage ? (
+            <img src={blobUrl} alt={cert.title} className="mx-auto h-full w-full object-contain" />
+          ) : (
+            <iframe src={blobUrl} title={cert.title} className="h-full w-full border-0" />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CertificateCard({ cert, integrity }: { cert: UnifiedCertificate; integrity?: IntegrityResult }) {
+  const [viewing, setViewing] = useState(false)
   return (
     <article className="bg-white rounded-2xl border border-ink-100 overflow-hidden hover:border-primary-300 hover:shadow-lg transition-all flex flex-col">
       {/* Decorative ribbon */}
@@ -208,7 +295,10 @@ function CertificateCard({ cert }: { cert: UnifiedCertificate }) {
         <h3 className="font-display font-bold text-xl text-ink-900 leading-tight mb-1">
           {cert.title}
         </h3>
-        <p className="text-sm text-ink-600 mb-4">Issued by {cert.issuer}</p>
+        <p className="text-sm text-ink-600 mb-2">Issued by {cert.issuer}</p>
+        <div className="mb-4 min-h-[22px]">
+          <IntegrityBadge result={integrity} />
+        </div>
 
         <dl className="grid grid-cols-2 gap-3 mt-auto pt-4 border-t border-ink-100">
           <div>
@@ -229,14 +319,20 @@ function CertificateCard({ cert }: { cert: UnifiedCertificate }) {
 
         <div className="flex gap-2 mt-5">
           {cert.fileUrl ? (
-            <a
-              href={cert.fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary text-sm flex-1"
-            >
-              <Download size={14} /> Download
-            </a>
+            <>
+              <button type="button" onClick={() => setViewing(true)} className="btn-primary text-sm flex-1">
+                <Eye size={14} /> View
+              </button>
+              <a
+                href={cert.fileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary text-sm whitespace-nowrap"
+                title="Open the file in a new tab"
+              >
+                <Download size={14} /> Download
+              </a>
+            </>
           ) : (
             <span className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-ink-100 text-ink-500 text-sm font-semibold cursor-not-allowed">
               File pending
@@ -252,6 +348,7 @@ function CertificateCard({ cert }: { cert: UnifiedCertificate }) {
           )}
         </div>
       </div>
+      {viewing && <CertificateViewer cert={cert} onClose={() => setViewing(false)} />}
     </article>
   )
 }

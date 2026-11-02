@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { Outlet, NavLink, Link } from 'react-router-dom'
-import { Menu, X, Sparkles, LayoutDashboard } from 'lucide-react'
+import { Menu, X, LayoutDashboard } from 'lucide-react'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useMe } from '@/hooks/useAuth'
@@ -36,10 +37,7 @@ export default function YouthPublicLayout() {
               to="/"
               className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg px-1"
             >
-              <span className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary-600 text-white">
-                <Sparkles size={18} strokeWidth={2.5} />
-                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-accent-400 border-2 border-white" />
-              </span>
+              <LydoLogo size={36} />
               <span className="flex flex-col leading-none">
                 <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">
                   LYDO
@@ -168,9 +166,7 @@ export default function YouthPublicLayout() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-10">
             <div>
               <div className="flex items-center gap-2.5 mb-4">
-                <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white text-primary-700">
-                  <Sparkles size={18} strokeWidth={2.5} />
-                </span>
+                <LydoLogo size={36} />
                 <span className="font-display font-extrabold text-xl tracking-tightish">LYDO</span>
               </div>
               <p className="text-sm text-primary-100/80 leading-relaxed max-w-xs">

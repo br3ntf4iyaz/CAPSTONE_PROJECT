@@ -1,4 +1,5 @@
 from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import filters, mixins, permissions, status, viewsets
@@ -8,17 +9,20 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 
 from .models import (
-    Certificate, Course, Enrollment, Lesson, LessonProgress,
+    Certificate, Course, CourseModule, Enrollment, Lesson, LessonProgress,
     Question, QuestionChoice, QuizAttempt, QuizAttemptAnswer,
 )
 from .serializers import (
     CertificateSerializer,
     CourseDetailSerializer,
+    CourseModuleAdminSerializer,
     CourseMiniSerializer,
     EnrollmentSerializer,
+    LessonAdminSerializer,
     LessonDetailSerializer,
     LessonProgressDetailSerializer,
     LessonProgressSerializer,
+    QuestionAdminSerializer,
     QuizAttemptSerializer,
     QuizResultSerializer,
     QuizSubmitSerializer,
@@ -104,6 +108,94 @@ class CourseAdminViewSet(viewsets.ModelViewSet):
         # Soft delete
         instance.is_active = False
         instance.save(update_fields=["is_active"])
+
+    # ── Module sub-resource ────────────────────────────────────────────────
+    @action(detail=True, methods=['get', 'post'], url_path='modules')
+    def modules(self, request, pk=None):
+        course = self.get_object()
+        if request.method == 'GET':
+            qs = course.modules.prefetch_related(
+                'lessons__questions__choices'
+            ).order_by('order')
+            return Response(
+                CourseModuleAdminSerializer(qs, many=True, context={'request': request}).data
+            )
+        serializer = CourseModuleAdminSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(course=course)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path=r'modules/(?P<module_pk>[^/.]+)')
+    def module_detail(self, request, pk=None, module_pk=None):
+        course = self.get_object()
+        module = get_object_or_404(CourseModule, pk=module_pk, course=course)
+        if request.method == 'DELETE':
+            module.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = CourseModuleAdminSerializer(module, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    # ── Lesson sub-resource (under module) ────────────────────────────────
+    @action(detail=True, methods=['get', 'post'], url_path=r'modules/(?P<module_pk>[^/.]+)/lessons')
+    def module_lessons(self, request, pk=None, module_pk=None):
+        course = self.get_object()
+        module = get_object_or_404(CourseModule, pk=module_pk, course=course)
+        if request.method == 'GET':
+            qs = module.lessons.prefetch_related('questions__choices').order_by('order')
+            return Response(
+                LessonAdminSerializer(qs, many=True, context={'request': request}).data
+            )
+        serializer = LessonAdminSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(module=module)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'],
+            url_path=r'modules/(?P<module_pk>[^/.]+)/lessons/(?P<lesson_pk>[^/.]+)')
+    def lesson_detail(self, request, pk=None, module_pk=None, lesson_pk=None):
+        course = self.get_object()
+        module = get_object_or_404(CourseModule, pk=module_pk, course=course)
+        lesson = get_object_or_404(Lesson, pk=lesson_pk, module=module)
+        if request.method == 'DELETE':
+            lesson.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = LessonAdminSerializer(lesson, data=request.data, partial=True,
+                                           context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    # ── Question sub-resource (under lesson) ──────────────────────────────
+    @action(detail=True, methods=['get', 'post'],
+            url_path=r'modules/(?P<module_pk>[^/.]+)/lessons/(?P<lesson_pk>[^/.]+)/questions')
+    def lesson_questions(self, request, pk=None, module_pk=None, lesson_pk=None):
+        course = self.get_object()
+        module = get_object_or_404(CourseModule, pk=module_pk, course=course)
+        lesson = get_object_or_404(Lesson, pk=lesson_pk, module=module)
+        if request.method == 'GET':
+            qs = lesson.questions.prefetch_related('choices').order_by('order')
+            return Response(QuestionAdminSerializer(qs, many=True).data)
+        serializer = QuestionAdminSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(lesson=lesson)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'],
+            url_path=r'modules/(?P<module_pk>[^/.]+)/lessons/(?P<lesson_pk>[^/.]+)/questions/(?P<question_pk>[^/.]+)')
+    def question_detail(self, request, pk=None, module_pk=None, lesson_pk=None, question_pk=None):
+        course = self.get_object()
+        module = get_object_or_404(CourseModule, pk=module_pk, course=course)
+        lesson = get_object_or_404(Lesson, pk=lesson_pk, module=module)
+        question = get_object_or_404(Question, pk=question_pk, lesson=lesson)
+        if request.method == 'DELETE':
+            question.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serializer = QuestionAdminSerializer(question, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------

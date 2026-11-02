@@ -10,6 +10,7 @@ import { authApi } from '@/api/auth'
 import { authStore } from '@/store/authStore'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email'),
@@ -65,8 +66,8 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-primary-700 rounded-2xl mb-5 shadow-lg">
-            <Shield size={32} className="text-white" />
+          <div className="inline-flex mb-5">
+            <LydoLogo size={72} className="rounded-2xl shadow-lg" />
           </div>
           <h1 className="text-2xl font-bold text-white">LGU Admin Portal</h1>
           <p className="text-slate-400 mt-1.5 text-sm">Authorized Personnel Only</p>

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   BookOpen, Award, ScrollText, Plus, Edit2, Eye, EyeOff,
-  Star, X, Trash2, Award as BadgeIcon, User,
+  Star, X, Trash2, Award as BadgeIcon, User, ImagePlus, LayoutList,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
@@ -38,8 +39,10 @@ interface Certificate {
 const CATEGORIES = ['leadership', 'governance', 'life_skills', 'tech', 'finance', 'communication']
 const BADGE_CATEGORIES = ['course', 'governance', 'internship', 'project', 'special']
 
+interface AdminUserOption { id: number; email: string; first_name: string; last_name: string }
+
 const initialCourseForm = {
-  title: '', category: 'leadership', description: '', instructor: '',
+  title: '', category: 'leadership', description: '', instructor_id: '' as string | number,
   duration_hours: '', is_published: false, is_featured: false,
 }
 
@@ -65,6 +68,9 @@ export default function AdminLMSPage() {
   const [showCourseModal, setShowCourseModal] = useState(false)
   const [editCourse, setEditCourse] = useState<Course | null>(null)
   const [courseForm, setCourseForm] = useState({ ...initialCourseForm })
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null)
+  const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+  const thumbnailInputRef = useRef<HTMLInputElement>(null)
   const [enrollTarget, setEnrollTarget] = useState<Course | null>(null)
 
   // ── Badge state ───────────────────────────────────────────────────────────
@@ -79,36 +85,82 @@ export default function AdminLMSPage() {
     enabled: activeTab === 'courses',
   })
 
+  const { data: adminUsers = [] } = useQuery<AdminUserOption[]>({
+    queryKey: ['admin-users-list'],
+    queryFn: () => apiClient.get('/auth/admin/users/').then(r => toArray<AdminUserOption>(r.data)),
+    enabled: showCourseModal,
+  })
+
+  const buildCourseFormData = (form: typeof courseForm) => {
+    const fd = new FormData()
+    fd.append('title', form.title)
+    fd.append('category', form.category)
+    fd.append('description', form.description)
+    fd.append('duration_hours', form.duration_hours ? String(Number(form.duration_hours)) : '0')
+    fd.append('is_published', String(form.is_published))
+    fd.append('is_featured', String(form.is_featured))
+    if (form.instructor_id) fd.append('instructor_id', String(form.instructor_id))
+    if (thumbnailFile) fd.append('thumbnail', thumbnailFile)
+    return fd
+  }
+
   const createCourse = useMutation({
-    mutationFn: (data: typeof courseForm) => apiClient.post('/courses/admin/courses/', {
-      ...data, duration_hours: data.duration_hours ? Number(data.duration_hours) : 0,
-    }),
+    mutationFn: (form: typeof courseForm) =>
+      apiClient.post('/courses/admin/courses/', buildCourseFormData(form), {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-courses'] }); toast.success('Course created'); closeCourseModal() },
     onError: () => toast.error('Failed to create course'),
   })
 
   const updateCourse = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Course> }) => apiClient.patch(`/courses/admin/courses/${id}/`, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<Course> | FormData }) =>
+      data instanceof FormData
+        ? apiClient.patch(`/courses/admin/courses/${id}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
+        : apiClient.patch(`/courses/admin/courses/${id}/`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-courses'] }); toast.success('Course updated'); closeCourseModal() },
     onError: () => toast.error('Failed to update course'),
   })
 
-  const openCourseCreate = () => { setEditCourse(null); setCourseForm({ ...initialCourseForm }); setShowCourseModal(true) }
-  const openCourseEdit = (c: Course) => {
-    setEditCourse(c)
-    setCourseForm({
-      title: c.title, category: c.category, description: c.description,
-      instructor: c.instructor ?? '', duration_hours: c.duration_hours?.toString() ?? '',
-      is_published: c.is_published, is_featured: c.is_featured,
-    })
+  const openCourseCreate = () => {
+    setEditCourse(null)
+    setCourseForm({ ...initialCourseForm })
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
     setShowCourseModal(true)
   }
-  const closeCourseModal = () => { setShowCourseModal(false); setEditCourse(null); setCourseForm({ ...initialCourseForm }) }
+  const openCourseEdit = (c: Course) => {
+    setEditCourse(c)
+    const instructorData = c.instructor as unknown as { id: number } | null
+    setCourseForm({
+      title: c.title, category: c.category, description: c.description,
+      instructor_id: instructorData?.id ?? '',
+      duration_hours: c.duration_hours?.toString() ?? '',
+      is_published: c.is_published, is_featured: c.is_featured,
+    })
+    setThumbnailFile(null)
+    setThumbnailPreview(c.thumbnail_url ?? null)
+    setShowCourseModal(true)
+  }
+  const closeCourseModal = () => {
+    setShowCourseModal(false)
+    setEditCourse(null)
+    setCourseForm({ ...initialCourseForm })
+    setThumbnailFile(null)
+    setThumbnailPreview(null)
+  }
+
+  const handleThumbnailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setThumbnailFile(file)
+    setThumbnailPreview(URL.createObjectURL(file))
+  }
 
   const handleCourseSubmit = () => {
     if (!courseForm.title) { toast.error('Title is required'); return }
     if (editCourse) {
-      updateCourse.mutate({ id: editCourse.id, data: { ...courseForm, duration_hours: Number(courseForm.duration_hours) } as Record<string, unknown> })
+      updateCourse.mutate({ id: editCourse.id, data: buildCourseFormData(courseForm) })
     } else {
       createCourse.mutate(courseForm)
     }
@@ -230,6 +282,7 @@ export default function AdminLMSPage() {
                         <th>Enrollments</th>
                         <th>Published</th>
                         <th>Featured</th>
+                        <th>Content</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
@@ -238,7 +291,7 @@ export default function AdminLMSPage() {
                         <tr key={c.id}>
                           <td className="font-medium">{c.title}</td>
                           <td className="capitalize text-xs">{c.category.replace('_', ' ')}</td>
-                          <td className="text-xs text-gray-500">{c.instructor ?? '\u2014'}</td>
+                          <td className="text-xs text-gray-500">{(c as any).instructor_name ?? (c.instructor as unknown as { full_name?: string } | null)?.full_name ?? '\u2014'}</td>
                           <td className="text-xs">{c.duration_hours ? `${c.duration_hours}h` : '\u2014'}</td>
                           <td>
                             <button
@@ -265,6 +318,15 @@ export default function AdminLMSPage() {
                             >
                               <Star size={14} fill={c.is_featured ? 'currentColor' : 'none'} />
                             </button>
+                          </td>
+                          <td>
+                            <Link
+                              to={`/admin/lms/courses/${c.id}/builder`}
+                              className="btn-secondary btn-sm text-xs p-1.5 flex items-center gap-1 w-fit"
+                              title="Build course content"
+                            >
+                              <LayoutList size={13} /> Build
+                            </Link>
                           </td>
                           <td>
                             <button onClick={() => openCourseEdit(c)} className="btn-secondary btn-sm text-xs p-1.5">
@@ -425,6 +487,48 @@ export default function AdminLMSPage() {
               </button>
             </div>
             <div className="space-y-4">
+              {/* Thumbnail */}
+              <div>
+                <label className="label">Thumbnail</label>
+                <div
+                  className="relative border-2 border-dashed border-gray-200 rounded-xl overflow-hidden cursor-pointer hover:border-primary-400 transition-colors"
+                  style={{ height: 140 }}
+                  onClick={() => thumbnailInputRef.current?.click()}
+                >
+                  {thumbnailPreview ? (
+                    <>
+                      <img src={thumbnailPreview} alt="Thumbnail preview" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <ImagePlus size={22} className="text-white" />
+                        <span className="ml-2 text-white text-sm font-medium">Change image</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+                      <ImagePlus size={28} />
+                      <span className="text-sm">Click to upload a course thumbnail</span>
+                      <span className="text-xs">JPG, PNG, WebP — max 10 MB</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={thumbnailInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={handleThumbnailChange}
+                />
+                {thumbnailPreview && (
+                  <button
+                    type="button"
+                    className="mt-1.5 text-xs text-red-500 hover:text-red-700"
+                    onClick={() => { setThumbnailFile(null); setThumbnailPreview(null); if (thumbnailInputRef.current) thumbnailInputRef.current.value = '' }}
+                  >
+                    Remove thumbnail
+                  </button>
+                )}
+              </div>
+
               <div>
                 <label className="label">Title *</label>
                 <input className="input" value={courseForm.title} onChange={e => setCourseForm(f => ({ ...f, title: e.target.value }))} placeholder="Course title" />
@@ -442,7 +546,18 @@ export default function AdminLMSPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="label">Instructor</label>
-                  <input className="input" value={courseForm.instructor} onChange={e => setCourseForm(f => ({ ...f, instructor: e.target.value }))} placeholder="Instructor name" />
+                  <select
+                    className="input"
+                    value={String(courseForm.instructor_id)}
+                    onChange={e => setCourseForm(f => ({ ...f, instructor_id: e.target.value }))}
+                  >
+                    <option value="">— No instructor —</option>
+                    {adminUsers.map(u => (
+                      <option key={u.id} value={u.id}>
+                        {u.first_name} {u.last_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="label">Duration (hours)</label>

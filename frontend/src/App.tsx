@@ -72,7 +72,8 @@ const AdminYORPPage        = lazy(() => import('@/portals/admin/pages/AdminYORPP
 const AdminSKTrackerPage   = lazy(() => import('@/portals/admin/pages/AdminSKTrackerPage'))
 const AdminAnalyticsPage   = lazy(() => import('@/portals/admin/pages/AdminAnalyticsPage'))
 const AdminCalendarPage    = lazy(() => import('@/portals/admin/pages/AdminCalendarPage'))
-const AdminLMSPage         = lazy(() => import('@/portals/admin/pages/AdminLMSPage'))
+const AdminLMSPage             = lazy(() => import('@/portals/admin/pages/AdminLMSPage'))
+const AdminCourseBuilderPage   = lazy(() => import('@/portals/admin/pages/AdminCourseBuilderPage'))
 const AdminSurveysPage     = lazy(() => import('@/portals/admin/pages/AdminSurveysPage'))
 const AdminUsersPage       = lazy(() => import('@/portals/admin/pages/AdminUsersPage'))
 const AdminLibraryPage     = lazy(() => import('@/portals/admin/pages/AdminLibraryPage'))
@@ -210,7 +211,8 @@ export default function App() {
         <Route path="/admin/sk-tracker"      element={<Wrap><AdminSKTrackerPage /></Wrap>} />
         <Route path="/admin/analytics"       element={<Wrap><AdminAnalyticsPage /></Wrap>} />
         <Route path="/admin/calendar"        element={<Wrap><AdminCalendarPage /></Wrap>} />
-        <Route path="/admin/lms"             element={<Wrap><AdminLMSPage /></Wrap>} />
+        <Route path="/admin/lms"                          element={<Wrap><AdminLMSPage /></Wrap>} />
+        <Route path="/admin/lms/courses/:courseId/builder" element={<Wrap><AdminCourseBuilderPage /></Wrap>} />
         <Route path="/admin/surveys"         element={<Wrap><AdminSurveysPage /></Wrap>} />
         <Route path="/admin/users"           element={<Wrap><AdminUsersPage /></Wrap>} />
         <Route path="/admin/library"         element={<Wrap><AdminLibraryPage /></Wrap>} />

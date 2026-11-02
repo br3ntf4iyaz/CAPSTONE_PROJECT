@@ -29,6 +29,8 @@ import toast from 'react-hot-toast'
 import { submissionsApi, type Submission, type SubmissionStatus } from '@/api/submissions'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { formatDate, formatDateTime, cn } from '@/utils'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
+import { useReviewLogIntegrity } from '@/api/ledger'
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -227,6 +229,7 @@ export default function SubmissionDetailPage() {
     queryFn: () => submissionsApi.get(Number(id)),
     enabled: !!id,
   })
+  const { data: integrity } = useReviewLogIntegrity(submission?.id)
 
   const markInProgressMutation = useMutation({
     mutationFn: () => submissionsApi.markInProgress(Number(id)),
@@ -663,6 +666,7 @@ export default function SubmissionDetailPage() {
                           <span className="text-xs text-ink-400">by {log.actor_name}</span>
                         )}
                         <span className="text-xs text-ink-400 ml-auto">{formatDateTime(log.created_at)}</span>
+                        <IntegrityBadge result={integrity?.results[String(log.id)]} />
                       </div>
                       {log.notes && (
                         <p className="text-xs text-ink-500 mt-0.5">{log.notes}</p>

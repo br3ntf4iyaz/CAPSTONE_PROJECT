@@ -1,10 +1,11 @@
 import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Sparkles, ShieldCheck, Shield, MapPin, CreditCard,
+  ShieldCheck, Shield, MapPin, CreditCard, Star,
   Printer, ArrowLeft,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 import { useMe } from '@/hooks/useAuth'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
@@ -78,9 +79,7 @@ export default function YouthIDCardPage() {
         {/* Header strip */}
         <div className="relative flex items-center justify-between px-7 pt-6 pb-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm">
-              <Sparkles size={17} strokeWidth={2.5} />
-            </span>
+            <LydoLogo size={36} className="rounded-xl" />
             <div>
               <p className="font-display font-extrabold text-sm leading-none tracking-tighter2">LYDO</p>
               <p className="text-[10px] text-white/55 font-semibold uppercase tracking-wider">Lucena Youth Dev. Office</p>
@@ -139,7 +138,7 @@ export default function YouthIDCardPage() {
                 )}
                 {skPosition && (
                   <div className="flex items-center gap-1.5 text-xs text-white/55">
-                    <Sparkles size={11} className="text-accent-300 flex-shrink-0" />
+                    <Star size={11} className="text-accent-300 flex-shrink-0" />
                     <span>{skPosition}</span>
                   </div>
                 )}

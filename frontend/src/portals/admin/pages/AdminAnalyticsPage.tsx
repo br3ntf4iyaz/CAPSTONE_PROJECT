@@ -13,7 +13,7 @@ import { toArray } from '@/utils'
 
 interface Org { id: number; classification: string; registration_category: string }
 interface Program { id: number; category: string; male_participants?: number; female_participants?: number; start_date?: string }
-interface AdminUser { id: number; role: string; profile?: { sk_position?: string } }
+interface YouthTypeSummary { [key: string]: number }
 interface Submission { id: number; title: string; category: string; male_participants?: number; female_participants?: number; status: string; submitted_at: string }
 
 const CLASSIFICATION_COLORS: Record<string, string> = {
@@ -49,9 +49,9 @@ export default function AdminAnalyticsPage() {
     queryKey: ['analytics-programs'],
     queryFn: () => apiClient.get('/programs/').then(r => toArray<Program>(r.data)),
   })
-  const usersQ = useQuery<AdminUser[]>({
-    queryKey: ['analytics-users'],
-    queryFn: () => apiClient.get('/auth/admin/users/').then(r => toArray<AdminUser>(r.data)),
+  const usersQ = useQuery<YouthTypeSummary>({
+    queryKey: ['analytics-youth-summary'],
+    queryFn: () => apiClient.get('/auth/admin/users/youth-type-counts/').then(r => r.data),
   })
   const submissionsQ = useQuery<Submission[]>({
     queryKey: ['analytics-submissions'],
@@ -66,7 +66,7 @@ export default function AdminAnalyticsPage() {
   const orgs = orgsQ.data ?? []
   const allPrograms = programsQ.data ?? []
   const allSubmissions = submissionsQ.data ?? []
-  const users = usersQ.data ?? []
+  const youthSummary = usersQ.data ?? {}
 
   // Date filter programs
   const programs = allPrograms.filter(p => {
@@ -108,13 +108,18 @@ export default function AdminAnalyticsPage() {
       Female: s.female_participants ?? 0,
     }))
 
-  // 5. Users by role
-  const usersByRole = groupCount(users, 'role')
-  const userRoleData = Object.entries(usersByRole).map(([name, value], i) => ({
-    name: name.replace('_', ' '),
-    value,
-    color: ['#6366f1', '#10b981', '#f59e0b', '#ef4444'][i % 4],
-  }))
+  // 5. Users by youth type (youth portal members only)
+  const YOUTH_TYPE_LABELS: Record<string, string> = {
+    general_youth: 'General Youth',
+    sk: 'SK',
+    youth_org_leader: 'Youth Leaders',
+  }
+  const YOUTH_TYPE_COLORS = ['#6366f1', '#10b981', '#f59e0b']
+  const userRoleData = Object.entries(YOUTH_TYPE_LABELS).map(([key, label], i) => ({
+    name: label,
+    value: youthSummary[key] ?? 0,
+    color: YOUTH_TYPE_COLORS[i],
+  })).filter(d => d.value > 0)
 
   // Summary stats from submissions
   const totalMale = recentSubmissions.reduce((s, p) => s + (p.male_participants ?? 0), 0)

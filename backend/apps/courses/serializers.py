@@ -1,5 +1,6 @@
 import bleach
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from .models import (
@@ -166,6 +167,13 @@ class CourseMiniSerializer(serializers.ModelSerializer):
 
 class CourseDetailSerializer(serializers.ModelSerializer):
     instructor = InstructorMiniSerializer(read_only=True)
+    instructor_id = serializers.PrimaryKeyRelatedField(
+        queryset=get_user_model().objects.all(),
+        source='instructor',
+        write_only=True,
+        allow_null=True,
+        required=False,
+    )
     thumbnail_url = serializers.SerializerMethodField()
     modules = CourseModuleSerializer(many=True, read_only=True)
     enrollment_count = serializers.IntegerField(read_only=True, default=0)
@@ -181,6 +189,7 @@ class CourseDetailSerializer(serializers.ModelSerializer):
             "thumbnail_url",
             "thumbnail",
             "instructor",
+            "instructor_id",
             "is_published",
             "is_featured",
             "duration_hours",
@@ -397,3 +406,70 @@ class LessonProgressDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = LessonProgress
         fields = ['id', 'lesson_id', 'completed', 'completed_at']
+
+
+# ---------------------------------------------------------------------------
+# Admin Course Builder serializers
+# ---------------------------------------------------------------------------
+
+class QuestionChoiceAdminSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = QuestionChoice
+        fields = ['id', 'text', 'is_correct', 'order']
+
+
+class QuestionAdminSerializer(serializers.ModelSerializer):
+    choices = QuestionChoiceAdminSerializer(many=True)
+
+    class Meta:
+        model = Question
+        fields = ['id', 'text', 'order', 'explanation', 'choices']
+
+    def create(self, validated_data):
+        choices_data = validated_data.pop('choices', [])
+        question = Question.objects.create(**validated_data)
+        for i, c in enumerate(choices_data):
+            c.setdefault('order', i)
+            QuestionChoice.objects.create(question=question, **c)
+        return question
+
+    def update(self, instance, validated_data):
+        choices_data = validated_data.pop('choices', None)
+        for attr, val in validated_data.items():
+            setattr(instance, attr, val)
+        instance.save()
+        if choices_data is not None:
+            instance.choices.all().delete()
+            for i, c in enumerate(choices_data):
+                c.setdefault('order', i)
+                QuestionChoice.objects.create(question=instance, **c)
+        return instance
+
+
+class LessonAdminSerializer(serializers.ModelSerializer):
+    questions = QuestionAdminSerializer(many=True, read_only=True)
+    resource_file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Lesson
+        fields = [
+            'id', 'title', 'order', 'content', 'video_url',
+            'duration_minutes', 'resource_file_url', 'resource_file', 'questions',
+        ]
+        read_only_fields = ['id', 'resource_file_url', 'questions']
+        extra_kwargs = {'resource_file': {'write_only': True, 'required': False}}
+
+    def get_resource_file_url(self, obj):
+        return _absolute_url(self.context.get('request'), obj.resource_file)
+
+    def validate_content(self, value):
+        return _sanitize(value)
+
+
+class CourseModuleAdminSerializer(serializers.ModelSerializer):
+    lessons = LessonAdminSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = CourseModule
+        fields = ['id', 'title', 'order', 'description', 'lessons', 'created_at']
+        read_only_fields = ['id', 'lessons', 'created_at']

@@ -666,6 +666,16 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         # Admin-created users are auto-verified (admin vouches for the email)
         serializer.save(is_email_verified=True)
 
+    @action(detail=False, methods=["get"], url_path="youth-type-counts")
+    def youth_type_counts(self, request):
+        from django.db.models import Count
+        data = (
+            User.objects.filter(role="youth", is_active=True)
+            .values("youth_type")
+            .annotate(count=Count("id"))
+        )
+        return Response({item["youth_type"]: item["count"] for item in data})
+
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
         user = self.get_object()

@@ -9,6 +9,8 @@ import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, formatDateTime, cn } from '@/utils'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
+import { useIDDecisionIntegrity } from '@/api/ledger'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -223,6 +225,7 @@ export default function AdminVerificationPage() {
   const [bulkPendingAction, setBulkPendingAction] = useState<'approved' | 'rejected' | null>(null)
 
   const params = tab !== 'all' ? { status: tab } : undefined
+  const { data: integrity } = useIDDecisionIntegrity()
 
   const { data: records = [], isLoading } = useQuery<VerificationRecord[]>({
     queryKey: ['admin-verifications', tab],
@@ -265,6 +268,7 @@ export default function AdminVerificationPage() {
       setBulkNotes('')
       setBulkPendingAction(null)
       qc.invalidateQueries({ queryKey: ['admin-verifications'] })
+      qc.invalidateQueries({ queryKey: ['ledger'] })
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.detail || 'Bulk action failed')
@@ -459,6 +463,7 @@ export default function AdminVerificationPage() {
                       <span className={cn('badge text-xs', STATUS_COLORS[rec.status] ?? 'badge-gray')}>
                         {rec.status_display}
                       </span>
+                      <IntegrityBadge result={integrity?.results[String(rec.id)]} className="ml-1.5" intactLabel={rec.status === 'rejected' ? 'Record intact' : undefined} />
                     </td>
                     <td>
                       {rec.ai_verdict ? (
@@ -495,7 +500,10 @@ export default function AdminVerificationPage() {
         <ReviewModal
           record={selected}
           onClose={() => setSelected(null)}
-          onAction={() => qc.invalidateQueries({ queryKey: ['admin-verifications'] })}
+          onAction={() => {
+            qc.invalidateQueries({ queryKey: ['admin-verifications'] })
+            qc.invalidateQueries({ queryKey: ['ledger'] })
+          }}
         />
       )}
     </div>

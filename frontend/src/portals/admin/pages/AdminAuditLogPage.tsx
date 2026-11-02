@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { History, Search, Filter, User, Globe, ChevronLeft, ChevronRight } from 'lucide-react'
+import { History, Search, Filter, User, Globe, ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDateTime } from '@/utils'
 import { cn } from '@/utils'
+import { useAuditDays, useLedgerStatus } from '@/api/ledger'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 
 interface AuditEntry {
   id: number
@@ -52,6 +54,73 @@ const ACTION_FILTER_OPTIONS = [
   { value: 'role_changed', label: 'Role changes' },
 ]
 
+const KIND_LABELS: Record<string, string> = {
+  review_log: 'PPA review history',
+  sk_requirement: 'SK compliance documents',
+  id_decision: 'ID verification decisions',
+  course_cert: 'Course certificates',
+  recognition_cert: 'Recognition certificates',
+  audit_day: 'Audit log days',
+}
+
+/** Shows whether past audit-log days still match what was recorded on the ledger. */
+function LedgerIntegrityPanel() {
+  const { data: days, isLoading } = useAuditDays()
+  const { data: status } = useLedgerStatus()
+  const [open, setOpen] = useState(false)
+
+  const list = days?.days ?? []
+  const bad = list.filter(d => d.status === 'changed' || d.status === 'tampered')
+  const verified = list.filter(d => d.status === 'verified').length
+
+  if (isLoading || !days) return null
+
+  return (
+    <div className={cn('rounded-xl border p-4 bg-white', bad.length ? 'border-red-300' : 'border-gray-200')}>
+      <div className="flex items-start gap-3">
+        <ShieldCheck size={20} className={bad.length ? 'text-red-600' : 'text-emerald-600'} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-ink-900">
+            {bad.length
+              ? bad.length === 1
+                ? '1 past day of the audit log no longer matches the ledger'
+                : `${bad.length} past days of the audit log no longer match the ledger`
+              : `Audit log integrity: ${verified} of the last ${list.length} days verified`}
+          </p>
+          <p className="text-xs text-ink-500 mt-0.5">
+            Each finished day is fingerprinted and recorded on <strong>{days.network}</strong>. Editing, deleting,
+            or back-dating an entry changes that day's fingerprint.
+            {status && !status.local_chain_intact && ' The local ledger itself has been altered.'}
+          </p>
+          {status && (
+            <p className="text-xs text-ink-400 mt-1">
+              {Object.entries(status.by_kind).map(([k, v]) =>
+                `${KIND_LABELS[k] ?? k}: ${v.anchored}`).join('  ·  ')}
+            </p>
+          )}
+        </div>
+        {list.length > 0 && (
+          <button onClick={() => setOpen(o => !o)} className="text-xs font-semibold text-primary-700 hover:text-primary-800">
+            {open ? 'Hide days' : 'Show days'}
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <ul className="mt-3 divide-y divide-gray-100 text-sm max-h-64 overflow-y-auto">
+          {list.map(d => (
+            <li key={d.day} className="flex items-center gap-3 py-1.5">
+              <span className="font-mono text-xs text-ink-700 w-24">{d.day}</span>
+              <span className="text-xs text-ink-500 flex-1">{d.count} entr{d.count === 1 ? 'y' : 'ies'}</span>
+              <IntegrityBadge result={d} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
 export default function AdminAuditLogPage() {
   const [email, setEmail]   = useState('')
   const [action, setAction] = useState('')
@@ -98,6 +167,8 @@ export default function AdminAuditLogPage() {
           <span className="text-sm text-gray-500 font-medium">{totalCount.toLocaleString()} total entries</span>
         )}
       </div>
+
+      <LedgerIntegrityPanel />
 
       {/* Filters */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col sm:flex-row gap-3">

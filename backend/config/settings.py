@@ -11,7 +11,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-
 
 DEBUG = os.getenv("DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+if not DEBUG and SECRET_KEY.startswith("change-me"):
+    raise RuntimeError("Set a real SECRET_KEY before running with DEBUG=False.")
+
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h.strip()]
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -34,6 +37,7 @@ INSTALLED_APPS = [
     "apps.projects",
     "apps.volunteers",
     "apps.recognition",
+    "apps.ledger",
     "apps.schools",
     "apps.resources",
     "apps.compliance",
@@ -50,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -86,6 +91,11 @@ DATABASES = {
     }
 }
 
+# Hosted databases (Render, Railway, ...) provide a single DATABASE_URL.
+if os.getenv("DATABASE_URL"):
+    import dj_database_url
+    DATABASES["default"] = dj_database_url.parse(os.environ["DATABASE_URL"], conn_max_age=600)
+
 AUTH_USER_MODEL = "accounts.User"
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -102,6 +112,10 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 MEDIA_ROOT = BASE_DIR / os.getenv("MEDIA_ROOT", "media")
@@ -148,6 +162,7 @@ CORS_ALLOWED_ORIGINS = os.getenv(
     "CORS_ALLOWED_ORIGINS", "http://localhost:5173"
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 
 # ─── Email ────────────────────────────────────────────────────────────────────
 EMAIL_BACKEND = os.getenv(
@@ -162,6 +177,7 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER)
 
 # ─── Security (tighten in production) ─────────────────────────────────────────
 if not DEBUG:
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")  # hosts terminate TLS at their proxy
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = "DENY"
@@ -173,6 +189,15 @@ if not DEBUG:
 
 # Anthropic API for chatbot
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+
+# Ledger anchoring (apps/ledger). ANCHOR_BACKEND = "ledger" (local hash chain, default)
+# or "evm" (hash written to an EVM chain such as Polygon Amoy / Ethereum Sepolia).
+ANCHOR_BACKEND = os.getenv('ANCHOR_BACKEND', 'ledger')
+ANCHOR_RPC_URL = os.getenv('ANCHOR_RPC_URL', '')
+ANCHOR_PRIVATE_KEY = os.getenv('ANCHOR_PRIVATE_KEY', '')   # dedicated, testnet-only wallet
+ANCHOR_CHAIN_ID = int(os.getenv('ANCHOR_CHAIN_ID', '80002'))
+ANCHOR_NETWORK_NAME = os.getenv('ANCHOR_NETWORK_NAME', 'Polygon Amoy (testnet)')
+ANCHOR_EXPLORER_TX_URL = os.getenv('ANCHOR_EXPLORER_TX_URL', 'https://amoy.polygonscan.com/tx/')
 
 # Frontend URL (used in verification emails)
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')

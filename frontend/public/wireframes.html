@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LYDO System — Low-Fidelity Wireframes</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Courier New', monospace; background: #fff; color: #222; font-size: 11px; }
+
+  .cover {
+    text-align: center;
+    padding: 60px 20px;
+    border-bottom: 3px solid #000;
+  }
+  .cover h1 { font-size: 20px; font-weight: bold; margin-bottom: 8px; }
+  .cover p  { font-size: 12px; color: #444; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    background: #000;
+    color: #fff;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    padding: 24px;
+  }
+
+  /* Each wireframe frame */
+  .frame {
+    border: 2px solid #000;
+  }
+  .frame-title {
+    border-bottom: 2px solid #000;
+    padding: 6px 10px;
+    font-weight: bold;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .frame-title span { font-weight: normal; color: #555; }
+  .frame-body { padding: 10px; }
+
+  /* Primitives */
+  .box   { border: 1.5px solid #888; background: #f5f5f5; }
+  .box-d { border: 1.5px solid #000; background: #e0e0e0; }   /* dark box */
+  .box-b { border: 1.5px dashed #888; background: #fff; }     /* dashed box */
+
+  /* Nav bar */
+  .navbar {
+    border: 1.5px solid #000;
+    background: #e0e0e0;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+  .navbar.dark { background: #333; }
+  .nb-logo { width: 22px; height: 22px; border: 1.5px solid #888; background: #bbb; flex-shrink:0; }
+  .nb-logo.dark { background: #666; border-color: #999; }
+  .nb-title { font-size: 9px; font-weight: bold; flex: 1; color: #111; }
+  .nb-title.dark { color: #eee; }
+  .nb-item { font-size: 8px; border: 1px solid #888; padding: 2px 6px; background: #fff; }
+  .nb-item.active { background: #333; color: #fff; border-color: #333; }
+  .nb-circle { width: 20px; height: 20px; border: 1.5px solid #888; border-radius: 50%; }
+
+  /* Sidebar layout */
+  .with-sidebar { display: flex; }
+  .sidebar {
+    width: 90px;
+    border-right: 1.5px solid #000;
+    background: #222;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .sb-logo { border-bottom: 1px solid #555; margin-bottom: 6px; padding-bottom: 6px; }
+  .sb-logo-box { width: 20px; height: 20px; background: #666; border: 1px solid #888; margin-bottom: 3px; }
+  .sb-logo-text { font-size: 7.5px; color: #ccc; }
+  .sb-item { font-size: 7.5px; color: #aaa; padding: 3px 4px; margin-bottom: 2px; }
+  .sb-item.active { background: #555; color: #fff; }
+  .main { flex: 1; padding: 10px; background: #fafafa; }
+
+  /* Lines (text placeholders) */
+  .line { height: 8px; background: #ccc; border-radius: 1px; margin-bottom: 5px; }
+  .line.s { width: 50%; }
+  .line.xs { width: 30%; }
+
+  /* Boxes as image placeholders */
+  .img-box { background: #e0e0e0; border: 1.5px solid #bbb; display:flex; align-items:center; justify-content:center; font-size:9px; color:#888; margin-bottom:6px; }
+
+  /* Form elements */
+  .label { font-size: 8px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; color: #333; }
+  .input { height: 22px; border: 1.5px solid #888; background: #fff; margin-bottom: 6px; }
+  .textarea { height: 40px; border: 1.5px solid #888; background: #fff; margin-bottom: 6px; }
+  .select { height: 22px; border: 1.5px solid #888; background: #fff; margin-bottom: 6px; position: relative; }
+  .select::after { content: '▾'; position: absolute; right: 6px; top: 4px; font-size: 8px; color: #888; }
+
+  /* Buttons */
+  .btn { display: inline-block; height: 24px; line-height: 24px; padding: 0 10px; font-size: 9px; border: 1.5px solid #000; background: #333; color: #fff; font-family: inherit; cursor: default; }
+  .btn.outline { background: #fff; color: #000; }
+  .btn.sm { height: 18px; line-height: 18px; padding: 0 7px; font-size: 8px; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1.5px solid #000; margin-bottom: 8px; flex-wrap: wrap; }
+  .tab { font-size: 8px; padding: 3px 8px; border: 1.5px solid transparent; cursor: default; }
+  .tab.active { border: 1.5px solid #000; border-bottom: none; background: #fff; font-weight: bold; }
+
+  /* Grids */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; margin-bottom: 6px; }
+  .g4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-bottom: 6px; }
+
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 8px; }
+  .tbl th { border: 1px solid #888; background: #ddd; padding: 3px 5px; text-align: left; font-weight: bold; }
+  .tbl td { border: 1px solid #ccc; padding: 3px 5px; }
+
+  /* Chip */
+  .chip { display: inline-block; border: 1px solid #888; font-size: 7.5px; padding: 1px 5px; background: #eee; }
+  .chip.dark { background: #333; color: #fff; border-color: #333; }
+
+  /* Row */
+  .row { display: flex; gap: 6px; align-items: flex-start; padding: 5px 0; border-bottom: 1px solid #ddd; }
+  .row:last-child { border-bottom: none; }
+  .row-icon { width: 22px; height: 22px; border: 1.5px solid #888; background: #ddd; flex-shrink: 0; }
+  .row-text { flex: 1; }
+  .row-title { font-size: 9px; font-weight: bold; }
+  .row-sub   { font-size: 7.5px; color: #666; }
+
+  /* Stat box */
+  .stat { border: 1.5px solid #888; background: #f0f0f0; padding: 6px; text-align: center; }
+  .stat .val { font-size: 16px; font-weight: bold; }
+  .stat .lbl { font-size: 7.5px; color: #555; text-transform: uppercase; }
+
+  /* Card box */
+  .card { border: 1.5px solid #888; background: #fff; padding: 8px; margin-bottom: 6px; }
+
+  /* Wizard steps */
+  .steps { display: flex; align-items: center; margin-bottom: 10px; }
+  .step-circle { width: 20px; height: 20px; border: 2px solid #888; border-radius: 50%; background: #fff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 8px; font-weight: bold; }
+  .step-circle.done { background: #333; color: #fff; border-color: #333; }
+  .step-circle.active { border: 2.5px solid #000; }
+  .step-line { flex: 1; height: 1.5px; background: #888; }
+  .step-label { font-size: 7px; text-align: center; margin-top: 3px; }
+
+  /* Status bar */
+  .status-bar { display: flex; margin-bottom: 8px; }
+  .status-step { flex: 1; font-size: 7.5px; padding: 3px; border: 1px solid #888; text-align: center; background: #f0f0f0; }
+  .status-step.done { background: #333; color: #fff; }
+  .status-step.active { background: #aaa; color: #fff; }
+
+  /* Chat bubble */
+  .bubble-bot  { background: #e0e0e0; border: 1px solid #bbb; padding: 5px 7px; font-size: 8px; border-radius: 0 5px 5px 5px; margin-bottom: 5px; max-width: 80%; }
+  .bubble-user { background: #333; color: #fff; border: 1px solid #333; padding: 5px 7px; font-size: 8px; border-radius: 5px 0 5px 5px; margin-bottom: 5px; max-width: 80%; margin-left: auto; }
+
+  /* Matrix cell */
+  .mc { border: 1px solid #888; text-align: center; font-size: 8px; padding: 2px; }
+  .mc.g { background: #555; color: #fff; }
+  .mc.y { background: #999; color: #fff; }
+  .mc.r { background: #ccc; color: #000; }
+
+  /* Upload zone */
+  .upload { border: 2px dashed #aaa; padding: 14px; text-align: center; font-size: 8px; color: #888; margin-bottom: 6px; }
+
+  /* Figure caption */
+  .caption { font-size: 8.5px; color: #555; border-top: 1px solid #ddd; padding: 5px 10px; font-style: italic; }
+
+  /* Divider */
+  .divider { height: 1px; background: #ddd; margin: 6px 0; }
+
+  @media print {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .frame { break-inside: avoid; }
+    .section-label { break-before: page; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <h1>LYDO SYSTEM — LOW-FIDELITY WIREFRAMES</h1>
+  <p>Lucena Youth Development Office &nbsp;|&nbsp; Thesis Documentation &nbsp;|&nbsp; 2025 &nbsp;|&nbsp; 20 Screens (WF-00 to WF-19)</p>
+</div>
+
+<!-- ═══════════════════════════ SECTION 1: AUTH ═══════════════════════════ -->
+<div class="section-label">Section 1 — Authentication</div>
+<div class="grid">
+
+  <!-- WF-00 Public Home Page -->
+  <div class="frame">
+    <div class="frame-title">WF-00 — Public Home Page <span>Landing Page</span></div>
+    <div class="frame-body">
+      <!-- Public navbar -->
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO &nbsp; LUCENA YOUTH</div>
+        <div class="nb-item active">Home</div>
+        <div class="nb-item">Resources</div>
+        <div style="flex:1;"></div>
+        <div class="nb-item">Sign in</div>
+        <div class="nb-item" style="background:#333;color:#fff;border-color:#333;">Get started</div>
+      </div>
+      <!-- Hero with background image placeholder -->
+      <div class="box-d" style="padding:16px 14px; margin-bottom:8px; min-height:110px; position:relative;">
+        <div style="font-size:7.5px; color:#555; margin-bottom:6px; display:flex; align-items:center; gap:4px;">
+          <div style="width:10px;height:10px;border:1px solid #888;background:#bbb;border-radius:50%;"></div>
+          Lucena City Youth Development Office
+        </div>
+        <div style="font-size:13px; font-weight:bold; line-height:1.3; color:#111; margin-bottom:4px;">Built for young<br><span style="font-weight:900;">Lucenahins</span><br>ready to lead.</div>
+        <div style="position:absolute;top:8px;right:8px;width:80px;height:80px;border:1px solid #aaa;background:#ccc;font-size:7.5px;color:#888;display:flex;align-items:center;justify-content:center;">[ Hero Image ]</div>
+      </div>
+      <!-- CTA buttons -->
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <div class="btn" style="flex:1; text-align:center;">Get started →</div>
+        <div class="btn outline" style="flex:1; text-align:center;">Learn more</div>
+      </div>
+      <!-- Feature rows -->
+      <div class="box" style="padding:7px; margin-bottom:5px;">
+        <div style="font-size:8px; font-weight:bold; margin-bottom:3px;">Features section</div>
+        <div class="g3">
+          <div style="text-align:center; font-size:7.5px; padding:5px;"><div class="row-icon" style="margin:0 auto 3px;"></div>Courses</div>
+          <div style="text-align:center; font-size:7.5px; padding:5px;"><div class="row-icon" style="margin:0 auto 3px;"></div>Events</div>
+          <div style="text-align:center; font-size:7.5px; padding:5px;"><div class="row-icon" style="margin:0 auto 3px;"></div>Programs</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-00 — Public landing page with hero image, CTA buttons, and feature highlights</div>
+  </div>
+
+  <!-- WF-01 Youth Login -->
+  <div class="frame">
+    <div class="frame-title">WF-01 — Youth Login <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <!-- Top bar -->
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO &nbsp; LUCENA YOUTH</div>
+        <div style="flex:1;"></div>
+        <div class="nb-item">← Back to home</div>
+      </div>
+      <!-- Centered form (no brand panel on this viewport) -->
+      <div style="padding: 6px 10px;">
+        <div style="font-size:8px; font-weight:bold; letter-spacing:1px; color:#555; margin-bottom:4px;">SIGN IN</div>
+        <div style="font-size:13px; font-weight:bold; margin-bottom:4px;">Sign in to your account.</div>
+        <div style="font-size:8px; color:#555; margin-bottom:10px;">Don't have one yet? <span style="text-decoration:underline;">Create a free account</span></div>
+        <!-- Google button FIRST (matches actual app) -->
+        <div class="btn outline" style="width:100%; margin-bottom:6px; display:flex; align-items:center; justify-content:center; gap:5px;">
+          <div style="width:10px;height:10px;border:1px solid #888;border-radius:50%;"></div> Sign in with Google
+        </div>
+        <div style="text-align:center; font-size:8px; color:#888; margin:5px 0;">OR SIGN IN WITH EMAIL</div>
+        <div class="label">Email address</div>
+        <div class="input" style="margin-bottom:6px;"></div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+          <div class="label">Password</div>
+          <div style="font-size:8px; text-decoration:underline; color:#555;">Forgot password?</div>
+        </div>
+        <div class="input" style="margin-bottom:8px;"></div>
+        <div class="btn" style="width:100%;">Sign in →</div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-01 — Login: Google OAuth first, then email/password form, centered layout</div>
+  </div>
+
+  <!-- WF-02 Registration -->
+  <div class="frame">
+    <div class="frame-title">WF-02 — Youth Registration <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO &nbsp; LUCENA YOUTH</div>
+        <div style="flex:1;"></div>
+        <div class="nb-item">← Back to home</div>
+      </div>
+      <div style="padding: 4px 6px;">
+        <div style="font-size:8px; font-weight:bold; letter-spacing:1px; color:#555; margin-bottom:4px;">CREATE ACCOUNT</div>
+        <div style="font-size:13px; font-weight:bold; margin-bottom:3px;">Tell us about yourself.</div>
+        <div style="font-size:8px; color:#555; margin-bottom:8px;">Already have an account? <span style="text-decoration:underline;">Sign in instead</span></div>
+        <div class="btn outline" style="width:100%; margin-bottom:5px; display:flex; align-items:center; justify-content:center; gap:5px;">
+          <div style="width:10px;height:10px;border:1px solid #888;border-radius:50%;"></div> Sign up with Google
+        </div>
+        <div style="text-align:center; font-size:8px; color:#888; margin:4px 0;">OR REGISTER WITH EMAIL</div>
+        <!-- Card-style role selector (matches actual app) -->
+        <div style="font-size:8px; color:#555; margin-bottom:4px;">I am a</div>
+        <div class="g3" style="margin-bottom:8px;">
+          <div class="box" style="padding:6px; text-align:center;">
+            <div style="font-size:8.5px; font-weight:bold; margin-bottom:2px;">General youth</div>
+            <div style="font-size:7px; color:#888;">Lucena resident,<br>ages 15–30</div>
+          </div>
+          <div class="box-d" style="padding:6px; text-align:center; border:2px solid #000;">
+            <div style="font-size:8.5px; font-weight:bold; margin-bottom:2px;">SK member</div>
+            <div style="font-size:7px; color:#555;">Sangguniang<br>Kabataan official</div>
+          </div>
+          <div class="box" style="padding:6px; text-align:center;">
+            <div style="font-size:8.5px; font-weight:bold; margin-bottom:2px;">Youth org leader</div>
+            <div style="font-size:7px; color:#888;">Recognized<br>organization rep</div>
+          </div>
+        </div>
+        <div class="g2">
+          <div><div class="label">First name</div><div class="input"></div></div>
+          <div><div class="label">Last name</div><div class="input"></div></div>
+        </div>
+        <div class="label">Email address</div><div class="input" style="margin-bottom:5px;"></div>
+        <div class="g2">
+          <div><div class="label">Password</div><div class="input"></div></div>
+          <div><div class="label">Confirm</div><div class="input"></div></div>
+        </div>
+        <div class="btn" style="width:100%;">Create account →</div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-02 — Registration: Google OAuth, card role selector, name/email/password fields</div>
+  </div>
+
+  <!-- WF-03 Admin Login -->
+  <div class="frame">
+    <div class="frame-title">WF-03 — Admin Login <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar dark">
+        <div class="nb-logo dark"></div>
+        <div class="nb-title dark">LGU Admin Portal</div>
+      </div>
+      <div style="background:#222; padding:14px; text-align:center; margin-bottom:8px;">
+        <div style="width:30px; height:30px; border:2px solid #666; background:#444; margin:0 auto 6px;"></div>
+        <div class="line" style="background:#555; width:50%; margin:0 auto 3px;"></div>
+        <div class="line" style="background:#444; width:35%; margin:0 auto;"></div>
+      </div>
+      <div class="label">Admin Email</div><div class="input"></div>
+      <div class="label">Password</div><div class="input"></div>
+      <div class="btn" style="width:100%; margin-bottom:8px;">Sign In to Admin Panel</div>
+      <div class="divider"></div>
+      <div style="text-align:center; font-size:8px; color:#888;">Restricted access — authorized personnel only</div>
+    </div>
+    <div class="caption">Figure WF-03 — Admin login with dark theme and restricted-access notice</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════ SECTION 2: YOUTH PORTAL ═══════════════════════════ -->
+<div class="section-label">Section 2 — Youth Portal</div>
+<div class="grid">
+
+  <!-- WF-04 Youth Dashboard -->
+  <div class="frame">
+    <div class="frame-title">WF-04 — Youth Dashboard <span>Home</span></div>
+    <div class="frame-body">
+      <div class="navbar" style="gap:3px;">
+        <div class="nb-logo"></div>
+        <div class="nb-title" style="flex:none;">LYDO</div>
+        <div class="nb-item active" style="padding:2px 4px;">Home</div>
+        <div class="nb-item" style="padding:2px 4px;">Learn</div>
+        <div class="nb-item" style="padding:2px 4px;">Community</div>
+        <div class="nb-item" style="padding:2px 4px;">Opps.</div>
+        <div class="nb-item" style="padding:2px 4px;">Events</div>
+        <div class="nb-item" style="padding:2px 4px;">Resources</div>
+        <div class="nb-item" style="padding:2px 4px;">Participate</div>
+        <div class="nb-item" style="padding:2px 4px;">My Space</div>
+        <div class="nb-item" style="padding:2px 4px;">Help?</div>
+        <div class="nb-circle" style="flex-shrink:0;"></div>
+        <div class="nb-circle" style="flex-shrink:0;"></div>
+      </div>
+
+      <!-- Hero banner -->
+      <div class="box-d" style="padding:10px; margin-bottom:8px;">
+        <div class="line s" style="background:#aaa;"></div>
+        <div class="line" style="width:70%; background:#bbb;"></div>
+        <div class="g4" style="margin-top:8px;">
+          <div class="box" style="height:32px;"></div>
+          <div class="box-d" style="height:32px;"></div>
+          <div class="box" style="height:32px;"></div>
+          <div class="box" style="height:32px;"></div>
+        </div>
+        <div style="font-size:7px; color:#999; text-align:center; margin-top:3px;">Courses · Events · Programs · Submissions</div>
+      </div>
+
+      <!-- Spotlight -->
+      <div class="card">
+        <div style="font-size:7.5px; color:#888; margin-bottom:3px;">TODAY'S SPOTLIGHT</div>
+        <div class="line" style="width:80%;"></div>
+        <div class="line s"></div>
+        <div style="font-size:8px; margin-top:4px;">Read more →</div>
+      </div>
+
+      <!-- 2-col feeds -->
+      <div class="g2">
+        <div class="card">
+          <div style="font-size:8px; font-weight:bold; margin-bottom:5px;">UPCOMING EVENTS</div>
+          <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line" style="width:70%;"></div></div></div>
+          <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line" style="width:60%;"></div></div></div>
+        </div>
+        <div class="card">
+          <div style="font-size:8px; font-weight:bold; margin-bottom:5px;">ANNOUNCEMENTS</div>
+          <div class="row"><div class="row-text"><div class="line xs"></div><div class="line" style="width:80%;"></div></div></div>
+          <div class="row"><div class="row-text"><div class="line xs"></div><div class="line" style="width:65%;"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Quick links -->
+      <div class="g4">
+        <div class="box" style="height:28px; display:flex; align-items:center; justify-content:center; font-size:7.5px;">Programs</div>
+        <div class="box" style="height:28px; display:flex; align-items:center; justify-content:center; font-size:7.5px;">Events</div>
+        <div class="box" style="height:28px; display:flex; align-items:center; justify-content:center; font-size:7.5px;">Library</div>
+        <div class="box" style="height:28px; display:flex; align-items:center; justify-content:center; font-size:7.5px;">Jobs</div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-04 — Hero with stats, spotlight CTA, event/announcement feeds, and quick links</div>
+  </div>
+
+  <!-- WF-05 Learn Hub / LMS -->
+  <div class="frame">
+    <div class="frame-title">WF-05 — Learn Hub (LMS) <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item">Home</div>
+        <div class="nb-item active">Learn</div>
+        <div class="nb-circle"></div>
+      </div>
+      <div style="font-size:10px; font-weight:bold; margin-bottom:3px;">Learn</div>
+      <div class="input" style="margin-bottom:8px;"><span style="font-size:8px; padding-left:6px; color:#aaa;">🔍 Search courses...</span></div>
+      <div class="tabs">
+        <div class="tab active">All</div>
+        <div class="tab">Governance</div>
+        <div class="tab">Livelihood</div>
+        <div class="tab">Leadership</div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="img-box" style="height:40px;">[ Thumbnail ]</div>
+          <div class="chip" style="margin-bottom:4px;">Governance</div>
+          <div class="line s"></div>
+          <div class="line xs"></div>
+          <div style="display:flex; justify-content:space-between; margin-top:5px;">
+            <div style="font-size:7.5px; color:#888;">4 modules</div>
+            <div class="chip dark">Enrolled</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="img-box" style="height:40px;">[ Thumbnail ]</div>
+          <div class="chip" style="margin-bottom:4px;">Leadership</div>
+          <div class="line s"></div>
+          <div class="line xs"></div>
+          <div style="display:flex; justify-content:flex-end; margin-top:5px;">
+            <div class="btn sm">Enroll</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="img-box" style="height:40px;">[ Thumbnail ]</div>
+          <div class="chip" style="margin-bottom:4px;">Tech</div>
+          <div class="line s"></div>
+          <div class="line xs"></div>
+          <div style="display:flex; justify-content:flex-end; margin-top:5px;">
+            <div class="btn sm outline">Preview</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="img-box" style="height:40px;">[ Thumbnail ]</div>
+          <div class="chip" style="margin-bottom:4px;">Livelihood</div>
+          <div class="line s"></div>
+          <div class="line xs"></div>
+          <div style="display:flex; justify-content:flex-end; margin-top:5px;">
+            <div class="btn sm">Enroll</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-05 — Course catalog with search, category tabs, thumbnails, and enroll buttons</div>
+  </div>
+
+  <!-- WF-06 Accomplishment Reports -->
+  <div class="frame">
+    <div class="frame-title">WF-06 — Accomplishment Reports <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item active">Submissions</div>
+        <div class="nb-circle"></div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+        <div style="font-size:10px; font-weight:bold;">Accomplishment Reports</div>
+        <div class="btn sm">+ New Report</div>
+      </div>
+      <div class="tabs">
+        <div class="tab active">All</div>
+        <div class="tab">Draft</div>
+        <div class="tab">Pending</div>
+        <div class="tab">Revision</div>
+        <div class="tab">Acknowledged</div>
+      </div>
+
+      <!-- Report card 1 -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+          <div><div class="line xs"></div><div class="line" style="width:80%;"></div></div>
+          <div class="chip">Pending</div>
+        </div>
+        <div class="status-bar">
+          <div class="status-step done">Submitted</div>
+          <div class="status-step active">Under Review</div>
+          <div class="status-step">Acknowledged</div>
+        </div>
+        <div style="display:flex; gap:5px;">
+          <div class="btn sm outline">View</div>
+          <div class="btn sm outline">Download PDF</div>
+        </div>
+      </div>
+
+      <!-- Report card 2 -->
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+          <div><div class="line xs"></div><div class="line" style="width:75%;"></div></div>
+          <div class="chip dark">Acknowledged</div>
+        </div>
+        <div class="status-bar">
+          <div class="status-step done">Submitted</div>
+          <div class="status-step done">Under Review</div>
+          <div class="status-step done">Acknowledged</div>
+        </div>
+        <div style="display:flex; gap:5px;">
+          <div class="btn sm outline">View</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-06 — Report list with 3-step review status bar, tabs, and action buttons</div>
+  </div>
+
+  <!-- WF-07 New Report Wizard -->
+  <div class="frame">
+    <div class="frame-title">WF-07 — New Report Wizard <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO — New Accomplishment Report</div>
+      </div>
+
+      <!-- Step indicator -->
+      <div class="steps" style="margin-bottom:4px;">
+        <div style="text-align:center; flex:1;">
+          <div class="step-circle done" style="margin:0 auto;">✓</div>
+          <div class="step-label">Activity<br>Info</div>
+        </div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;">
+          <div class="step-circle active" style="margin:0 auto;">2</div>
+          <div class="step-label">Outcomes</div>
+        </div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;">
+          <div class="step-circle" style="margin:0 auto;">3</div>
+          <div class="step-label">Metrics</div>
+        </div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;">
+          <div class="step-circle" style="margin:0 auto;">4</div>
+          <div class="step-label">Attachments</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:9px; font-weight:bold; margin-bottom:6px;">STEP 2 — Outcomes &amp; Objectives</div>
+        <div class="label">Outcomes / Objectives Achieved</div>
+        <div class="textarea"></div>
+        <div class="label">Beneficiaries Served</div>
+        <div class="textarea"></div>
+        <div style="display:flex; justify-content:space-between;">
+          <div class="btn outline">← Back</div>
+          <div class="btn">Next →</div>
+        </div>
+      </div>
+
+      <div class="box-b" style="padding:6px; font-size:7.5px; color:#888;">
+        Next: Date Conducted · Participants · Budget Used
+      </div>
+    </div>
+    <div class="caption">Figure WF-07 — 4-step wizard showing step 2; step tracker, form, and back/next navigation</div>
+  </div>
+
+  <!-- WF-08 Attachments Step -->
+  <div class="frame">
+    <div class="frame-title">WF-08 — Report Wizard Step 4 <span>Attachments</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO — New Report</div>
+      </div>
+
+      <div class="steps" style="margin-bottom:4px;">
+        <div style="text-align:center; flex:1;"><div class="step-circle done" style="margin:0 auto;">✓</div><div class="step-label">Info</div></div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;"><div class="step-circle done" style="margin:0 auto;">✓</div><div class="step-label">Outcomes</div></div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;"><div class="step-circle done" style="margin:0 auto;">✓</div><div class="step-label">Metrics</div></div>
+        <div class="step-line"></div>
+        <div style="text-align:center; flex:1;"><div class="step-circle active" style="margin:0 auto;">4</div><div class="step-label">Attach</div></div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:9px; font-weight:bold; margin-bottom:6px;">STEP 4 — Attachments</div>
+        <div class="label">Accomplishment Report (PDF)</div>
+        <div class="upload">
+          [ Upload Area ]<br>
+          Drag &amp; drop PDF or click to browse
+        </div>
+        <div class="label">Supporting Photos (optional)</div>
+        <div class="upload" style="height:30px; padding:8px;">[ Upload Photos ]</div>
+        <div class="divider"></div>
+        <div style="font-size:8px; color:#555; margin-bottom:8px;">Review summary before submitting</div>
+        <div style="display:flex; justify-content:space-between;">
+          <div class="btn outline">← Back</div>
+          <div class="btn">Submit Report</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-08 — Final wizard step with PDF upload zone and submit action</div>
+  </div>
+
+  <!-- WF-09 My Space / Profile -->
+  <div class="frame">
+    <div class="frame-title">WF-09 — My Space (Profile) <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item active">My Space</div>
+        <div class="nb-circle"></div>
+      </div>
+
+      <!-- Profile header -->
+      <div class="card" style="text-align:center; padding:12px;">
+        <div style="width:44px; height:44px; border:2px solid #888; border-radius:50%; background:#ddd; margin:0 auto 6px;"></div>
+        <div class="line xs" style="margin:0 auto 3px;"></div>
+        <div class="line" style="width:50%; margin:0 auto;"></div>
+        <div style="display:flex; justify-content:center; gap:5px; margin-top:6px;">
+          <div class="chip">SK Member</div>
+          <div class="chip">Brgy. Barra</div>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="g4" style="margin-bottom:8px;">
+        <div class="stat"><div class="val">3</div><div class="lbl">Courses</div></div>
+        <div class="stat"><div class="val">2</div><div class="lbl">Reports</div></div>
+        <div class="stat"><div class="val">5</div><div class="lbl">Badges</div></div>
+        <div class="stat"><div class="val">#12</div><div class="lbl">Rank</div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <div class="tab active">Profile</div>
+        <div class="tab">Badges</div>
+        <div class="tab">Certificates</div>
+        <div class="tab">Activity</div>
+      </div>
+
+      <!-- Badge grid -->
+      <div class="g3">
+        <div class="box" style="padding:8px; text-align:center;">
+          <div style="width:24px;height:24px;border:1px solid #888;border-radius:50%;background:#ddd;margin:0 auto 4px;"></div>
+          <div class="line xs" style="margin:0 auto;"></div>
+        </div>
+        <div class="box" style="padding:8px; text-align:center;">
+          <div style="width:24px;height:24px;border:1px solid #888;border-radius:50%;background:#ddd;margin:0 auto 4px;"></div>
+          <div class="line xs" style="margin:0 auto;"></div>
+        </div>
+        <div class="box" style="padding:8px; text-align:center;">
+          <div style="width:24px;height:24px;border:1px solid #888;border-radius:50%;background:#ddd;margin:0 auto 4px;"></div>
+          <div class="line xs" style="margin:0 auto;"></div>
+        </div>
+      </div>
+
+      <div class="btn outline" style="width:100%; margin-top:6px; text-align:center;">Edit Profile</div>
+    </div>
+    <div class="caption">Figure WF-09 — Profile with avatar, stats, badge/cert tabs, and edit button</div>
+  </div>
+
+  <!-- WF-10 Events Calendar -->
+  <div class="frame">
+    <div class="frame-title">WF-10 — Events Calendar <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item active">Events</div>
+        <div class="nb-circle"></div>
+      </div>
+
+      <!-- Month nav -->
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+        <div class="btn sm outline">← May</div>
+        <div style="font-size:10px; font-weight:bold;">June 2025</div>
+        <div class="btn sm outline">July →</div>
+      </div>
+
+      <!-- Calendar grid -->
+      <div style="border:1.5px solid #888; margin-bottom:8px;">
+        <div style="display:grid; grid-template-columns:repeat(7,1fr);">
+          <!-- Day headers -->
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">S</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">M</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">T</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">W</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">T</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">F</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;border-bottom:1px solid #888;font-weight:bold;background:#eee;">S</div>
+          <!-- Dates row 1 -->
+          <div style="font-size:7.5px;text-align:center;padding:3px;color:#aaa;">—</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">2</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;background:#ccc;">3●</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">4</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">5</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">6</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">7</div>
+          <!-- Dates row 2 -->
+          <div style="font-size:7.5px;text-align:center;padding:3px;">8</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">9</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">10</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;background:#ccc;">11●</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">12</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">13</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">14</div>
+          <!-- Dates row 3 — today -->
+          <div style="font-size:7.5px;text-align:center;padding:3px;">15</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;background:#333;color:#fff;font-weight:bold;">16</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">17</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">18</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">19</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;background:#ccc;">20●</div>
+          <div style="font-size:7.5px;text-align:center;padding:3px;">21</div>
+        </div>
+      </div>
+      <div style="font-size:7.5px;color:#888;margin-bottom:6px;">● = event &nbsp;|&nbsp; ■ = today</div>
+
+      <!-- Event list -->
+      <div style="font-size:8.5px; font-weight:bold; margin-bottom:5px;">Events this month</div>
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Training</div></div>
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Assembly</div></div>
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Health</div></div>
+    </div>
+    <div class="caption">Figure WF-10 — Monthly calendar grid with event dots, today highlight, and event list below</div>
+  </div>
+
+  <!-- WF-11 Opportunities Hub -->
+  <div class="frame">
+    <div class="frame-title">WF-11 — Opportunities Hub <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item active">Opportunities</div>
+        <div class="nb-circle"></div>
+      </div>
+
+      <!-- Hub tiles -->
+      <div class="g3" style="margin-bottom:8px;">
+        <div class="box" style="padding:10px; text-align:center;">
+          <div style="width:22px;height:22px;border:1px solid #888;background:#ddd;margin:0 auto 4px;"></div>
+          <div style="font-size:8px;font-weight:bold;">Jobs</div>
+          <div style="font-size:7.5px;color:#888;">12 listings</div>
+        </div>
+        <div class="box" style="padding:10px; text-align:center;">
+          <div style="width:22px;height:22px;border:1px solid #888;background:#ddd;margin:0 auto 4px;"></div>
+          <div style="font-size:8px;font-weight:bold;">Scholarships</div>
+          <div style="font-size:7.5px;color:#888;">5 available</div>
+        </div>
+        <div class="box" style="padding:10px; text-align:center;">
+          <div style="width:22px;height:22px;border:1px solid #888;background:#ddd;margin:0 auto 4px;"></div>
+          <div style="font-size:8px;font-weight:bold;">Internships</div>
+          <div style="font-size:7.5px;color:#888;">3 open</div>
+        </div>
+      </div>
+
+      <div class="input" style="margin-bottom:8px;"><span style="font-size:8px;padding-left:6px;color:#aaa;">🔍 Search...</span></div>
+
+      <div class="tabs">
+        <div class="tab active">All</div>
+        <div class="tab">Jobs</div>
+        <div class="tab">Scholarships</div>
+        <div class="tab">Internships</div>
+      </div>
+
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Job</div></div>
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Scholar</div></div>
+      <div class="row"><div class="row-icon"></div><div class="row-text"><div class="line xs"></div><div class="line s"></div></div><div class="chip">Intern</div></div>
+    </div>
+    <div class="caption">Figure WF-11 — Opportunity type tiles, search, tabs, and listing rows</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════ SECTION 3: ADMIN PORTAL ═══════════════════════════ -->
+<div class="section-label">Section 3 — Admin Portal</div>
+<div class="grid">
+
+  <!-- WF-12 Admin Dashboard -->
+  <div class="frame">
+    <div class="frame-title">WF-12 — Admin Dashboard <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item active">Dashboard</div>
+          <div class="sb-item">Reports</div>
+          <div class="sb-item">Youth Orgs</div>
+          <div class="sb-item">SK Tracker</div>
+          <div class="sb-item">Analytics</div>
+          <div class="sb-item">Calendar</div>
+          <div class="sb-item">Learning</div>
+          <div class="sb-item">Users</div>
+          <div class="sb-item">Library</div>
+          <div class="sb-item">Notifs</div>
+        </div>
+        <div class="main">
+          <div style="font-size:10px;font-weight:bold;margin-bottom:3px;">Dashboard</div>
+          <div class="line xs" style="margin-bottom:8px;"></div>
+
+          <!-- Stat cards -->
+          <div style="display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin-bottom:8px;">
+            <div class="stat"><div class="val" style="font-size:12px;">142</div><div class="lbl">Users</div></div>
+            <div class="stat"><div class="val" style="font-size:12px;">38</div><div class="lbl">Programs</div></div>
+            <div class="stat"><div class="val" style="font-size:12px;">15</div><div class="lbl">Orgs</div></div>
+            <div class="stat"><div class="val" style="font-size:12px;">7</div><div class="lbl">Pending</div></div>
+            <div class="stat"><div class="val" style="font-size:12px;">4</div><div class="lbl">Events</div></div>
+          </div>
+
+          <!-- Charts -->
+          <div class="g2" style="margin-bottom:8px;">
+            <div class="box" style="height:70px; display:flex; align-items:center; justify-content:center; font-size:8px; color:#888;">[ Pie: Users by Role ]</div>
+            <div class="box" style="height:70px; display:flex; align-items:center; justify-content:center; font-size:8px; color:#888;">[ Bar: Programs by Status ]</div>
+          </div>
+
+          <!-- Table -->
+          <div style="font-size:8px;font-weight:bold;margin-bottom:4px;">Recent Pending Reports</div>
+          <table class="tbl">
+            <thead><tr><th>Title</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>SK</td><td><div class="chip">Pending</div></td><td><div class="btn sm outline">Review</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>Org</td><td><div class="chip">Pending</div></td><td><div class="btn sm outline">Review</div></td></tr>
+            </tbody>
+          </table>
+
+          <!-- Quick actions -->
+          <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:6px;">
+            <div class="btn sm">+ Create Event</div>
+            <div class="btn sm outline">Review Reports</div>
+            <div class="btn sm outline">Manage Users</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-12 — Sidebar nav, stat cards, charts, pending reports table, and quick actions</div>
+  </div>
+
+  <!-- WF-13 Admin Reports Review -->
+  <div class="frame">
+    <div class="frame-title">WF-13 — Accomplishment Reports Review <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item">Dashboard</div>
+          <div class="sb-item active">Reports</div>
+          <div class="sb-item">Youth Orgs</div>
+          <div class="sb-item">SK Tracker</div>
+        </div>
+        <div class="main">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:10px;font-weight:bold;">Accomplishment Reports</div>
+            <div class="input" style="width:110px; height:20px;"><span style="font-size:7.5px;padding-left:4px;color:#aaa;">🔍 Search...</span></div>
+          </div>
+          <div class="tabs">
+            <div class="tab active">All</div>
+            <div class="tab">Pending</div>
+            <div class="tab">Revision</div>
+            <div class="tab">Acknowledged</div>
+            <div class="tab">Rejected</div>
+          </div>
+          <table class="tbl" style="margin-bottom:8px;">
+            <thead><tr><th>Title</th><th>By</th><th>Type</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td><div class="line xs" style="margin:0;width:80%;"></div></td><td>SK</td><td><div class="chip">Pending</div></td><td><div class="btn sm">Review</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td><div class="line xs" style="margin:0;width:80%;"></div></td><td>Org</td><td><div class="chip">Pending</div></td><td><div class="btn sm">Review</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td><div class="line xs" style="margin:0;width:80%;"></div></td><td>SK</td><td><div class="chip dark">Done</div></td><td><div class="btn sm outline">View</div></td></tr>
+            </tbody>
+          </table>
+
+          <!-- Review modal preview -->
+          <div style="border:2px solid #000; padding:8px;">
+            <div style="font-size:8px; font-weight:bold; margin-bottom:6px;">REVIEW MODAL</div>
+            <div class="g2" style="font-size:7.5px; color:#333; margin-bottom:6px;">
+              <div><div class="line xs" style="margin:0 0 2px;"></div><div class="line" style="margin:0; width:90%;"></div></div>
+              <div><div class="line xs" style="margin:0 0 2px;"></div><div class="line" style="margin:0; width:90%;"></div></div>
+              <div><div class="line xs" style="margin:0 0 2px;"></div><div class="line" style="margin:0; width:80%;"></div></div>
+              <div><div class="line xs" style="margin:0 0 2px;"></div><div class="line" style="margin:0; width:80%;"></div></div>
+            </div>
+            <div class="textarea" style="margin-bottom:6px; height:28px;"></div>
+            <div style="display:flex; gap:5px;">
+              <div class="btn sm">✓ Acknowledge</div>
+              <div class="btn sm outline">Request Revision</div>
+              <div class="btn sm outline">Reject</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-13 — Filterable reports table and review modal with Acknowledge/Revision/Reject</div>
+  </div>
+
+  <!-- WF-14 SK Compliance Tracker -->
+  <div class="frame">
+    <div class="frame-title">WF-14 — SK Compliance Tracker <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item">Dashboard</div>
+          <div class="sb-item">Reports</div>
+          <div class="sb-item active">SK Tracker</div>
+          <div class="sb-item">Analytics</div>
+        </div>
+        <div class="main">
+          <div style="font-size:10px;font-weight:bold;margin-bottom:2px;">SK Compliance Tracker</div>
+          <div class="line xs" style="margin-bottom:8px;"></div>
+
+          <!-- Year nav -->
+          <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:8px;">
+            <div class="btn sm outline">‹</div>
+            <div style="font-size:10px;font-weight:bold;">2025</div>
+            <div class="btn sm outline">›</div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active">ME Portal</div>
+            <div class="tab">Documents</div>
+            <div class="tab">KK Assembly</div>
+          </div>
+
+          <!-- Legend -->
+          <div style="display:flex; gap:8px; font-size:7.5px; margin-bottom:6px;">
+            <span><span class="mc g" style="padding:1px 4px;">✓</span> Yes</span>
+            <span><span class="mc y" style="padding:1px 4px;">½</span> Partial</span>
+            <span><span class="mc r" style="padding:1px 4px;">✗</span> No</span>
+          </div>
+
+          <!-- Matrix -->
+          <table class="tbl" style="font-size:7.5px;">
+            <thead>
+              <tr>
+                <th style="width:40%;">Barangay</th>
+                <th>PPA</th>
+                <th>GAP</th>
+                <th>Policies</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>Barangay 1</td><td><span class="mc g">✓</span></td><td><span class="mc g">✓</span></td><td><span class="mc y">½</span></td></tr>
+              <tr><td>Barangay 2</td><td><span class="mc g">✓</span></td><td><span class="mc r">✗</span></td><td><span class="mc r">✗</span></td></tr>
+              <tr><td>Barra</td><td><span class="mc r">✗</span></td><td><span class="mc r">✗</span></td><td><span class="mc r">✗</span></td></tr>
+              <tr><td>Bocohan</td><td><span class="mc y">½</span></td><td><span class="mc g">✓</span></td><td><span class="mc g">✓</span></td></tr>
+              <tr><td>Dalahican</td><td><span class="mc g">✓</span></td><td><span class="mc g">✓</span></td><td><span class="mc g">✓</span></td></tr>
+              <tr><td colspan="4" style="color:#aaa;font-style:italic;font-size:7px;">... 28 more barangays ...</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:7px; color:#888; margin-top:4px;">Click any cell to cycle status. Changes auto-save.</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-14 — Click-to-cycle compliance matrix for all 33 Lucena City barangays</div>
+  </div>
+
+  <!-- WF-15 Analytics -->
+  <div class="frame">
+    <div class="frame-title">WF-15 — Analytics <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item">Dashboard</div>
+          <div class="sb-item active">Analytics</div>
+          <div class="sb-item">SK Tracker</div>
+        </div>
+        <div class="main">
+          <div style="font-size:10px;font-weight:bold;margin-bottom:6px;">Analytics</div>
+          <!-- Filters -->
+          <div style="display:flex; gap:5px; margin-bottom:8px; flex-wrap:wrap;">
+            <div class="select" style="width:90px; height:20px;"></div>
+            <div class="input" style="width:80px; height:20px;"></div>
+            <div class="input" style="width:80px; height:20px;"></div>
+            <div class="btn sm">Apply</div>
+          </div>
+          <!-- Stats -->
+          <div class="g4" style="margin-bottom:8px;">
+            <div class="stat"><div class="val" style="font-size:11px;">1,245</div><div class="lbl">Youth</div></div>
+            <div class="stat"><div class="val" style="font-size:11px;">312</div><div class="lbl">Enrolled</div></div>
+            <div class="stat"><div class="val" style="font-size:11px;">87</div><div class="lbl">Events</div></div>
+            <div class="stat"><div class="val" style="font-size:11px;">56</div><div class="lbl">Reports</div></div>
+          </div>
+          <!-- Charts -->
+          <div class="g2">
+            <div class="box" style="height:65px; display:flex; align-items:center; justify-content:center; font-size:7.5px; color:#888;">[ Line: Registrations over time ]</div>
+            <div class="box" style="height:65px; display:flex; align-items:center; justify-content:center; font-size:7.5px; color:#888;">[ Bar: Participation by category ]</div>
+            <div class="box" style="height:65px; display:flex; align-items:center; justify-content:center; font-size:7.5px; color:#888;">[ Bar: Compliance by barangay ]</div>
+            <div class="box" style="height:65px; display:flex; align-items:center; justify-content:center; font-size:7.5px; color:#888;">[ Pie: Youth type distribution ]</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-15 — Date-range filters, summary stats, and 4 analytics chart placeholders</div>
+  </div>
+
+  <!-- WF-16 User Management -->
+  <div class="frame">
+    <div class="frame-title">WF-16 — User Management <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item">Dashboard</div>
+          <div class="sb-item active">Users</div>
+          <div class="sb-item">Analytics</div>
+        </div>
+        <div class="main">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <div style="font-size:10px;font-weight:bold;">User Management</div>
+            <div class="btn sm">+ Invite</div>
+          </div>
+          <!-- Filters -->
+          <div style="display:flex; gap:5px; margin-bottom:8px; flex-wrap:wrap;">
+            <div class="input" style="flex:1; min-width:90px; height:20px;"><span style="font-size:7.5px;padding-left:4px;color:#aaa;">🔍 Search...</span></div>
+            <div class="select" style="width:60px; height:20px;"></div>
+            <div class="select" style="width:70px; height:20px;"></div>
+          </div>
+          <!-- Table -->
+          <table class="tbl">
+            <thead>
+              <tr><th>Name</th><th>Role</th><th>Type</th><th>Brgy.</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>Youth</td><td>SK</td><td><div class="line xs" style="margin:0;width:70%;"></div></td><td><div class="chip dark">Active</div></td><td><div class="btn sm outline">Edit</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>Youth</td><td>Org</td><td><div class="line xs" style="margin:0;width:70%;"></div></td><td><div class="chip dark">Active</div></td><td><div class="btn sm outline">Edit</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>Admin</td><td>—</td><td>—</td><td><div class="chip dark">Active</div></td><td><div class="btn sm outline">Edit</div></td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>Youth</td><td>Gen.</td><td><div class="line xs" style="margin:0;width:70%;"></div></td><td><div class="chip">Inactive</div></td><td><div class="btn sm outline">Edit</div></td></tr>
+            </tbody>
+          </table>
+          <!-- Pagination -->
+          <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:7.5px; color:#888; align-items:center;">
+            <span>1–4 of 142</span>
+            <div style="display:flex; gap:4px;">
+              <div class="btn sm outline">← Prev</div>
+              <div class="btn sm outline">Next →</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-16 — Searchable/filterable user table with role, type, status, and pagination</div>
+  </div>
+
+  <!-- WF-17 Notifications -->
+  <div class="frame">
+    <div class="frame-title">WF-17 — Broadcast Notifications <span>Admin Portal</span></div>
+    <div class="frame-body">
+      <div class="with-sidebar">
+        <div class="sidebar">
+          <div class="sb-logo"><div class="sb-logo-box"></div><div class="sb-logo-text">LGU Admin</div></div>
+          <div class="sb-item">Dashboard</div>
+          <div class="sb-item active">Notifs</div>
+        </div>
+        <div class="main">
+          <div style="font-size:10px;font-weight:bold;margin-bottom:6px;">Broadcast Notifications</div>
+
+          <div class="card">
+            <div style="font-size:8.5px;font-weight:bold;margin-bottom:6px;">COMPOSE BROADCAST</div>
+            <div class="label">Title</div><div class="input"></div>
+            <div class="label">Message</div><div class="textarea"></div>
+            <div class="g2">
+              <div><div class="label">Target Audience</div><div class="select"></div></div>
+              <div><div class="label">Send via Email?</div>
+                <div style="display:flex;align-items:center;gap:5px;margin-top:6px;">
+                  <div style="width:24px;height:12px;border:1.5px solid #888;background:#ddd;border-radius:99px;"></div>
+                  <span style="font-size:7.5px;">Toggle</span>
+                </div>
+              </div>
+            </div>
+            <div class="btn sm">Send Broadcast</div>
+          </div>
+
+          <div style="font-size:8.5px;font-weight:bold;margin-bottom:4px;">Recent Broadcasts</div>
+          <table class="tbl">
+            <thead><tr><th>Title</th><th>Audience</th><th>Sent</th><th>Recipients</th></tr></thead>
+            <tbody>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>All</td><td>Jun 1</td><td>142</td></tr>
+              <tr><td><div class="line xs" style="margin:0;"></div></td><td>SK Only</td><td>May 28</td><td>33</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-17 — Notification composer with audience/email toggle and broadcast history</div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════ SECTION 4: CHATBOT ═══════════════════════════ -->
+<div class="section-label">Section 4 — AI Chatbot</div>
+<div class="grid">
+
+  <!-- WF-18 Chatbot Page -->
+  <div class="frame">
+    <div class="frame-title">WF-18 — AI Chatbot (Need Help?) <span>Youth Portal</span></div>
+    <div class="frame-body">
+      <div class="navbar">
+        <div class="nb-logo"></div>
+        <div class="nb-title">LYDO</div>
+        <div class="nb-item active">Need Help?</div>
+        <div class="nb-circle"></div>
+      </div>
+      <!-- Chat header -->
+      <div style="background:#333; color:#fff; padding:8px 10px; display:flex; align-items:center; gap:8px;">
+        <div style="width:24px;height:24px;border:1.5px solid #888;border-radius:50%;background:#555;flex-shrink:0;"></div>
+        <div>
+          <div style="font-size:9px;font-weight:bold;">LYDO AI Assistant</div>
+          <div style="font-size:7.5px;color:#aaa;">● Online</div>
+        </div>
+      </div>
+      <!-- Chat body -->
+      <div style="background:#f5f5f5; padding:10px; min-height:180px; display:flex; flex-direction:column; gap:6px;">
+        <div style="display:flex; gap:5px; max-width:80%;">
+          <div style="width:18px;height:18px;border:1px solid #888;border-radius:50%;background:#ccc;flex-shrink:0;margin-top:2px;"></div>
+          <div class="bubble-bot">Hello! How can I help you with youth programs, events, or submissions?</div>
+        </div>
+        <div style="display:flex; gap:5px; max-width:80%; align-self:flex-end; flex-direction:row-reverse;">
+          <div class="nb-circle" style="flex-shrink:0;margin-top:2px;"></div>
+          <div class="bubble-user">How do I submit an accomplishment report?</div>
+        </div>
+        <div style="display:flex; gap:5px; max-width:85%;">
+          <div style="width:18px;height:18px;border:1px solid #888;border-radius:50%;background:#ccc;flex-shrink:0;margin-top:2px;"></div>
+          <div class="bubble-bot">
+            1. Go to Submissions in the menu<br>
+            2. Click "+ New Report"<br>
+            3. Complete the 4-step wizard<br>
+            4. Upload PDF and submit
+          </div>
+        </div>
+      </div>
+      <!-- Input bar -->
+      <div style="display:flex; gap:6px; padding:8px; border-top:1.5px solid #888; background:#fff;">
+        <div class="input" style="flex:1;"></div>
+        <div class="btn sm">Send</div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-18 — Chat interface with bot/user message bubbles and text input bar</div>
+  </div>
+
+  <!-- WF-19 Floating Chatbot Widget -->
+  <div class="frame">
+    <div class="frame-title">WF-19 — Floating Chatbot Widget <span>Youth Portal (All Pages)</span></div>
+    <div class="frame-body">
+      <div style="background:#e8e8e8; padding:12px; min-height:240px; position:relative;">
+        <div style="font-size:9px; color:#888; margin-bottom:6px;">[ Any page in the background ]</div>
+        <div class="navbar"><div class="nb-logo"></div><div class="nb-title">LYDO</div></div>
+        <div class="box-d" style="height:30px; margin-bottom:6px;"></div>
+        <div class="g2">
+          <div class="box" style="height:25px;"></div>
+          <div class="box" style="height:25px;"></div>
+        </div>
+
+        <!-- Floating widget -->
+        <div style="position:absolute; bottom:12px; right:12px;">
+          <!-- Popup -->
+          <div style="background:#fff; border:1.5px solid #888; padding:8px; width:150px; margin-bottom:6px;">
+            <div style="display:flex; align-items:center; gap:5px; border-bottom:1px solid #ddd; padding-bottom:5px; margin-bottom:5px;">
+              <div style="width:14px;height:14px;border:1px solid #888;border-radius:50%;background:#ccc;"></div>
+              <div style="font-size:8px;font-weight:bold;">LYDO AI Assistant</div>
+            </div>
+            <div style="font-size:7.5px; color:#555; margin-bottom:5px;">Hi! Need help with programs or submissions?</div>
+            <div class="input" style="height:18px;"></div>
+          </div>
+          <!-- FAB button -->
+          <div style="width:32px;height:32px;border:2px solid #000;background:#333;border-radius:50%;margin-left:auto;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;">💬</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Figure WF-19 — Floating Action Button (FAB) + pop-up chat panel overlaid on any page</div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<div style="text-align:center; padding:20px; border-top:2px solid #000; font-size:9px; color:#555; margin-top:10px;">
+  LYDO SYSTEM — LOW-FIDELITY WIREFRAMES &nbsp;|&nbsp; 20 SCREENS (WF-00 to WF-19) &nbsp;|&nbsp; THESIS DOCUMENTATION 2025
+</div>
+
+</body>
+</html>

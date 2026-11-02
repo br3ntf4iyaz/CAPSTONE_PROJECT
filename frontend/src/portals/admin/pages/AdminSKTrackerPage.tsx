@@ -5,6 +5,8 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi, SKFeedbackItem } from '@/api/skFeedback'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
+import { useSKRequirementIntegrity } from '@/api/ledger'
 import { cn } from '@/utils'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -37,6 +39,14 @@ function nextME(s: MEStatus): MEStatus { return ME_CYCLE[(ME_CYCLE.indexOf(s) + 
 function nextDoc(s: DocStatus): DocStatus { return DOC_CYCLE[(DOC_CYCLE.indexOf(s) + 1) % DOC_CYCLE.length] }
 function nextAssembly(s: AssemblyStatus): AssemblyStatus { return ASSEMBLY_CYCLE[(ASSEMBLY_CYCLE.indexOf(s) + 1) % ASSEMBLY_CYCLE.length] }
 
+type MEField = 'me1_ppa' | 'me1_gap' | 'me2_policies'
+type DocField = 'minutes_status' | 'sk_directory_status' | 'youth_org_list_status'
+type AssemblyField = 'kk_1st_sem' | 'kk_2nd_sem' | 'lnk'
+
+const ME_COLUMNS: Record<MEField, string> = { me1_ppa: 'ME 1 – PPAs', me1_gap: 'ME 1 – GAP', me2_policies: 'ME 2 Policies' }
+const DOC_COLUMNS: Record<DocField, string> = { minutes_status: 'Minutes of Meetings', sk_directory_status: 'SK Directory', youth_org_list_status: 'List of Youth Org' }
+const ASSEMBLY_COLUMNS: Record<AssemblyField, string> = { kk_1st_sem: 'KK Assembly 1st Semester', kk_2nd_sem: 'KK Assembly 2nd Semester', lnk: 'LNK' }
+
 // ── Cell renderers ──────────────────────────────────────────────────────────────
 
 function MECell({ status, onClick, loading }: { status: MEStatus; onClick: () => void; loading?: boolean }) {
@@ -45,7 +55,7 @@ function MECell({ status, onClick, loading }: { status: MEStatus; onClick: () =>
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'w-full h-10 rounded flex items-center justify-center text-lg font-bold transition-all',
+        'w-12 h-8 mx-auto rounded flex items-center justify-center text-lg font-bold transition-all',
         status === 'yes' && 'bg-green-500 hover:bg-green-600',
         status === 'partial' && 'bg-yellow-400 hover:bg-yellow-500',
         status === 'no' && 'bg-red-500 hover:bg-red-600',
@@ -68,7 +78,7 @@ function DocCell({ status, count, onClick, loading, showCount }: {
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'w-full h-10 rounded flex items-center justify-center text-sm font-bold transition-all',
+        'w-12 h-8 mx-auto rounded flex items-center justify-center text-sm font-bold transition-all',
         status === 'submitted' && 'bg-green-500 hover:bg-green-600',
         status === 'partial' && 'bg-yellow-400 hover:bg-yellow-500',
         status === 'not_submitted' && 'bg-red-500 hover:bg-red-600',
@@ -89,7 +99,7 @@ function AssemblyCell({ status, onClick, loading }: { status: AssemblyStatus; on
       onClick={onClick}
       disabled={loading}
       className={cn(
-        'w-full h-10 rounded flex items-center justify-center text-sm font-bold transition-all',
+        'w-12 h-8 mx-auto rounded flex items-center justify-center text-sm font-bold transition-all',
         status === 'conducted' && 'bg-blue-600 hover:bg-blue-700',
         status === 'not_conducted' && 'bg-red-500 hover:bg-red-600',
         status === 'pending' && 'bg-gray-100 hover:bg-gray-200 border border-gray-200',
@@ -101,6 +111,88 @@ function AssemblyCell({ status, onClick, loading }: { status: AssemblyStatus; on
       {status === 'not_conducted' && <span className="text-white">✗</span>}
       {status === 'pending' && <span className="text-gray-400 text-xs">—</span>}
     </button>
+  )
+}
+
+// ── Confirmation before changing a status ───────────────────────────────────────
+
+interface StatusOption<T extends string> { value: T; label: string; dot: string }
+
+const ME_OPTIONS: StatusOption<MEStatus>[] = [
+  { value: 'yes', label: 'Encoded', dot: 'bg-green-500' },
+  { value: 'partial', label: 'Partial', dot: 'bg-yellow-400' },
+  { value: 'no', label: 'Not encoded', dot: 'bg-red-500' },
+]
+const DOC_OPTIONS: StatusOption<DocStatus>[] = [
+  { value: 'submitted', label: 'Submitted', dot: 'bg-green-500' },
+  { value: 'partial', label: 'Partially submitted', dot: 'bg-yellow-400' },
+  { value: 'not_submitted', label: 'No submission', dot: 'bg-red-500' },
+]
+const ASSEMBLY_OPTIONS: StatusOption<AssemblyStatus>[] = [
+  { value: 'conducted', label: 'Conducted', dot: 'bg-blue-600' },
+  { value: 'not_conducted', label: 'Not conducted', dot: 'bg-red-500' },
+  { value: 'pending', label: 'Pending', dot: 'bg-gray-300' },
+]
+
+/** Asks the admin to pick and confirm the new status, so a stray click never changes a record. */
+function StatusChangeDialog<T extends string>({ barangay, column, options, current, suggested, busy, onCancel, onConfirm }: {
+  barangay: string; column: string; options: StatusOption<T>[]
+  current: T; suggested: T; busy?: boolean
+  onCancel: () => void; onConfirm: (to: T) => void
+}) {
+  const [selected, setSelected] = useState<T>(suggested)
+  const label = (v: T) => options.find(o => o.value === v)?.label ?? v
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onCancel])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onCancel}>
+      <div
+        role="dialog" aria-modal="true" aria-label="Confirm status change"
+        className="w-full max-w-sm rounded-xl bg-white p-5 shadow-xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 className="text-base font-bold text-ink-900">Change status?</h2>
+        <p className="mt-1 text-sm text-ink-600">
+          <strong>{barangay}</strong> · {column}
+        </p>
+        <p className="mt-0.5 text-xs text-ink-500">Currently: {label(current)}</p>
+
+        <div className="mt-4 space-y-2">
+          {options.map(o => (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => setSelected(o.value)}
+              className={cn(
+                'flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-sm text-left transition-colors',
+                selected === o.value ? 'border-primary-600 bg-primary-50 font-semibold' : 'border-gray-200 hover:bg-gray-50',
+              )}
+            >
+              <span className={cn('h-3 w-3 rounded-full', o.dot)} />
+              {o.label}
+              {o.value === current && <span className="ml-auto text-xs text-ink-400">current</span>}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onCancel} className="btn-secondary btn-sm">Cancel</button>
+          <button
+            type="button"
+            onClick={() => onConfirm(selected)}
+            disabled={busy || selected === current}
+            className="btn-primary btn-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {busy ? 'Saving…' : `Change to ${label(selected)}`}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -126,6 +218,7 @@ function MEPortalTab({ year }: { year: number }) {
   })
 
   const [saving, setSaving] = useState<number | null>(null)
+  const [pending, setPending] = useState<{ record: MERecord; field: MEField } | null>(null)
 
   const exportCSV = () => {
     downloadCSV(
@@ -135,12 +228,12 @@ function MEPortalTab({ year }: { year: number }) {
     )
   }
 
-  async function updateCell(record: MERecord, field: keyof Pick<MERecord, 'me1_ppa' | 'me1_gap' | 'me2_policies'>) {
-    const newVal = nextME(record[field])
+  async function updateCell(record: MERecord, field: MEField, newVal: MEStatus) {
     setSaving(record.id)
     try {
       await apiClient.patch(`/compliance/sk-me/${record.id}/`, { [field]: newVal })
       await qc.invalidateQueries({ queryKey: ['sk-me', year] })
+      setPending(null)
     } catch { toast.error('Failed to update') }
     finally { setSaving(null) }
   }
@@ -159,11 +252,19 @@ function MEPortalTab({ year }: { year: number }) {
         <div className="flex items-center gap-2 text-xs">
           <div className="w-4 h-4 rounded bg-red-500" /> <span>Not Encoded (No)</span>
         </div>
-        <span className="text-xs text-ink-400 ml-2">Click any cell to cycle through statuses</span>
+        <span className="text-xs text-ink-400 ml-2">Click a cell to change its status (you will be asked to confirm)</span>
         <button onClick={exportCSV} className="ml-auto btn-secondary btn-sm text-xs flex items-center gap-1">
           <Download size={12} /> Export CSV
         </button>
       </div>
+      {pending && (
+        <StatusChangeDialog
+          barangay={pending.record.barangay_display} column={ME_COLUMNS[pending.field]}
+          options={ME_OPTIONS} current={pending.record[pending.field]} suggested={nextME(pending.record[pending.field])}
+          busy={saving === pending.record.id}
+          onCancel={() => setPending(null)} onConfirm={to => updateCell(pending.record, pending.field, to)}
+        />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -179,13 +280,13 @@ function MEPortalTab({ year }: { year: number }) {
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="border border-gray-300 px-3 py-1 font-semibold text-xs">{r.barangay_display}</td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <MECell status={r.me1_ppa} onClick={() => updateCell(r, 'me1_ppa')} loading={saving === r.id} />
+                  <MECell status={r.me1_ppa} onClick={() => setPending({ record: r, field: 'me1_ppa' })} loading={saving === r.id} />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <MECell status={r.me1_gap} onClick={() => updateCell(r, 'me1_gap')} loading={saving === r.id} />
+                  <MECell status={r.me1_gap} onClick={() => setPending({ record: r, field: 'me1_gap' })} loading={saving === r.id} />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <MECell status={r.me2_policies} onClick={() => updateCell(r, 'me2_policies')} loading={saving === r.id} />
+                  <MECell status={r.me2_policies} onClick={() => setPending({ record: r, field: 'me2_policies' })} loading={saving === r.id} />
                 </td>
               </tr>
             ))}
@@ -211,6 +312,7 @@ function DocumentSubmissionsTab({ year }: { year: number }) {
   })
 
   const [saving, setSaving] = useState<number | null>(null)
+  const [pending, setPending] = useState<{ record: DocRecord; field: DocField } | null>(null)
 
   const exportCSV = () => {
     downloadCSV(
@@ -220,8 +322,7 @@ function DocumentSubmissionsTab({ year }: { year: number }) {
     )
   }
 
-  async function updateCell(record: DocRecord, field: keyof Pick<DocRecord, 'minutes_status' | 'sk_directory_status' | 'youth_org_list_status'>) {
-    const newVal = nextDoc(record[field] as DocStatus)
+  async function updateCell(record: DocRecord, field: DocField, newVal: DocStatus) {
     const extra: Partial<DocRecord> = {}
     if (field === 'minutes_status' && newVal === 'partial') {
       extra.minutes_count = record.minutes_count
@@ -230,6 +331,7 @@ function DocumentSubmissionsTab({ year }: { year: number }) {
     try {
       await apiClient.patch(`/compliance/sk-documents/${record.id}/`, { [field]: newVal, ...extra })
       await qc.invalidateQueries({ queryKey: ['sk-docs', year] })
+      setPending(null)
     } catch { toast.error('Failed to update') }
     finally { setSaving(null) }
   }
@@ -252,12 +354,20 @@ function DocumentSubmissionsTab({ year }: { year: number }) {
     <div className="space-y-4">
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-green-500" /> <span>Submitted</span></div>
-        <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-yellow-400" /> <span>Partially Submitted (click # to set count)</span></div>
+        <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-yellow-400" /> <span>Partially Submitted (use "Edit #" to set count)</span></div>
         <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-red-500" /> <span>No Submission</span></div>
         <button onClick={exportCSV} className="ml-auto btn-secondary btn-sm text-xs flex items-center gap-1">
           <Download size={12} /> Export CSV
         </button>
       </div>
+      {pending && (
+        <StatusChangeDialog
+          barangay={pending.record.barangay_display} column={DOC_COLUMNS[pending.field]}
+          options={DOC_OPTIONS} current={pending.record[pending.field]} suggested={nextDoc(pending.record[pending.field])}
+          busy={saving === pending.record.id}
+          onCancel={() => setPending(null)} onConfirm={to => updateCell(pending.record, pending.field, to)}
+        />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -284,29 +394,29 @@ function DocumentSubmissionsTab({ year }: { year: number }) {
                       <button onClick={() => setEditingCount(null)} className="text-xs bg-gray-200 rounded px-1.5">✗</button>
                     </div>
                   ) : (
-                    <div className="relative">
+                    <div className="flex items-center justify-center gap-1.5">
                       <DocCell
                         status={r.minutes_status} count={r.minutes_count}
-                        onClick={() => updateCell(r, 'minutes_status')}
+                        onClick={() => setPending({ record: r, field: 'minutes_status' })}
                         loading={saving === r.id} showCount
                       />
                       {r.minutes_status === 'partial' && (
                         <button
                           onClick={() => { setEditingCount(r.id); setCountVal(String(r.minutes_count ?? '')) }}
-                          className="absolute inset-0 flex items-center justify-center text-white text-sm font-bold"
-                          title="Click to set count"
+                          className="text-[11px] font-semibold text-primary-700 hover:underline whitespace-nowrap"
+                          title="Set how many minutes were submitted"
                         >
-                          {r.minutes_count != null ? r.minutes_count : '?'}
+                          Edit #
                         </button>
                       )}
                     </div>
                   )}
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <DocCell status={r.sk_directory_status} onClick={() => updateCell(r, 'sk_directory_status')} loading={saving === r.id} />
+                  <DocCell status={r.sk_directory_status} onClick={() => setPending({ record: r, field: 'sk_directory_status' })} loading={saving === r.id} />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <DocCell status={r.youth_org_list_status} onClick={() => updateCell(r, 'youth_org_list_status')} loading={saving === r.id} />
+                  <DocCell status={r.youth_org_list_status} onClick={() => setPending({ record: r, field: 'youth_org_list_status' })} loading={saving === r.id} />
                 </td>
               </tr>
             ))}
@@ -330,6 +440,7 @@ function AssemblyTab({ year }: { year: number }) {
   })
 
   const [saving, setSaving] = useState<number | null>(null)
+  const [pending, setPending] = useState<{ record: AssemblyRecord; field: AssemblyField } | null>(null)
 
   const exportCSV = () => {
     downloadCSV(
@@ -339,12 +450,12 @@ function AssemblyTab({ year }: { year: number }) {
     )
   }
 
-  async function updateCell(record: AssemblyRecord, field: keyof Pick<AssemblyRecord, 'kk_1st_sem' | 'kk_2nd_sem' | 'lnk'>) {
-    const newVal = nextAssembly(record[field])
+  async function updateCell(record: AssemblyRecord, field: AssemblyField, newVal: AssemblyStatus) {
     setSaving(record.id)
     try {
       await apiClient.patch(`/compliance/sk-assembly/${record.id}/`, { [field]: newVal })
       await qc.invalidateQueries({ queryKey: ['sk-assembly', year] })
+      setPending(null)
     } catch { toast.error('Failed to update') }
     finally { setSaving(null) }
   }
@@ -357,11 +468,19 @@ function AssemblyTab({ year }: { year: number }) {
         <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-blue-600" /> <span>Conducted</span></div>
         <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-red-500" /> <span>Not Conducted</span></div>
         <div className="flex items-center gap-2 text-xs"><div className="w-4 h-4 rounded bg-gray-100 border border-gray-300" /> <span>Pending</span></div>
-        <span className="text-xs text-ink-400 ml-2">Click any cell to cycle through statuses</span>
+        <span className="text-xs text-ink-400 ml-2">Click a cell to change its status (you will be asked to confirm)</span>
         <button onClick={exportCSV} className="ml-auto btn-secondary btn-sm text-xs flex items-center gap-1">
           <Download size={12} /> Export CSV
         </button>
       </div>
+      {pending && (
+        <StatusChangeDialog
+          barangay={pending.record.barangay_display} column={ASSEMBLY_COLUMNS[pending.field]}
+          options={ASSEMBLY_OPTIONS} current={pending.record[pending.field]} suggested={nextAssembly(pending.record[pending.field])}
+          busy={saving === pending.record.id}
+          onCancel={() => setPending(null)} onConfirm={to => updateCell(pending.record, pending.field, to)}
+        />
+      )}
       <div className="overflow-x-auto">
         <table className="w-full border-collapse text-sm">
           <thead>
@@ -377,13 +496,13 @@ function AssemblyTab({ year }: { year: number }) {
               <tr key={r.id} className="hover:bg-gray-50">
                 <td className="border border-gray-300 px-3 py-1 font-semibold text-xs">{r.barangay_display}</td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <AssemblyCell status={r.kk_1st_sem} onClick={() => updateCell(r, 'kk_1st_sem')} loading={saving === r.id} />
+                  <AssemblyCell status={r.kk_1st_sem} onClick={() => setPending({ record: r, field: 'kk_1st_sem' })} loading={saving === r.id} />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <AssemblyCell status={r.kk_2nd_sem} onClick={() => updateCell(r, 'kk_2nd_sem')} loading={saving === r.id} />
+                  <AssemblyCell status={r.kk_2nd_sem} onClick={() => setPending({ record: r, field: 'kk_2nd_sem' })} loading={saving === r.id} />
                 </td>
                 <td className="border border-gray-300 px-2 py-1 w-28">
-                  <AssemblyCell status={r.lnk} onClick={() => updateCell(r, 'lnk')} loading={saving === r.id} />
+                  <AssemblyCell status={r.lnk} onClick={() => setPending({ record: r, field: 'lnk' })} loading={saving === r.id} />
                 </td>
               </tr>
             ))}
@@ -491,6 +610,8 @@ function DILGRequirementsTab() {
     enabled: effectiveBarangayId !== null,
   })
 
+  const { data: integrity } = useSKRequirementIntegrity()
+
   // Bulk create mutation
   const bulkCreate = useMutation({
     mutationFn: () => apiClient.post('/sk-requirements/requirements/bulk_create_for_barangay/', { barangay_id: effectiveBarangayId }),
@@ -527,6 +648,7 @@ function DILGRequirementsTab() {
     },
     onSuccess: (_data, { id }) => {
       toast.success('Marked as submitted')
+      qc.invalidateQueries({ queryKey: ['ledger', 'sk-requirements'] })
       qc.setQueryData(['dilg-requirements', effectiveBarangayId], (old: Requirement[] = []) =>
         old.map(r => r.id === id ? { ...r, status: 'submitted' as ReqStatus } : r)
       )
@@ -624,6 +746,9 @@ function DILGRequirementsTab() {
                   </td>
                   <td className="border border-gray-300 px-2 py-2 text-center">
                     <StatusBadge status={req.status} />
+                    <div className="mt-1">
+                      <IntegrityBadge result={integrity?.results[String(req.id)]} />
+                    </div>
                   </td>
 
                   {/* Due date cell */}
@@ -705,7 +830,7 @@ function DILGRequirementsTab() {
                         onClick={() => { setMarkSubmitId(req.id); setSubmitNotes(''); setSubmitFile(null) }}
                         disabled={req.status === 'submitted'}
                         className={cn(
-                          'w-full text-xs rounded py-1 px-2 font-medium transition-colors',
+                          'block mx-auto text-xs rounded py-1 px-3 font-medium whitespace-nowrap transition-colors',
                           req.status === 'submitted'
                             ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                             : 'bg-primary-600 hover:bg-primary-700 text-white',

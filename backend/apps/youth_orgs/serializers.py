@@ -105,6 +105,12 @@ class OrgDetailSerializer(serializers.ModelSerializer):
     accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
     requirements = OrgRequirementSerializer(many=True, read_only=True)
 
+    def get_logo_url(self, obj):
+        request = self.context.get('request')
+        if obj.logo and request:
+            return request.build_absolute_uri(obj.logo.url)
+        return None
+
     class Meta:
         model = YouthOrganization
         fields = [

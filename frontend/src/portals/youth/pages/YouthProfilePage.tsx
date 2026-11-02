@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { authStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
@@ -83,8 +84,10 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
         headers: { 'Content-Type': 'multipart/form-data' },
       })
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me'] })
+    onSuccess: (res) => {
+      const updated = res.data
+      qc.setQueryData(['me'], updated)
+      authStore.setUser(updated)
       toast.success('Avatar updated!')
     },
     onError: () => toast.error('Failed to upload avatar.'),
@@ -265,8 +268,10 @@ export default function YouthProfilePage() {
 
   const saveBasic = useMutation({
     mutationFn: () => apiClient.patch('/auth/me/', basicForm),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['me'] })
+    onSuccess: (res) => {
+      const updated = res.data
+      qc.setQueryData(['me'], updated)
+      authStore.setUser(updated)
       setEditingBasic(false)
       toast.success('Basic info updated!')
     },

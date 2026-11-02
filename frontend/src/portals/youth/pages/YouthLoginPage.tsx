@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Eye, EyeOff, ArrowRight, Sparkles, Mail, Lock, AlertCircle } from 'lucide-react'
+import { Eye, EyeOff, ArrowRight, Mail, Lock, AlertCircle } from 'lucide-react'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 import { useLogin } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
@@ -43,10 +44,7 @@ export default function YouthLoginPage() {
       <div className="bg-white border-b border-ink-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2.5 group">
-            <span className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary-600 text-white">
-              <Sparkles size={18} strokeWidth={2.5} />
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-accent-400 border-2 border-white" />
-            </span>
+            <LydoLogo size={36} />
             <span className="flex flex-col leading-none">
               <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">LYDO</span>
               <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">Lucena Youth</span>

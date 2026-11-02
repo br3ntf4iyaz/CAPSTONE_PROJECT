@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { CheckCircle, XCircle, Loader2, Sparkles } from 'lucide-react'
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { LydoLogo } from '@/components/ui/LydoLogo'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi } from '@/api/auth'
 import { authStore } from '@/store/authStore'
@@ -46,10 +47,7 @@ export default function VerifyEmailPage() {
       <div className="bg-white border-b border-ink-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
           <Link to="/" className="flex items-center gap-2.5">
-            <span className="relative inline-flex items-center justify-center w-9 h-9 rounded-xl bg-primary-600 text-white">
-              <Sparkles size={18} strokeWidth={2.5} />
-              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-accent-400 border-2 border-white" />
-            </span>
+            <LydoLogo size={36} />
             <span className="flex flex-col leading-none">
               <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">LYDO</span>
               <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">Lucena Youth</span>

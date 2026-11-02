@@ -9,11 +9,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     password2 = serializers.CharField(write_only=True)
     organization = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     job_title = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    barangay = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
 
     class Meta:
         model = User
         fields = ["email", "first_name", "last_name", "barangay", "role", "youth_type", "password", "password2", "organization", "job_title"]
-        extra_kwargs = {"barangay": {"required": False, "default": ""}}
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
@@ -39,16 +39,22 @@ class RegisterSerializer(serializers.ModelSerializer):
         password = validated_data.pop("password")
         organization = validated_data.pop("organization", "")
         job_title = validated_data.pop("job_title", "")
+        barangay = validated_data.pop("barangay", "")
         user = User(**validated_data)
         user.set_password(password)
         user.save()
-        if organization or job_title:
+        profile_fields = {}
+        if organization:
+            profile_fields["organization"] = organization
+        if job_title:
+            profile_fields["job_title"] = job_title
+        if barangay:
+            profile_fields["barangay"] = barangay
+        if profile_fields:
             profile = user.profile
-            if organization:
-                profile.organization = organization
-            if job_title:
-                profile.job_title = job_title
-            profile.save(update_fields=["organization", "job_title"])
+            for k, v in profile_fields.items():
+                setattr(profile, k, v)
+            profile.save(update_fields=list(profile_fields.keys()))
         return user
 
 
@@ -128,7 +134,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "full_name",
-            "role", "is_active", "date_joined", "onboarding_complete", "profile",
+            "role", "youth_type", "is_active", "date_joined", "onboarding_complete", "profile",
             "is_verified",
         ]
         read_only_fields = ["date_joined"]
