@@ -1,7 +1,7 @@
 {
   "rewrites": [
-    { "source": "/api/:path*", "destination": "https://andrewoareza.pythonanywhere.com/api/:path*" },
-    { "source": "/media/:path*", "destination": "https://andrewoareza.pythonanywhere.com/media/:path*" },
-    { "source": "/(.*)", "destination": "/index.html" }
+    { "source": "/api/(.*)", "destination": "https://andrewoareza.pythonanywhere.com/api/$1" },
+    { "source": "/media/(.*)", "destination": "https://andrewoareza.pythonanywhere.com/media/$1" },
+    { "source": "/((?!api/|media/).*)", "destination": "/index.html" }
   ]
 }
