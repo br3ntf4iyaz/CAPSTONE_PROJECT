@@ -18,7 +18,14 @@ from .models import ChatMessage, ChatSession
 from .serializers import ChatSessionSerializer
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-GROQ_MODEL = "llama-3.1-8b-instant"
+# GROQ_MODEL in .env is tried first, then the defaults below.
+GROQ_MODELS = [m for m in [
+    os.getenv("GROQ_MODEL", ""),
+    "llama-3.1-8b-instant",
+    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
+] if m]
 
 SYSTEM_PROMPT = (
     "You are a helpful AI assistant for the Lucena City Youth Development Portal (LYDO Hub). "
@@ -98,13 +105,26 @@ class ChatbotView(APIView):
                     timeout=30,
                 ),
             )
-            response = client.chat.completions.create(
-                model=GROQ_MODEL,
-                messages=api_messages,
-                max_tokens=1024,
-                temperature=0.7,
-            )
-            reply = response.choices[0].message.content
+            # Try each model in turn; skip ones the key cannot access (404/403).
+            reply = None
+            last_exc = None
+            for model_name in GROQ_MODELS:
+                try:
+                    response = client.chat.completions.create(
+                        model=model_name,
+                        messages=api_messages,
+                        max_tokens=1024,
+                        temperature=0.7,
+                    )
+                    reply = response.choices[0].message.content
+                    break
+                except Exception as exc:  # noqa: BLE001
+                    if getattr(exc, 'status_code', None) in (400, 403, 404):
+                        last_exc = exc
+                        continue
+                    raise
+            if reply is None:
+                raise last_exc
         except APIConnectionError:
             reply = 'Could not connect to the AI service. Please try again later.'
         except AuthenticationError:
