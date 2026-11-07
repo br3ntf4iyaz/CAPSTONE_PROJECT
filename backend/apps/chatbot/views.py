@@ -90,7 +90,13 @@ class ChatbotView(APIView):
             client = OpenAI(
                 api_key=api_key,
                 base_url=GROQ_BASE_URL,
-                http_client=httpx.Client(verify=False),  # bypass local SSL inspection
+                # OUTBOUND_PROXY is needed on PythonAnywhere free accounts
+                # (http://proxy.server:3128); unset locally.
+                http_client=httpx.Client(
+                    verify=False,  # bypass local SSL inspection
+                    proxy=os.getenv('OUTBOUND_PROXY') or None,
+                    timeout=30,
+                ),
             )
             response = client.chat.completions.create(
                 model=GROQ_MODEL,
