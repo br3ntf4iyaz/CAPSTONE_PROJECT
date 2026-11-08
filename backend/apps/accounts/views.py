@@ -2,6 +2,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import EmailMultiAlternatives
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
@@ -213,13 +214,13 @@ class VerifyEmailView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        token_str = request.query_params.get("token", "")
+        token_str = request.query_params.get("token", "").strip()
         if not token_str:
             return Response({"detail": "Token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             token_obj = EmailVerificationToken.objects.select_related("user").get(token=token_str)
-        except (EmailVerificationToken.DoesNotExist, ValueError):
+        except (EmailVerificationToken.DoesNotExist, ValueError, DjangoValidationError):
             return Response(
                 {"detail": "Invalid verification link.", "code": "invalid_token"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -505,7 +506,7 @@ class ResetPasswordView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        token_str = request.data.get("token", "")
+        token_str = str(request.data.get("token", "")).strip()
         password = request.data.get("password", "")
         password2 = request.data.get("password2", "")
 
@@ -520,7 +521,7 @@ class ResetPasswordView(generics.GenericAPIView):
 
         try:
             token_obj = PasswordResetToken.objects.select_related("user").get(token=token_str)
-        except (PasswordResetToken.DoesNotExist, ValueError):
+        except (PasswordResetToken.DoesNotExist, ValueError, DjangoValidationError):
             return Response(
                 {"detail": "Invalid or expired reset link.", "code": "invalid_token"},
                 status=status.HTTP_400_BAD_REQUEST,
