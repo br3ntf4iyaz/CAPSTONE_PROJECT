@@ -8,6 +8,7 @@ import {
 import apiClient from '@/api/client'
 import { cn, toArray } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface SchoolProgram {
@@ -287,7 +288,7 @@ export default function YouthSchoolsPage() {
   if (search) params.set('search', search)
 
   // Backend already filters to is_active=True
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['youth-schools', schoolType, search],
     queryFn: () => apiClient.get(`/schools/?${params.toString()}`).then(r => toArray<School>(r.data)),
   })
@@ -357,6 +358,8 @@ export default function YouthSchoolsPage() {
       {/* Results */}
       {isLoading ? (
         <PageSpinner />
+      ) : isError ? (
+        <QueryError onRetry={() => refetch()} />
       ) : schools.length === 0 ? (
         <EmptyState
           icon={GraduationCap}

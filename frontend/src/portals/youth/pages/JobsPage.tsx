@@ -9,6 +9,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Job {
@@ -341,7 +342,7 @@ export default function JobsPage() {
   const showSaved = jobType === '__saved__'
 
   // All / filtered jobs — search sent to backend, other filters local
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['youth-jobs', jobType, industry, debouncedSearch],
     queryFn: () => {
       const params = new URLSearchParams()
@@ -478,6 +479,8 @@ export default function JobsPage() {
       {/* Results */}
       {isLoading_ ? (
         <PageSpinner />
+      ) : isError && !showSaved ? (
+        <QueryError onRetry={() => refetch()} />
       ) : filtered.length === 0 ? (
         <EmptyState
           icon={Briefcase}

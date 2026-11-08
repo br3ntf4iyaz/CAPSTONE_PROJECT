@@ -8,6 +8,7 @@ import {
 import { cn, toArray } from '@/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 import apiClient from '@/api/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -324,12 +325,13 @@ export default function ScholarshipsPage() {
 
   const { saved, toggle } = useSavedScholarships()
 
-  const { data: scholarships = [], isLoading } = useQuery<Scholarship[]>({
+  const { data: scholarships = [], isLoading, isError, refetch } = useQuery<Scholarship[]>({
     queryKey: ['scholarships'],
     queryFn: () => apiClient.get('/scholarships/').then(r => toArray<Scholarship>(r.data)),
   })
 
   if (isLoading) return <PageSpinner />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   const closingSoon = scholarships.filter(s => isDeadlineSoon(s.deadline) && !isDeadlinePassed(s.deadline))
 

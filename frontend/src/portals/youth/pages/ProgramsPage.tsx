@@ -19,6 +19,7 @@ import apiClient from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, getStatusColor, cn, toArray } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Program {
@@ -152,12 +153,11 @@ export default function ProgramsPage() {
   if (submitterType) params.set('submitter_type', submitterType)
   if (search) params.set('search', search)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['programs', category, status, barangay, submitterType, search],
     queryFn: () =>
       apiClient.get(`/programs/?${params.toString()}`)
-        .then(r => toArray<Program>(r.data))
-        .catch(() => []),
+        .then(r => toArray<Program>(r.data)),
   })
 
   const programs = data ?? []
@@ -226,6 +226,8 @@ export default function ProgramsPage() {
       {/* Content */}
       {isLoading ? (
         <PageSpinner />
+      ) : isError ? (
+        <QueryError onRetry={() => refetch()} />
       ) : programs.length === 0 ? (
         <EmptyState
           icon={FolderOpen}
