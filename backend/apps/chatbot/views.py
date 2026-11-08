@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 
@@ -8,14 +9,18 @@ except ImportError:  # openai not installed — chatbot will degrade gracefully
     OpenAI = None
     APIConnectionError = Exception
     AuthenticationError = Exception
+    logging.getLogger(__name__).error('openai package is not installed; chatbot is disabled')
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .context import build_context
 from .models import ChatMessage, ChatSession
 from .serializers import ChatSessionSerializer
+
+logger = logging.getLogger(__name__)
 
 GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 # GROQ_MODEL in .env is tried first, then the defaults below.
@@ -33,8 +38,14 @@ SYSTEM_PROMPT = (
     "Lucena City government programs, events, requirements, policies, scholarships, jobs, internships, "
     "and laws affecting Filipino youth aged 15-30. "
     "Be friendly, concise, and helpful. If you don't know something specific to Lucena City, say so honestly. "
-    "Respond in English or Filipino based on the user's language."
+    "Respond in English or Filipino based on the user's language. "
+    "When the user asks about current events, scholarships, jobs, or FAQs, use ONLY the live portal data "
+    "provided below and tell them to open the matching page in the portal for details and to apply. "
+    "Never invent dates, amounts, deadlines, links, or requirements. "
+    "Never ask for passwords, OTPs, or ID numbers."
 )
+
+MAX_MESSAGE_CHARS = 1000
 
 
 class ChatbotView(APIView):
@@ -60,12 +71,13 @@ class ChatbotView(APIView):
     # POST  /api/chatbot/
     # ------------------------------------------------------------------
     def post(self, request):
-        message_text = request.data.get('message', '').strip()
+        message_text = str(request.data.get('message', '')).strip()
         if not message_text:
             return Response(
                 {'error': 'message is required.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        message_text = message_text[:MAX_MESSAGE_CHARS]
 
         # Resolve or create session
         session_key = request.data.get('session_key') or str(uuid.uuid4())
@@ -87,8 +99,12 @@ class ChatbotView(APIView):
 
         # Build message history (last 10 messages)
         recent_messages = list(session.messages.order_by('created_at'))[-10:]
+        live_data = build_context()
+        system_content = SYSTEM_PROMPT
+        if live_data:
+            system_content += '\n\nLIVE PORTAL DATA (as of now):\n' + live_data
         api_messages = [
-            {'role': 'system', 'content': SYSTEM_PROMPT},
+            {'role': 'system', 'content': system_content},
             *[{'role': msg.role, 'content': msg.content} for msg in recent_messages],
         ]
 
@@ -129,8 +145,9 @@ class ChatbotView(APIView):
             reply = 'Could not connect to the AI service. Please try again later.'
         except AuthenticationError:
             reply = 'AI chatbot is not configured correctly. Please contact the administrator.'
-        except Exception as exc:  # noqa: BLE001
-            reply = f'An error occurred while processing your request: {exc}'
+        except Exception:  # noqa: BLE001
+            logger.exception('Chatbot request failed')
+            reply = 'Sorry, the assistant is having trouble right now. Please try again in a moment.'
 
         # Persist assistant reply
         ChatMessage.objects.create(session=session, role='assistant', content=reply)
