@@ -10,6 +10,7 @@ import { useMe } from '@/hooks/useAuth'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 
 const YOUTH_TYPE_LABEL: Record<string, string> = {
   sk:                'SK Member',
@@ -23,7 +24,7 @@ function gridCell(idx: number, seed: number): boolean {
 }
 
 export default function YouthIDCardPage() {
-  const { data: user, isLoading } = useMe()
+  const { data: user, isLoading, isError, refetch } = useMe()
   const cardRef = useRef<HTMLDivElement>(null)
 
   const { data: verification } = useQuery<{ is_verified: boolean }>({
@@ -31,7 +32,8 @@ export default function YouthIDCardPage() {
     queryFn: () => apiClient.get('/verification/').then(r => r.data).catch(() => ({ is_verified: false })),
   })
 
-  if (isLoading || !user) return <PageSpinner />
+  if (isLoading) return <PageSpinner />
+  if (isError || !user) return <QueryError onRetry={() => refetch()} />
 
   const isVerified = verification?.is_verified ?? false
   const initials = `${user.first_name?.[0] ?? ''}${user.last_name?.[0] ?? ''}`.toUpperCase() || 'YU'

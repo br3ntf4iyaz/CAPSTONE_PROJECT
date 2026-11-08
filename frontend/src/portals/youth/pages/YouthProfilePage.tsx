@@ -12,6 +12,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { communityApi, type CommunityPost } from '@/api/community'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { QueryError } from '@/components/ui/QueryError'
 import { cn, formatDate } from '@/utils'
 
 interface Profile {
@@ -200,7 +201,7 @@ export default function YouthProfilePage() {
   const [editingProfile, setEditingProfile] = useState(false)
   const [editingSkills, setEditingSkills] = useState(false)
 
-  const { data: me, isLoading } = useQuery<Me>({
+  const { data: me, isLoading, isError, refetch } = useQuery<Me>({
     queryKey: ['me'],
     queryFn: () => apiClient.get('/auth/me/').then(r => r.data),
   })
@@ -301,7 +302,8 @@ export default function YouthProfilePage() {
     onError: () => toast.error('Failed to save skills.'),
   })
 
-  if (isLoading || !me) return <PageSpinner />
+  if (isLoading) return <PageSpinner />
+  if (isError || !me) return <QueryError onRetry={() => refetch()} />
 
   const profile = me.profile
   const pct = profile?.completeness_percent ?? 0

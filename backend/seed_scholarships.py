@@ -17,7 +17,7 @@ SCHOLARSHIPS = [
         'provider_type': 'government',
         'coverage': 'Full tuition + living allowance',
         'amount': 'Up to PHP 60,000/year',
-        'deadline': '2026-06-30',
+        'deadline': '2027-06-30',
         'slots': 'Nationwide',
         'description': (
             'The Unified Student Financial Assistance System provides grants, loans, and scholarships '
@@ -40,7 +40,7 @@ SCHOLARSHIPS = [
         'provider_type': 'government',
         'coverage': 'Tuition + allowances',
         'amount': 'PHP 7,000/month allowance + tuition',
-        'deadline': '2026-04-15',
+        'deadline': '2027-04-15',
         'slots': '3,000 slots/year',
         'description': (
             'The DOST Science and Technology scholarship supports students pursuing S&T-related courses. '
@@ -62,7 +62,7 @@ SCHOLARSHIPS = [
         'provider_type': 'local_government',
         'coverage': 'Partial to full tuition',
         'amount': 'Up to PHP 30,000/semester',
-        'deadline': '2026-07-31',
+        'deadline': '2027-07-31',
         'slots': '200 slots (Lucena City residents only)',
         'description': (
             'The Lucena City Scholarship Program provides educational assistance to qualified residents '
@@ -86,7 +86,7 @@ SCHOLARSHIPS = [
         'provider_type': 'local_government',
         'coverage': 'Tuition assistance',
         'amount': 'PHP 15,000/semester',
-        'deadline': '2026-08-15',
+        'deadline': '2027-08-15',
         'slots': '50 slots',
         'description': (
             'Exclusive scholarship grant for active SK officials and youth leaders in Lucena City. '
@@ -153,7 +153,7 @@ SCHOLARSHIPS = [
         'provider_type': 'private',
         'coverage': 'Full scholarship',
         'amount': 'Full tuition + PHP 3,000/month allowance',
-        'deadline': '2026-03-31',
+        'deadline': '2027-03-31',
         'slots': '150 slots/year (Nationwide)',
         'description': (
             'SM Foundation provides full college scholarships to deserving Filipino youth, with priority '
@@ -198,7 +198,7 @@ SCHOLARSHIPS = [
         'provider_type': 'local_government',
         'coverage': 'Partial tuition assistance',
         'amount': 'PHP 5,000-10,000/semester',
-        'deadline': '2026-06-15',
+        'deadline': '2027-06-15',
         'slots': 'Province-wide',
         'description': (
             'The Quezon Province Social Welfare and Development Office offers scholarship grants to qualified '
