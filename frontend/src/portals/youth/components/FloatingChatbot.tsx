@@ -63,13 +63,31 @@ const SUGGESTIONS = [
   'Ano ang mga bukas na trabaho?',
 ]
 
-const SESSION_KEY =`chatbot_${Math.random().toString(36).slice(2)}`
+const STORAGE_KEY = 'lydo_chatbot_v1'
+const GREETING: Message = {
+  role: 'assistant',
+  content: "Hi! I'm the LYDO AI assistant. Ask me anything about youth programs, SK, scholarships, and more.",
+}
+
+/** Restore the previous conversation (per browser) so a reload doesn't wipe it. */
+function loadSaved(): { key: string; messages: Message[] } {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      const parsed = JSON.parse(raw)
+      if (parsed?.key && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
+        return { key: parsed.key, messages: parsed.messages.slice(-30) }
+      }
+    }
+  } catch { /* storage unavailable or corrupt: start fresh */ }
+  return { key: `chatbot_${Math.random().toString(36).slice(2)}`, messages: [GREETING] }
+}
 
 function FloatingChatbotInner() {
-  const [open, setOpen] = useState(true)
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hi! I'm the LYDO AI assistant. Ask me anything about youth programs, SK, scholarships, and more." },
-  ])
+  const [open, setOpen] = useState(false)
+  const [saved] = useState(loadSaved)
+  const sessionKey = saved.key
+  const [messages, setMessages] = useState<Message[]>(saved.messages)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -78,6 +96,12 @@ function FloatingChatbotInner() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, open])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ key: sessionKey, messages: messages.slice(-30) }))
+    } catch { /* ignore quota/private-mode errors */ }
+  }, [messages, sessionKey])
 
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 150)
@@ -90,7 +114,7 @@ function FloatingChatbotInner() {
     setMessages(prev => [...prev, { role: 'user', content: text }])
     setLoading(true)
     try {
-      const res = await chatbotApi.send(text, SESSION_KEY)
+      const res = await chatbotApi.send(text, sessionKey)
       const reply = (res.data as any).reply ?? "Sorry, I couldn't process that."
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (err: any) {
