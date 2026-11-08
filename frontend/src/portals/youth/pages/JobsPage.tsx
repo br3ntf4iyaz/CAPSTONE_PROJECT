@@ -8,7 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -478,7 +478,7 @@ export default function JobsPage() {
 
       {/* Results */}
       {isLoading_ ? (
-        <PageSpinner />
+        <ListSkeleton />
       ) : isError && !showSaved ? (
         <QueryError onRetry={() => refetch()} />
       ) : filtered.length === 0 ? (

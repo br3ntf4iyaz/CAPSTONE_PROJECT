@@ -18,7 +18,7 @@ const CATEGORY_GRADIENT: Record<string, string> = {
 import apiClient from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, getStatusColor, cn, toArray } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
@@ -225,7 +225,7 @@ export default function ProgramsPage() {
 
       {/* Content */}
       {isLoading ? (
-        <PageSpinner />
+        <ListSkeleton />
       ) : isError ? (
         <QueryError onRetry={() => refetch()} />
       ) : programs.length === 0 ? (

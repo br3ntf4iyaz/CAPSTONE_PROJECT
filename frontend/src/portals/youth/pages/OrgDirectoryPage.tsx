@@ -8,6 +8,7 @@ import {
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
+import { QueryError } from '@/components/ui/QueryError'
 import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 
@@ -434,7 +435,7 @@ export default function OrgDirectoryPage() {
   })
   const isVerified = verification?.is_verified ?? false
 
-  const { data: orgs = [], isLoading } = useQuery<YouthOrg[]>({
+  const { data: orgs = [], isLoading, isError, refetch } = useQuery<YouthOrg[]>({
     queryKey: ['youth-orgs-directory'],
     queryFn: () =>
       apiClient.get('/youth-orgs/').then(r => {
@@ -525,6 +526,8 @@ export default function OrgDirectoryPage() {
             <div className="space-y-3">
               {[1,2,3].map(i => <div key={i} className="skeleton h-24 w-full rounded-xl" />)}
             </div>
+          ) : isError ? (
+            <QueryError onRetry={() => refetch()} />
           ) : filtered.length === 0 ? (
             <div className="card p-12 text-center text-ink-500">
               <Building2 size={36} className="mx-auto mb-3 opacity-30" />

@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { formatDateTime, cn, toArray } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface Event {
@@ -72,9 +73,9 @@ export default function YouthCalendarPage() {
   const [tab, setTab] = useState<'all' | 'upcoming' | 'registered'>('all')
   const [typeFilter, setTypeFilter] = useState<string>('all')
 
-  const { data: events = [], isLoading } = useQuery<Event[]>({
+  const { data: events = [], isLoading, isError, refetch } = useQuery<Event[]>({
     queryKey: ['youth-events'],
-    queryFn: () => apiClient.get('/events/').then(r => toArray<Event>(r.data)).catch(() => []),
+    queryFn: () => apiClient.get('/events/').then(r => toArray<Event>(r.data)),
   })
 
   const { data: verification } = useQuery<{ is_verified: boolean }>({
@@ -124,7 +125,8 @@ export default function YouthCalendarPage() {
     },
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   const now = new Date()
   const filteredEvents = events

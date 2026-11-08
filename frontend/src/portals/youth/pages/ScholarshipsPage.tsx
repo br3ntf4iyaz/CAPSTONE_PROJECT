@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { cn, toArray } from '@/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import apiClient from '@/api/client'
 
@@ -330,7 +330,7 @@ export default function ScholarshipsPage() {
     queryFn: () => apiClient.get('/scholarships/').then(r => toArray<Scholarship>(r.data)),
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
   if (isError) return <QueryError onRetry={() => refetch()} />
 
   const closingSoon = scholarships.filter(s => isDeadlineSoon(s.deadline) && !isDeadlinePassed(s.deadline))

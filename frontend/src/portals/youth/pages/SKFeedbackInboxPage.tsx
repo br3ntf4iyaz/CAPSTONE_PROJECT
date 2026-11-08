@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import { skFeedbackApi, SKFeedbackItem } from '@/api/skFeedback'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils'
+import { QueryError } from '@/components/ui/QueryError'
 
 const CATEGORY_COLORS: Record<string, string> = {
   concern:    'bg-red-100 text-red-700',
@@ -122,7 +123,7 @@ export default function SKFeedbackInboxPage() {
   const userBarangay = (auth.user?.profile?.barangay ?? '').trim()
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
-  const { data: allFeedback = [], isLoading } = useQuery<SKFeedbackItem[]>({
+  const { data: allFeedback = [], isLoading, isError, refetch } = useQuery<SKFeedbackItem[]>({
     queryKey: ['sk-feedback-inbox'],
     queryFn: () => skFeedbackApi.list(),
   })
@@ -197,6 +198,8 @@ export default function SKFeedbackInboxPage() {
         <div className="space-y-3">
           {[1, 2, 3].map(i => <div key={i} className="skeleton h-20 rounded-2xl" />)}
         </div>
+      ) : isError ? (
+        <QueryError onRetry={() => refetch()} />
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-ink-400">
           <MessageSquare size={36} className="mx-auto mb-3 opacity-30" />

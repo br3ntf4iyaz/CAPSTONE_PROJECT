@@ -3,7 +3,8 @@ import { BarChart3, CheckCircle2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 
 interface PollOption {
@@ -130,7 +131,7 @@ function PollCard({ poll }: { poll: Poll }) {
 }
 
 export default function PollsPage() {
-  const { data: polls = [], isLoading } = useQuery<Poll[]>({
+  const { data: polls = [], isLoading, isError, refetch } = useQuery<Poll[]>({
     queryKey: ['polls'],
     queryFn: () => apiClient.get('/events/polls/').then(r => {
       const d = r.data
@@ -138,7 +139,8 @@ export default function PollsPage() {
     }),
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   return (
     <div className="space-y-6">

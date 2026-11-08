@@ -4,7 +4,8 @@ import { MessageSquare, Star, Send, CheckCircle2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 
 interface FeedbackEntry {
   id: number
@@ -60,7 +61,7 @@ export default function FeedbackPage() {
   const [eventId, setEventId] = useState<number | null>(null)
   const [submitted, setSubmitted] = useState(false)
 
-  const { data: myFeedback = [], isLoading } = useQuery<FeedbackEntry[]>({
+  const { data: myFeedback = [], isLoading, isError, refetch } = useQuery<FeedbackEntry[]>({
     queryKey: ['my-feedback'],
     queryFn: () => apiClient.get('/feedback/').then(r => {
       const d = r.data
@@ -101,7 +102,8 @@ export default function FeedbackPage() {
 
   const canSubmit = rating > 0 && comment.trim().length >= 5
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   return (
     <div className="space-y-6 max-w-2xl">

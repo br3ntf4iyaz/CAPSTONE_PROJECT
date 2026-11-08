@@ -16,7 +16,8 @@ import {
 import { submissionsApi, type Submission, type SubmissionStatus } from '@/api/submissions'
 import PersonalCalendarWidget from '@/components/ui/PersonalCalendarWidget'
 import { formatDate, cn } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: 'badge-gray',
@@ -184,7 +185,7 @@ export default function SubmissionsPage() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('')
 
-  const { data: submissions = [], isLoading } = useQuery<Submission[]>({
+  const { data: submissions = [], isLoading, isError, refetch } = useQuery<Submission[]>({
     queryKey: ['my-submissions'],
     queryFn: () => submissionsApi.list(),
   })
@@ -194,7 +195,8 @@ export default function SubmissionsPage() {
     .filter(s => !search || s.title.toLowerCase().includes(search.toLowerCase()))
     .filter(s => !categoryFilter || (s as any).category === categoryFilter)
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   return (
     <div className="space-y-6">

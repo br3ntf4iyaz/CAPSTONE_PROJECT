@@ -7,7 +7,8 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, toArray } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
@@ -418,13 +419,14 @@ export default function YouthSurveysPage() {
   const [selected, setSelected] = useState<Survey | null>(null)
   const { isAuthenticated } = useAuthStore()
 
-  const { data: surveys = [], isLoading } = useQuery<Survey[]>({
+  const { data: surveys = [], isLoading, isError, refetch } = useQuery<Survey[]>({
     queryKey: ['youth-surveys'],
     queryFn: () => apiClient.get('/events/surveys/').then(r => toArray<Survey>(r.data)),
     enabled: isAuthenticated,
   })
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   if (selected) return <SurveyForm survey={selected} onBack={() => setSelected(null)} />
 

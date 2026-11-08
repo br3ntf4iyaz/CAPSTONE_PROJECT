@@ -80,3 +80,18 @@ export function SkeletonGrid({ count = 6, className }: { count?: number; classNa
     </div>
   )
 }
+
+/** Full-page placeholder for list/grid pages: looks like the content that is loading. */
+export function ListSkeleton({ count = 6, className }: { count?: number; className?: string }) {
+  return (
+    <div
+      className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-3', className)}
+      role="status"
+      aria-label="Loading"
+    >
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  )
+}

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Newspaper, MapPin, Users } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,7 +159,7 @@ export default function NewsPage() {
       </div>
 
       {postsQ.isLoading ? (
-        <PageSpinner />
+        <ListSkeleton />
       ) : !hasContent ? (
         <div className="card p-16 text-center text-ink-500">
           <Newspaper size={40} className="mx-auto mb-3 opacity-30" />

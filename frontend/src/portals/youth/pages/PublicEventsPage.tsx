@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom'
 import { CalendarDays, MapPin, Users, ArrowRight, Clock } from 'lucide-react'
 import apiClient from '@/api/client'
 import { toArray, cn } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 import { useAuthStore } from '@/store/authStore'
 
 interface PublicEvent {
@@ -36,8 +37,7 @@ export default function PublicEventsPage() {
     queryKey: ['public-events-page'],
     queryFn: () =>
       apiClient.get('/events/?ordering=start_datetime')
-        .then(r => toArray<PublicEvent>(r.data))
-        .catch(() => []),
+        .then(r => toArray<PublicEvent>(r.data)),
   })
 
   const events = eventsQ.data ?? []
@@ -56,7 +56,9 @@ export default function PublicEventsPage() {
       </header>
 
       {eventsQ.isLoading ? (
-        <PageSpinner />
+        <ListSkeleton />
+      ) : eventsQ.isError ? (
+        <QueryError onRetry={() => eventsQ.refetch()} />
       ) : events.length === 0 ? (
         <div className="bg-white rounded-2xl border border-ink-100 p-16 text-center">
           <CalendarDays size={48} className="text-ink-200 mx-auto mb-4" />

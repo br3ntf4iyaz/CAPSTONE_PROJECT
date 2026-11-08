@@ -7,7 +7,8 @@ import {
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { cn, formatDate } from '@/utils'
-import { PageSpinner } from '@/components/ui/Spinner'
+import { ListSkeleton } from '@/components/ui/Skeleton'
+import { QueryError } from '@/components/ui/QueryError'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -298,7 +299,7 @@ export default function LibraryPage() {
   const [activeCategory, setActiveCategory] = useState<CategoryKey>('all')
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null)
 
-  const { data: resources = [], isLoading } = useQuery<Resource[]>({
+  const { data: resources = [], isLoading, isError, refetch } = useQuery<Resource[]>({
     queryKey: ['library-resources'],
     queryFn: () =>
       apiClient.get('/resources/').then(r => {
@@ -338,7 +339,8 @@ export default function LibraryPage() {
     return counts
   }, [resources])
 
-  if (isLoading) return <PageSpinner />
+  if (isLoading) return <ListSkeleton />
+  if (isError) return <QueryError onRetry={() => refetch()} />
 
   return (
     <div className="space-y-8">
