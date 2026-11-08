@@ -2,7 +2,7 @@ import { ShieldCheck, ShieldAlert, Clock, ShieldOff } from 'lucide-react'
 import type { IntegrityResult, IntegrityStatus } from '@/api/ledger'
 import { cn } from '@/utils'
 
-const META: Record<Exclude<IntegrityStatus, 'unanchored'>, {
+const META: Record<Exclude<IntegrityStatus, 'unanchored' | 'not_applicable'>, {
   label: string; cls: string; Icon: typeof ShieldCheck; hint: string
 }> = {
   verified: {
@@ -33,7 +33,7 @@ export function IntegrityBadge({ result, className, intactLabel }: {
   /** Replaces "Verified" when the record is intact but "verified" could be misread (e.g. a rejected ID). */
   intactLabel?: string
 }) {
-  if (!result || result.status === 'unanchored') return null
+  if (!result || result.status === 'unanchored' || result.status === 'not_applicable') return null
   const m = result.status === 'verified' && intactLabel ? { ...META.verified, label: intactLabel } : META[result.status]
   const detail = [
     m.hint,

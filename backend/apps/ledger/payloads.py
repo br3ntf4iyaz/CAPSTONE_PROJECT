@@ -16,8 +16,14 @@ ID_DECISION = 'id_decision'
 AUDIT_DAY = 'audit_day'
 COURSE_CERT = 'course_cert'
 RECOGNITION_CERT = 'recognition_cert'
+YORP_DECISION = 'yorp_decision'
+PPA_SUBMISSION = 'ppa_submission'
 
 ID_FINAL = ('approved', 'rejected')
+YORP_FINAL = ('approved', 'rejected')
+# Once a PPA/policy has been submitted for review, its content must not change silently.
+# (draft / revision_requested are excluded: the submitter is legitimately editing then.)
+PPA_LOCKED = ('pending', 'approved', 'in_progress', 'completion_submitted', 'completed', 'rejected')
 
 
 def _iso(v):
@@ -62,6 +68,45 @@ def recognition_cert(cert) -> dict:
         'user_id': cert.user_id, 'title': cert.title, 'issued_by': cert.issued_by,
         'issued_at': _iso(cert.issued_at), 'expiry_date': _iso(cert.expiry_date),
         'file_sha256': file_sha256(cert.file),
+    }
+
+
+def yorp_decision(org) -> dict:
+    # Only what the decision is about. is_compliant / is_active / logo change legitimately.
+    return {
+        'name': org.name, 'classification': org.classification,
+        'sub_classification': org.sub_classification,
+        'registration_category': org.registration_category, 'barangay': org.barangay,
+        'submitted_by_id': org.submitted_by_id, 'status': org.status,
+        'admin_notes': org.admin_notes,
+    }
+
+
+def ppa_submission(sub) -> dict:
+    # Content as submitted for review. Completion fields, status and review timestamps
+    # are left out on purpose: they change legitimately later in the workflow.
+    def num(v):
+        return None if v is None else str(v)
+
+    attachments = sorted(
+        f'{a.kind}:{file_sha256(a.file)}'
+        for a in sub.attachments.filter(kind__in=('main_proposal', 'supporting'))
+    )
+    return {
+        'submission_type': sub.submission_type, 'submitter_type': sub.submitter_type,
+        'submitted_by_id': sub.submitted_by_id, 'organization_id': sub.organization_id,
+        'program_id': sub.program_id, 'title': sub.title, 'description': sub.description,
+        'category': sub.category, 'objectives': sub.objectives,
+        'target_beneficiaries': sub.target_beneficiaries,
+        'start_date': _iso(sub.start_date), 'end_date': _iso(sub.end_date),
+        'location': sub.location, 'barangay': sub.barangay,
+        'expected_participants': sub.expected_participants,
+        'estimated_budget': num(sub.estimated_budget),
+        'policy_type': sub.policy_type, 'policy_date_passed': _iso(sub.policy_date_passed),
+        'abyip_reference_code': sub.abyip_reference_code,
+        'expected_result': sub.expected_result, 'performance_indicator': sub.performance_indicator,
+        'period_of_implementation': sub.period_of_implementation,
+        'file_sha256': file_sha256(sub.file), 'attachments': attachments,
     }
 
 

@@ -16,7 +16,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         if opts['backfill']:
-            from apps.programs.models import SubmissionReviewLog
+            from apps.programs.models import ProgramSubmission, SubmissionReviewLog
             from apps.sk_requirements.models import SKRequirement
             from apps.verification.models import IDVerification
             n = 0
@@ -32,6 +32,11 @@ class Command(BaseCommand):
                 service.record(payloads.COURSE_CERT, c.pk, payloads.course_cert(c)); n += 1
             for c in RecognitionCert.objects.all():
                 service.record(payloads.RECOGNITION_CERT, c.pk, payloads.recognition_cert(c)); n += 1
+            from apps.youth_orgs.models import YouthOrganization
+            for o in YouthOrganization.objects.filter(status__in=payloads.YORP_FINAL):
+                service.record(payloads.YORP_DECISION, o.pk, payloads.yorp_decision(o)); n += 1
+            for sub in ProgramSubmission.objects.filter(status__in=payloads.PPA_LOCKED):
+                service.record(payloads.PPA_SUBMISSION, sub.pk, payloads.ppa_submission(sub)); n += 1
             n += payloads.anchor_audit_days()
             self.stdout.write(f'Fingerprinted {n} records.')
         retried = service.retry_unanchored()

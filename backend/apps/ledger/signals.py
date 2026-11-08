@@ -23,6 +23,20 @@ def anchor_review_log(sender, instance, created, raw=False, **kwargs):
         _safely(payloads.REVIEW_LOG, instance.pk, lambda: payloads.review_log(instance))
 
 
+@receiver(post_save, sender='programs.SubmissionReviewLog')
+def anchor_ppa_submission(sender, instance, created, raw=False, **kwargs):
+    # Fingerprint the proposal as it stood when it was (re)submitted for review.
+    if created and not raw and instance.action == 'submitted':
+        sub = instance.submission
+        _safely(payloads.PPA_SUBMISSION, sub.pk, lambda: payloads.ppa_submission(sub))
+
+
+@receiver(post_save, sender='youth_orgs.YouthOrganization')
+def anchor_yorp_decision(sender, instance, raw=False, **kwargs):
+    if not raw and instance.status in payloads.YORP_FINAL:
+        _safely(payloads.YORP_DECISION, instance.pk, lambda: payloads.yorp_decision(instance))
+
+
 @receiver(post_save, sender='sk_requirements.SKRequirement')
 def anchor_sk_requirement(sender, instance, raw=False, **kwargs):
     if not raw and instance.status == 'submitted':

@@ -56,6 +56,8 @@ const ACTION_FILTER_OPTIONS = [
 
 const KIND_LABELS: Record<string, string> = {
   review_log: 'PPA review history',
+  ppa_submission: 'PPA / policy proposals as submitted',
+  yorp_decision: 'YORP approval decisions',
   sk_requirement: 'SK compliance documents',
   id_decision: 'ID verification decisions',
   course_cert: 'Course certificates',

@@ -17,6 +17,7 @@ from apps.programs.models import ProgramSubmission, SubmissionReviewLog
 from apps.recognition.models import Certificate as RecognitionCertificate
 from apps.sk_requirements.models import SKBarangay, SKRequirement
 from apps.verification.models import IDVerification
+from apps.youth_orgs.models import YouthOrganization
 
 from . import payloads, service
 from .models import Anchor, LedgerEntry
@@ -277,6 +278,7 @@ class FakeChain:
     """Just enough of web3 to exercise the EVM path without a network."""
     def __init__(self):
         self.txs = {}
+        self._sent = 0
         self.eth = SimpleNamespace(
             account=SimpleNamespace(from_key=lambda k: SimpleNamespace(
                 address='0xabc', sign_transaction=lambda tx: SimpleNamespace(raw_transaction=tx))),
@@ -289,7 +291,9 @@ class FakeChain:
         )
 
     def _send(self, raw):
-        h = '0x' + 'ab' * 32
+        # One distinct hash per transaction; the first is '0x' + 'ab' * 32.
+        h = '0x' + format(0xab + self._sent, '02x') * 32
+        self._sent += 1
         self.txs[h] = raw
 
         class H(bytes):
@@ -338,3 +342,101 @@ class EvmTests(Base):
         service.retry_unanchored()
         a.refresh_from_db()
         self.assertEqual(a.status, 'anchored')
+
+
+class PPASubmissionTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.sub = ProgramSubmission.objects.create(
+            submitted_by=self.youth, submitter_type='sk', title='Clean-up Drive',
+            objectives='Clean the river', estimated_budget='15000.00', status='draft')
+        self.url = f'/api/ledger/submission-content/{self.sub.pk}/'
+
+    def submit(self):
+        self.sub.status = 'pending'
+        self.sub.save()
+        with self.commit():
+            SubmissionReviewLog.objects.create(submission=self.sub, action='submitted', actor=self.youth)
+
+    def status(self, user=None):
+        r = self.get(user or self.youth, self.url)
+        self.assertEqual(r.status_code, 200)
+        return r.data['result']['status']
+
+    def test_draft_is_not_applicable_and_not_anchored(self):
+        self.assertEqual(self.status(), 'not_applicable')
+        self.assertFalse(Anchor.objects.filter(kind='ppa_submission').exists())
+
+    def test_submission_is_anchored_and_verified(self):
+        self.submit()
+        self.assertEqual(Anchor.objects.get(kind='ppa_submission').status, 'anchored')
+        self.assertEqual(self.status(), 'verified')
+
+    def test_silent_edit_after_submission_is_detected(self):
+        self.submit()
+        # Direct DB write: bypasses the app, so no signal fires (this is what tampering looks like).
+        ProgramSubmission.objects.filter(pk=self.sub.pk).update(estimated_budget='99000.00')
+        self.assertEqual(self.status(), 'changed')
+
+    def test_status_and_review_changes_are_not_flagged(self):
+        self.submit()
+        ProgramSubmission.objects.filter(pk=self.sub.pk).update(status='approved', admin_notes='ok')
+        self.assertEqual(self.status(), 'verified')
+
+    def test_resubmission_after_revision_gets_a_new_anchor(self):
+        self.submit()
+        first = Anchor.objects.get(kind='ppa_submission').content_hash
+        self.sub.objectives = 'Clean the river and plant trees'
+        self.sub.status = 'pending'
+        self.sub.save()
+        with self.commit():
+            SubmissionReviewLog.objects.create(submission=self.sub, action='submitted', actor=self.youth)
+        self.assertEqual(Anchor.objects.filter(kind='ppa_submission').count(), 2)
+        self.assertNotEqual(Anchor.objects.filter(kind='ppa_submission').first().content_hash, first)
+        self.assertEqual(self.status(), 'verified')
+
+    def test_other_youth_cannot_check_it_but_admin_can(self):
+        self.submit()
+        self.assertEqual(self.get(self.other, self.url).status_code, 404)
+        self.assertEqual(self.status(self.admin), 'verified')
+
+
+class YORPDecisionTests(Base):
+    def setUp(self):
+        super().setUp()
+        self.org = YouthOrganization.objects.create(
+            name='Lucena Youth Council', classification='community_based',
+            sub_classification='youth_org', submitted_by=self.youth)
+        self.url = '/api/ledger/yorp-decisions/'
+
+    def status(self):
+        r = self.get(self.admin, self.url)
+        self.assertEqual(r.status_code, 200)
+        return r.data['results'].get(str(self.org.pk), {}).get('status')
+
+    def decide(self, status):
+        with self.commit():
+            self.org.status = status
+            self.org.save()
+
+    def test_pending_is_not_anchored(self):
+        self.assertFalse(Anchor.objects.filter(kind='yorp_decision').exists())
+        self.assertIsNone(self.status())
+
+    def test_approval_is_anchored_and_verified(self):
+        self.decide('approved')
+        self.assertEqual(self.status(), 'verified')
+
+    def test_silent_reversal_is_detected(self):
+        self.decide('rejected')
+        YouthOrganization.objects.filter(pk=self.org.pk).update(status='approved')
+        self.assertEqual(self.status(), 'changed')
+
+    def test_compliance_flag_change_is_not_flagged(self):
+        self.decide('approved')
+        YouthOrganization.objects.filter(pk=self.org.pk).update(is_compliant=True, description='new text')
+        self.assertEqual(self.status(), 'verified')
+
+    def test_youth_cannot_use_the_admin_endpoint(self):
+        self.api.force_authenticate(self.youth)
+        self.assertEqual(self.api.get(self.url).status_code, 403)

@@ -6,6 +6,8 @@ import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
+import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
+import { useYORPDecisionIntegrity } from '@/api/ledger'
 
 interface YouthOrg {
   id: number
@@ -53,6 +55,7 @@ export default function AdminYORPPage() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState<NewOrgForm>(initialForm)
 
+  const { data: decisionIntegrity } = useYORPDecisionIntegrity()
   const { data: orgs = [], isLoading } = useQuery<YouthOrg[]>({
     queryKey: ['admin-youth-orgs'],
     queryFn: () => apiClient.get('/youth-orgs/').then(r => toArray<YouthOrg>(r.data)),
@@ -163,6 +166,7 @@ export default function AdminYORPPage() {
                     {org.is_compliant && (
                       <span className="badge-green text-xs">Compliant</span>
                     )}
+                    <IntegrityBadge result={decisionIntegrity?.results[String(org.id)]} intactLabel="Decision intact" />
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
                     <span>{classLabel(org.classification)}</span>

@@ -30,7 +30,7 @@ import { submissionsApi, type Submission, type SubmissionStatus } from '@/api/su
 import { PageSpinner } from '@/components/ui/Spinner'
 import { formatDate, formatDateTime, cn } from '@/utils'
 import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
-import { useReviewLogIntegrity } from '@/api/ledger'
+import { useReviewLogIntegrity, useSubmissionContentIntegrity } from '@/api/ledger'
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
 
@@ -230,6 +230,7 @@ export default function SubmissionDetailPage() {
     enabled: !!id,
   })
   const { data: integrity } = useReviewLogIntegrity(submission?.id)
+  const { data: contentIntegrity } = useSubmissionContentIntegrity(submission?.id)
 
   const markInProgressMutation = useMutation({
     mutationFn: () => submissionsApi.markInProgress(Number(id)),
@@ -319,6 +320,7 @@ export default function SubmissionDetailPage() {
               {STATUS_ICON[submission.status]}
               {submission.status_display}
             </span>
+            <IntegrityBadge result={contentIntegrity?.result} intactLabel="Proposal unchanged" />
           </div>
         </div>
       </div>

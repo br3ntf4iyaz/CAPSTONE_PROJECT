@@ -35,6 +35,40 @@ class ReviewLogIntegrityView(APIView):
         })
 
 
+class PPASubmissionIntegrityView(APIView):
+    """GET /ledger/submission-content/<submission_id>/ — is the proposal still as it was submitted?"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, submission_id):
+        from apps.programs.models import ProgramSubmission
+        sub = get_object_or_404(ProgramSubmission, pk=submission_id)
+        if sub.submitted_by_id != request.user.id and not IsAdminRole().has_permission(request, self):
+            return Response({'detail': 'Not found.'}, status=404)
+        if sub.status not in payloads.PPA_LOCKED:
+            return Response({**_backend_info(), 'result': {'status': 'not_applicable'}})
+        v = service.Verifier()
+        return Response({
+            **_backend_info(),
+            'result': v.check(payloads.PPA_SUBMISSION, sub.pk, payloads.ppa_submission(sub)),
+        })
+
+
+class YORPDecisionIntegrityView(APIView):
+    """GET /ledger/yorp-decisions/ — admin. Checks every approve/reject decision on a YORP."""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        from apps.youth_orgs.models import YouthOrganization
+        v = service.Verifier()
+        return Response({
+            **_backend_info(),
+            'results': {
+                str(o.pk): v.check(payloads.YORP_DECISION, o.pk, payloads.yorp_decision(o))
+                for o in YouthOrganization.objects.filter(status__in=payloads.YORP_FINAL)
+            },
+        })
+
+
 class SKRequirementIntegrityView(APIView):
     """GET /ledger/sk-requirements/ — admin. Re-hashes each submitted file and checks the ledger."""
     permission_classes = [IsAuthenticated, IsAdminRole]

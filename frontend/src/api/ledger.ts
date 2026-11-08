@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import apiClient from './client'
 
 export type IntegrityStatus =
-  | 'verified' | 'changed' | 'tampered' | 'pending' | 'failed' | 'unanchored'
+  | 'verified' | 'changed' | 'tampered' | 'pending' | 'failed' | 'unanchored' | 'not_applicable'
 
 export interface IntegrityResult {
   status: IntegrityStatus
@@ -45,6 +45,20 @@ function useIntegrity(key: unknown[], url: string, enabled = true) {
 
 export const useReviewLogIntegrity = (submissionId?: number) =>
   useIntegrity(['review-logs', submissionId], `/ledger/review-logs/${submissionId}/`, !!submissionId)
+
+/** Is the proposal still as it was when submitted for review? (`not_applicable` while still a draft.) */
+export const useSubmissionContentIntegrity = (submissionId?: number) =>
+  useQuery<{ backend: string; network: string; result: IntegrityResult }>({
+    queryKey: ['ledger', 'submission-content', submissionId],
+    queryFn: () => apiClient.get(`/ledger/submission-content/${submissionId}/`).then(r => r.data),
+    enabled: !!submissionId,
+    retry: false,
+    staleTime: 30_000,
+  })
+
+/** Admin: keys are YORP ids. Only approved / rejected organizations appear. */
+export const useYORPDecisionIntegrity = () =>
+  useIntegrity(['yorp-decisions'], '/ledger/yorp-decisions/')
 
 export const useSKRequirementIntegrity = () =>
   useIntegrity(['sk-requirements'], '/ledger/sk-requirements/')
