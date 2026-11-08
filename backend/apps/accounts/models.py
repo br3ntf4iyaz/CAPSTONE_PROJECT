@@ -188,6 +188,12 @@ class EmailVerificationToken(models.Model):
     token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    def is_expired(self):
+        """Verification links are valid for 24 hours (as stated in the email)."""
+        from datetime import timedelta
+        from django.utils import timezone
+        return timezone.now() > self.created_at + timedelta(hours=24)
+
 
 class PasswordResetToken(models.Model):
     """One-time token used for password reset. Valid for 1 hour."""
