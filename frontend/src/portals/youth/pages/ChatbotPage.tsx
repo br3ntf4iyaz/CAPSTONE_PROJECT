@@ -127,12 +127,15 @@ export default function ChatbotPage() {
         { role: 'assistant', content: data.reply, timestamp: new Date() },
       ])
     },
-    onError: () => {
+    onError: (err: any) => {
+      const tooMany = err?.response?.status === 429
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
+          content: tooMany
+            ? "You're sending messages too quickly. Please wait a minute and try again."
+            : "Sorry, I'm having trouble connecting right now. Please try again in a moment.",
           timestamp: new Date(),
         },
       ])

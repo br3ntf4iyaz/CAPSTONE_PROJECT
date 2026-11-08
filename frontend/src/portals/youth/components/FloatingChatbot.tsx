@@ -93,8 +93,14 @@ function FloatingChatbotInner() {
       const res = await chatbotApi.send(text, SESSION_KEY)
       const reply = (res.data as any).reply ?? "Sorry, I couldn't process that."
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: "I'm having trouble connecting. Please try again." }])
+    } catch (err: any) {
+      const tooMany = err?.response?.status === 429
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: tooMany
+          ? "You're sending messages too quickly. Please wait a minute and try again."
+          : "I'm having trouble connecting. Please try again.",
+      }])
     } finally {
       setLoading(false)
     }

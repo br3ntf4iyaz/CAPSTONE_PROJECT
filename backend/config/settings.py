@@ -141,6 +141,11 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    # Only the chatbot view opts into throttling (see apps/chatbot/throttles.py).
+    "DEFAULT_THROTTLE_RATES": {
+        "chatbot_burst": os.getenv("CHATBOT_RATE_BURST", "10/min"),
+        "chatbot_daily": os.getenv("CHATBOT_RATE_DAILY", "100/day"),
+    },
 }
 
 # ─── JWT ──────────────────────────────────────────────────────────────────────

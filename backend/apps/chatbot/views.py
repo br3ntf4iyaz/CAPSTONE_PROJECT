@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from .context import build_context
 from .models import ChatMessage, ChatSession
 from .serializers import ChatSessionSerializer
+from .throttles import ChatBurstThrottle, ChatDailyThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,7 @@ class ChatbotView(APIView):
     """POST: send a message and receive an AI reply. GET: retrieve chat history by session_key."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [ChatBurstThrottle, ChatDailyThrottle]
 
     # ------------------------------------------------------------------
     # GET  /api/chatbot/?session_key=<key>
