@@ -56,7 +56,14 @@ function renderMarkdown(text: string): React.ReactNode {
   return <>{elements}</>
 }
 
-const SESSION_KEY = `chatbot_${Math.random().toString(36).slice(2)}`
+const SUGGESTIONS = [
+  'Anong mga scholarship ang bukas ngayon?',
+  'Ano ang mga upcoming events?',
+  'Paano mag-register ng youth organization (YORP)?',
+  'Ano ang mga bukas na trabaho?',
+]
+
+const SESSION_KEY =`chatbot_${Math.random().toString(36).slice(2)}`
 
 function FloatingChatbotInner() {
   const [open, setOpen] = useState(true)
@@ -76,8 +83,8 @@ function FloatingChatbotInner() {
     if (open) setTimeout(() => inputRef.current?.focus(), 150)
   }, [open])
 
-  const handleSend = async () => {
-    const text = input.trim()
+  const handleSend = async (override?: string) => {
+    const text = (override ?? input).trim()
     if (!text || loading) return
     setInput('')
     setMessages(prev => [...prev, { role: 'user', content: text }])
@@ -166,6 +173,21 @@ function FloatingChatbotInner() {
             </div>
           ))}
 
+          {/* Quick suggestions: only before the first user message */}
+          {messages.length === 1 && !loading && (
+            <div className="flex flex-wrap gap-1.5 pl-8">
+              {SUGGESTIONS.map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSend(s)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Typing indicator */}
           {loading && (
             <div className="flex gap-2 items-end">
@@ -199,7 +221,7 @@ function FloatingChatbotInner() {
             className="flex-1 text-sm bg-gray-50 rounded-full px-4 py-2 outline-none text-gray-800 placeholder-gray-400 border border-gray-200 focus:border-blue-300 transition-colors"
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={!input.trim() || loading}
             aria-label="Send"
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all disabled:opacity-40"
