@@ -1,9 +1,12 @@
 import apiClient from './client'
 import type { AuthResponse, User } from '@/types'
 
+/** Emails are case-insensitive and phone keyboards capitalise / add spaces, so always send them clean. */
+export const normalizeEmail = (email: string) => email.trim().toLowerCase()
+
 export const authApi = {
   login: (email: string, password: string) =>
-    apiClient.post<AuthResponse>('/auth/login/', { email, password }),
+    apiClient.post<AuthResponse>('/auth/login/', { email: normalizeEmail(email), password }),
 
   register: (data: {
     email: string
@@ -16,13 +19,13 @@ export const authApi = {
     password2: string
     organization?: string
     job_title?: string
-  }) => apiClient.post<{ detail: string; email: string }>('/auth/register/', data),
+  }) => apiClient.post<{ detail: string; email: string }>('/auth/register/', { ...data, email: normalizeEmail(data.email) }),
 
   verifyEmail: (token: string) =>
     apiClient.get<AuthResponse & { detail: string }>(`/auth/verify-email/?token=${token}`),
 
   resendVerification: (email: string) =>
-    apiClient.post<{ detail: string }>('/auth/resend-verification/', { email }),
+    apiClient.post<{ detail: string }>('/auth/resend-verification/', { email: normalizeEmail(email) }),
 
   googleAuth: (accessToken: string) =>
     apiClient.post<AuthResponse & { created: boolean }>('/auth/google/', { access_token: accessToken }),
@@ -48,7 +51,7 @@ export const authApi = {
     apiClient.post('/auth/me/complete-onboarding/'),
 
   forgotPassword: (email: string) =>
-    apiClient.post<{ detail: string }>('/auth/forgot-password/', { email }),
+    apiClient.post<{ detail: string }>('/auth/forgot-password/', { email: normalizeEmail(email) }),
 
   resetPassword: (token: string, password: string, password2: string) =>
     apiClient.post<{ detail: string }>('/auth/reset-password/', { token, password, password2 }),

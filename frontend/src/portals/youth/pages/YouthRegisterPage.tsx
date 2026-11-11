@@ -298,6 +298,9 @@ export default function YouthRegisterPage() {
                     id="email"
                     type="email"
                     autoComplete="email"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     {...register('email')}
                     className={cn('input pl-11', errors.email && 'input-error')}
                     placeholder="juan@example.com"

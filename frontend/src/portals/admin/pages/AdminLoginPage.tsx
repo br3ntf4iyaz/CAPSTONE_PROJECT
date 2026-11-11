@@ -96,6 +96,9 @@ export default function AdminLoginPage() {
               <input
                 type="email"
                 autoComplete="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 {...register('email')}
                 className={cn(
                   'w-full px-3 py-2.5 bg-slate-700 border rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors',
