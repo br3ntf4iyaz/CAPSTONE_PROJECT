@@ -28,6 +28,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             attrs["youth_type"] = User.YouthType.GENERAL
         return attrs
 
+    def validate_email(self, value):
+        # Store emails lower-cased and reject case-variants of an existing account, so
+        # "Juan@Gmail.com" and "juan@gmail.com" are the same person (phone keyboards
+        # often capitalise the first letter).
+        value = value.strip().lower()
+        if User.objects.filter(email__iexact=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
     def validate_first_name(self, value):
         return bleach.clean(value.strip(), tags=[], strip=True)
 

@@ -7,6 +7,7 @@ from django.core.mail import EmailMultiAlternatives
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 from .models import Profile, Skill, Interest, UserSkill, UserInterest, Document, AuditLog, EmailVerificationToken, PasswordResetToken
@@ -129,36 +130,40 @@ def _send_verification_email(user, token):
 
 class LoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
-        # Check email verification BEFORE handing off to SimpleJWT.
-        # Only block users who exist AND haven't verified yet.
-        email = request.data.get("email", "")
-        try:
-            candidate = User.objects.get(email=email)
-            if not candidate.is_email_verified:
-                return Response(
-                    {
-                        "detail": "Please verify your email address before logging in. "
-                                  "Check your inbox for the verification link.",
-                        "code": "email_not_verified",
-                    },
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-        except User.DoesNotExist:
-            pass  # Let SimpleJWT return the standard "no active account" error
+        # Emails are matched case-insensitively: "Juan@Gmail.com" logs in the same
+        # account as "juan@gmail.com" (mobile keyboards often capitalise the first letter).
+        email = str(request.data.get("email", "")).strip()
+        candidate = User.objects.filter(email__iexact=email).first() if email else None
 
-        response = super().post(request, *args, **kwargs)
-        if response.status_code == 200:
-            try:
-                user = User.objects.select_related("profile").get(email=email)
-                response.data["user"] = MeSerializer(
-                    user, context={"request": request}
-                ).data
-            except User.DoesNotExist:
-                pass
+        # Check email verification BEFORE authenticating.
+        # Only block users who exist AND haven't verified yet.
+        if candidate and not candidate.is_email_verified:
+            return Response(
+                {
+                    "detail": "Please verify your email address before logging in. "
+                              "Check your inbox for the verification link.",
+                    "code": "email_not_verified",
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.get_serializer(data={
+            "email": candidate.email if candidate else email,
+            "password": request.data.get("password", ""),
+        })
+        try:
+            serializer.is_valid(raise_exception=True)
+        except TokenError as e:
+            raise InvalidToken(e.args[0])
+
+        response = Response(serializer.validated_data, status=status.HTTP_200_OK)
+        if candidate:
+            user = User.objects.select_related("profile").get(pk=candidate.pk)
+            response.data["user"] = MeSerializer(user, context={"request": request}).data
             AuditLog.objects.create(
                 action="user_login",
                 ip_address=get_client_ip(request),
-                details={"email": email},
+                details={"email": candidate.email},
             )
         return response
 
@@ -173,7 +178,9 @@ class RegisterView(generics.CreateAPIView):
         # If the email already exists but is UNVERIFIED, resend the verification
         # email instead of returning a 400 "email already exists" error.
         try:
-            existing = User.objects.get(email=email)
+            existing = User.objects.filter(email__iexact=email).first()
+            if existing is None:
+                raise User.DoesNotExist
             if not existing.is_email_verified:
                 EmailVerificationToken.objects.filter(user=existing).delete()
                 token = EmailVerificationToken.objects.create(user=existing)
@@ -363,7 +370,9 @@ class ResendVerificationView(generics.GenericAPIView):
 
         # Always return 200 to avoid leaking whether the email exists
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.filter(email__iexact=email).first()
+            if user is None:
+                raise User.DoesNotExist
             if not user.is_email_verified:
                 # Delete any existing token and issue a fresh one
                 EmailVerificationToken.objects.filter(user=user).delete()
@@ -486,7 +495,9 @@ class ForgotPasswordView(generics.GenericAPIView):
             return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            user = User.objects.get(email=email, is_active=True)
+            user = User.objects.filter(email__iexact=email, is_active=True).first()
+            if user is None:
+                raise User.DoesNotExist
             PasswordResetToken.objects.filter(user=user).delete()
             token = PasswordResetToken.objects.create(user=user)
             _send_password_reset_email(user, token)
