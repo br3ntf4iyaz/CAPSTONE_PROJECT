@@ -1,4 +1,6 @@
 from django.shortcuts import get_object_or_404
+from django.conf import settings
+from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -8,6 +10,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
+from apps.notifications.views import create_notification
 
 from .models import OrgAccomplishment, OrgRequirement, YouthOrganization, ensure_default_requirements
 from .serializers import (
@@ -16,8 +19,45 @@ from .serializers import (
     OrgListSerializer,
     OrgRequirementSerializer,
     OrgSubmissionSerializer,
+    sanitize,
     validate_pdf,
 )
+
+
+# ---------------------------------------------------------------------------
+# Decision notifications
+# ---------------------------------------------------------------------------
+
+NL = chr(10)
+
+
+def _notify_decision(org, approved):
+    """Tell the submitter (in-app and by email) how their YORP application turned out."""
+    if approved:
+        title = 'Your organization was approved'
+        body = (
+            f'Good news! "{org.name}" is now registered in the LYDO youth organization directory.'
+        )
+    else:
+        title = 'Your organization application was not approved'
+        body = f'"{org.name}" was not approved at this time.'
+    if org.admin_notes:
+        body += NL + NL + f'Note from LYDO: {org.admin_notes}'
+
+    if org.submitted_by_id:
+        try:
+            create_notification(org.submitted_by, title, body, 'system', link='/organizations')
+        except Exception:  # never let a notification failure undo the decision
+            pass
+    recipient = org.contact_email or getattr(org.submitted_by, 'email', '')
+    if recipient:
+        try:
+            send_mail(
+                f'[LYDO] {title}', body + NL + NL + '- LYDO Team',
+                getattr(settings, 'DEFAULT_FROM_EMAIL', None), [recipient], fail_silently=True,
+            )
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -32,6 +72,9 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     mark_compliant: admin only.
     """
 
+    # The registry is small and the admin page needs every organization (incl. pending
+    # applications), so return them all instead of the default 20 per page.
+    pagination_class = None
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['name']
     ordering_fields = ['name', 'created_at', 'barangay']
@@ -150,6 +193,39 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     # ------------------------------------------------------------------
     # Custom actions
     # ------------------------------------------------------------------
+
+    def _decide(self, request, approved):
+        org = self.get_object()
+        notes = sanitize(str(request.data.get('admin_notes', '')).strip())
+        if not approved and not notes:
+            return Response(
+                {'admin_notes': ['Please explain why the application is not approved.']},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if approved:
+            category = request.data.get('registration_category') or 'lydo'
+            if category not in dict(YouthOrganization.REG_CHOICES):
+                return Response(
+                    {'registration_category': ['Invalid registration category.']},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            org.registration_category = category
+        org.status = 'approved' if approved else 'rejected'
+        org.is_active = approved
+        org.admin_notes = notes
+        org.save()  # the ledger signal fingerprints the decision
+        _notify_decision(org, approved)
+        return Response(OrgDetailSerializer(org, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='approve', permission_classes=[IsAuthenticated, IsAdminRole])
+    def approve(self, request, pk=None):
+        """POST /youth-orgs/<id>/approve/ {admin_notes?, registration_category?}"""
+        return self._decide(request, approved=True)
+
+    @action(detail=True, methods=['post'], url_path='reject', permission_classes=[IsAuthenticated, IsAdminRole])
+    def reject(self, request, pk=None):
+        """POST /youth-orgs/<id>/reject/ {admin_notes}: the reason is required."""
+        return self._decide(request, approved=False)
 
     @action(
         detail=True,

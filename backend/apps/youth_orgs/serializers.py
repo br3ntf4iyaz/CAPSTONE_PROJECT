@@ -94,6 +94,8 @@ class OrgListSerializer(serializers.ModelSerializer):
             'description',
             'contact_person',
             'is_compliant',
+            'status',
+            'created_at',
             'logo_url',
             'requirements_total',
             'requirements_submitted',
