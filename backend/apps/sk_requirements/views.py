@@ -2,6 +2,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -9,12 +10,13 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
 
-from .models import SKBarangay, SKFeedback, SKRequirement
+from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKRequirement
 from .serializers import (
     SKBarangayDetailSerializer,
     SKBarangayListSerializer,
     SKFeedbackSerializer,
     SKRequirementSerializer,
+    validate_pdf,
 )
 
 
@@ -134,6 +136,26 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
 # SKRequirementViewSet
 # ---------------------------------------------------------------------------
 
+def _own_barangay(user):
+    """The SKBarangay an SK official belongs to (from their profile), or None."""
+    if getattr(user, 'youth_type', '') != 'sk':
+        return None
+    name = (getattr(getattr(user, 'profile', None), 'barangay', '') or '').strip()
+    if not name:
+        return None
+    return SKBarangay.objects.filter(barangay_name__iexact=name).first()
+
+
+def _ensure_requirements(barangay):
+    """Make sure a barangay has one row per standard requirement (idempotent)."""
+    have = set(barangay.requirements.values_list('requirement_type', flat=True))
+    missing = [code for code, _ in REQUIREMENT_CHOICES if code not in have]
+    if missing:
+        SKRequirement.objects.bulk_create(
+            [SKRequirement(barangay=barangay, requirement_type=c) for c in missing]
+        )
+
+
 class SKRequirementViewSet(viewsets.ModelViewSet):
     """
     All actions: admin only.
@@ -167,7 +189,67 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
         return qs
 
     def get_permissions(self):
+        # SK officials may read and upload their OWN barangay's checklist; the rest is admin only.
+        if self.action in ('mine', 'upload'):
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
+
+    @action(detail=False, methods=['get'], url_path='mine')
+    def mine(self, request):
+        """GET /sk-requirements/requirements/mine/: the signed-in SK official's checklist."""
+        barangay = _own_barangay(request.user)
+        if barangay is None:
+            return Response(
+                {'detail': 'This page is for SK officials whose profile has a barangay with an SK council.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        _ensure_requirements(barangay)
+        today = timezone.now().date()
+        barangay.requirements.filter(status='pending', due_date__lt=today).update(status='overdue')
+        order = {code: i for i, (code, _) in enumerate(REQUIREMENT_CHOICES)}
+        labels = dict(REQUIREMENT_CHOICES)
+        rows = sorted(barangay.requirements.all(), key=lambda r: order.get(r.requirement_type, 99))
+        items = [
+            {
+                'id': r.id, 'type': r.requirement_type, 'label': labels.get(r.requirement_type, r.requirement_type),
+                'status': r.status, 'submitted_at': r.submitted_at, 'due_date': r.due_date,
+                'notes': r.notes, 'has_file': bool(r.file),
+            }
+            for r in rows
+        ]
+        return Response({
+            'barangay': {'id': barangay.id, 'name': barangay.barangay_name},
+            'summary': {
+                'submitted': sum(1 for i in items if i['status'] == 'submitted'),
+                'total': len(items),
+            },
+            'requirements': items,
+        })
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='upload',
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def upload(self, request, pk=None):
+        """POST /sk-requirements/requirements/<id>/upload/: an SK official submits a PDF for their barangay."""
+        barangay = _own_barangay(request.user)
+        req = get_object_or_404(SKRequirement, pk=pk)
+        if barangay is None or req.barangay_id != barangay.id:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'file': ['Please choose a PDF file.']}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_pdf(file)
+        except DRFValidationError as exc:
+            return Response({'file': exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+        req.file = file
+        req.status = 'submitted'
+        req.submitted_at = timezone.now()
+        req.save()  # the ledger signal fingerprints the submitted file
+        return Response({'id': req.id, 'status': req.status, 'submitted_at': req.submitted_at})
 
     def perform_update(self, serializer):
         instance = self.get_object()

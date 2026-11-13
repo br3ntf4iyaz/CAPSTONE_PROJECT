@@ -36,6 +36,7 @@ const OrgDirectoryPage     = lazy(() => import('@/portals/youth/pages/OrgDirecto
 const SKDirectoryPage      = lazy(() => import('@/portals/youth/pages/SKDirectoryPage'))
 const YouthSKFeedbackPage  = lazy(() => import('@/portals/youth/pages/YouthSKFeedbackPage'))
 const SKFeedbackInboxPage  = lazy(() => import('@/portals/youth/pages/SKFeedbackInboxPage'))
+const SKRequirementsPage   = lazy(() => import('@/portals/youth/pages/SKRequirementsPage'))
 const LibraryPage          = lazy(() => import('@/portals/youth/pages/LibraryPage'))
 const SubmissionsPage      = lazy(() => import('@/portals/youth/pages/SubmissionsPage'))
 const SubmissionWizardPage = lazy(() => import('@/portals/youth/pages/SubmissionWizardPage'))
@@ -110,6 +111,13 @@ function GuestOnlyRoute({ children }: { children: React.ReactNode }) {
     return <Navigate to="/dashboard" replace />
   }
   return <>{children}</>
+}
+
+/** Only SK officials can manage their council's requirements */
+function SKGuard({ children }: { children: React.ReactNode }) {
+  const youthType = (authStore.user as any)?.youth_type
+  if (youthType === 'sk') return <Wrap>{children}</Wrap>
+  return <Navigate to="/dashboard" replace />
 }
 
 /** Only SK + Youth Org leaders can access submissions */
@@ -199,6 +207,7 @@ export default function App() {
         <Route path="/submissions"        element={<SubmissionsGuard><SubmissionsPage /></SubmissionsGuard>} />
         <Route path="/submissions/new"    element={<SubmissionsGuard><SubmissionWizardPage /></SubmissionsGuard>} />
         <Route path="/submissions/:id"    element={<SubmissionsGuard><SubmissionDetailPage /></SubmissionsGuard>} />
+        <Route path="/sk-requirements"    element={<SKGuard><SKRequirementsPage /></SKGuard>} />
         <Route path="/yorp-registration"  element={<YORPGuard />} />
       </Route>
 

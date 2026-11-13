@@ -7,7 +7,7 @@ import {
   Library, MessageSquareWarning, User, LogOut, Bell, Menu, X,
   MessageCircle, FileText, Building2, ChevronDown, HandHeart, Newspaper,
   CheckCheck, ShieldCheck, ShieldAlert, ChevronRight, ChevronLeft, CreditCard,
-  Mail, Paperclip,
+  Mail, Paperclip, ClipboardCheck,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
@@ -56,6 +56,7 @@ const TABS: Tab[] = [
   // Role overlays &mdash; appended after base nav
   { label: 'YORP Registration', icon: Building2,        to: '/yorp-registration', roles: ['youth_org_leader'] },
   { label: 'Submissions',       icon: FileText,         to: '/submissions',       roles: ['sk', 'youth_org_leader'] },
+  { label: 'SK Requirements',   icon: ClipboardCheck,   to: '/sk-requirements',   roles: ['sk'] },
   { label: 'Feedback Inbox',    icon: MessageCircle,    to: '/sk-inbox',          roles: ['sk'] },
 ]
 
