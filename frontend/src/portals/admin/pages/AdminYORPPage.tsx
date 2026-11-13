@@ -48,6 +48,35 @@ const initialForm: NewOrgForm = {
   name: '', classification: '', sub_classification: '', registration_category: '', barangay: '',
 }
 
+interface RequirementRow { id: number; name: string; is_submitted: boolean; file: string | null }
+
+/** The documents an organization has uploaded, each opening in a new tab. */
+function RequirementFiles({ orgId }: { orgId: number }) {
+  const { data: reqs = [], isLoading, isError } = useQuery<RequirementRow[]>({
+    queryKey: ['admin-org-requirements', orgId],
+    queryFn: () => apiClient.get(`/youth-orgs/${orgId}/`).then(r => r.data.requirements ?? []),
+  })
+  if (isLoading) return <p className="text-xs text-gray-400 mt-2">Loading documents…</p>
+  if (isError) return <p className="text-xs text-red-500 mt-2">Couldn't load the documents.</p>
+  if (reqs.length === 0) return <p className="text-xs text-gray-400 mt-2">No requirement checklist yet.</p>
+  return (
+    <ul className="mt-3 space-y-1.5">
+      {reqs.map(r => (
+        <li key={r.id} className="flex items-center justify-between gap-2 text-xs">
+          <span className={cn('truncate', r.is_submitted ? 'text-gray-700' : 'text-gray-400')}>
+            {r.is_submitted ? '✓' : '○'} {r.name}
+          </span>
+          {r.is_submitted && r.file && (
+            <a href={r.file} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline flex-shrink-0">
+              View PDF
+            </a>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export default function AdminYORPPage() {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<number | null>(null)
@@ -218,6 +247,7 @@ export default function AdminYORPPage() {
                         {org.requirements_submitted ?? 0}/{org.requirements_total ?? 10}
                       </span>
                     </div>
+                    <RequirementFiles orgId={org.id} />
                   </div>
                   <div>
                     <p className="font-medium text-gray-700 mb-2">Upcoming Events</p>

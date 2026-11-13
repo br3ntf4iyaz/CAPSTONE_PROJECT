@@ -233,7 +233,7 @@ function Step2({ data, setData }: { data: FormData; setData: (d: FormData) => vo
       </div>
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-        <p className="font-semibold mb-1">Required documents upon approval</p>
+        <p className="font-semibold mb-1">Required documents</p>
         <ul className="space-y-1 text-amber-700">
           {['Constitution & By-Laws', 'List of Officers', 'Member Roster (at least 10 members)', 'Recent Activity Report'].map(doc => (
             <li key={doc} className="flex items-start gap-2">
@@ -242,7 +242,7 @@ function Step2({ data, setData }: { data: FormData; setData: (d: FormData) => vo
             </li>
           ))}
         </ul>
-        <p className="mt-2 text-xs">You will be able to upload these after submission when LYDO contacts you.</p>
+        <p className="mt-2 text-xs">After you submit, upload each document as a PDF under Organizations → My Submissions, where you can also track your registration status.</p>
       </div>
     </div>
   )
@@ -274,7 +274,7 @@ function Step3({ data }: { data: FormData }) {
         <ol className="space-y-1 text-primary/80 list-decimal list-inside">
           <li>LYDO staff will review your application.</li>
           <li>You'll receive an email at <strong>{data.contact_email}</strong> with the outcome.</li>
-          <li>If approved, you'll be asked to upload supporting documents.</li>
+          <li>Upload your required documents as PDFs and track their status in Organizations → My Submissions.</li>
           <li>Your organization will be listed in the LYDO directory.</li>
         </ol>
       </div>

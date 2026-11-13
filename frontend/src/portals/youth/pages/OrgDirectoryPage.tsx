@@ -44,6 +44,15 @@ interface MySubmission {
   status: 'pending' | 'approved' | 'rejected'
   admin_notes: string
   created_at: string
+  requirements: OrgRequirementItem[]
+}
+
+interface OrgRequirementItem {
+  id: number
+  name: string
+  is_submitted: boolean
+  submitted_at: string | null
+  notes: string
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -377,6 +386,78 @@ const STATUS_CONFIG = {
   rejected: { label: 'Rejected',     icon: Ban,          cls: 'text-red-700 bg-red-50 border-red-200' },
 }
 
+/** The documents LYDO needs for YORP registration, with an upload button for each. */
+function RequirementChecklist({ org }: { org: MySubmission }) {
+  const qc = useQueryClient()
+  const [uploadingId, setUploadingId] = useState<number | null>(null)
+  const reqs = org.requirements ?? []
+  const done = reqs.filter(r => r.is_submitted).length
+  const locked = org.status === 'rejected'
+
+  const upload = useMutation({
+    mutationFn: ({ reqId, file }: { reqId: number; file: File }) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      return apiClient.post(`/youth-orgs/${org.id}/requirements/${reqId}/upload/`, fd, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+    },
+    onMutate: ({ reqId }) => setUploadingId(reqId),
+    onSuccess: () => {
+      toast.success('Document uploaded.')
+      qc.invalidateQueries({ queryKey: ['my-org-submissions'] })
+    },
+    onError: (err: any) => {
+      const d = err?.response?.data
+      toast.error(d?.file?.[0] ?? d?.detail ?? 'Upload failed. Please try again.')
+    },
+    onSettled: () => setUploadingId(null),
+  })
+
+  if (reqs.length === 0) return null
+  return (
+    <div className="mt-3 border-t border-ink-100 pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-ink-700">Required documents</p>
+        <span className="text-xs text-ink-500">{done} of {reqs.length} submitted</span>
+      </div>
+      <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden mb-3">
+        <div className="h-full bg-green-500 transition-all" style={{ width: `${(done / reqs.length) * 100}%` }} />
+      </div>
+      <ul className="space-y-2">
+        {reqs.map(r => (
+          <li key={r.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="flex items-center gap-2 min-w-0">
+              {r.is_submitted
+                ? <CheckCircle2 size={15} className="text-green-600 flex-shrink-0" />
+                : <Clock size={15} className="text-amber-500 flex-shrink-0" />}
+              <span className="truncate text-ink-800">{r.name}</span>
+            </span>
+            {!locked && (
+              <label className={cn('btn-secondary btn-sm text-xs cursor-pointer flex-shrink-0', uploadingId === r.id && 'opacity-60 pointer-events-none')}>
+                {uploadingId === r.id ? 'Uploading…' : r.is_submitted ? 'Replace PDF' : 'Upload PDF'}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="sr-only"
+                  onChange={e => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    if (file.size > 10 * 1024 * 1024) { toast.error('File must be 10 MB or smaller.'); return }
+                    upload.mutate({ reqId: r.id, file })
+                  }}
+                />
+              </label>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="text-[11px] text-ink-400 mt-2">PDF only, up to 10 MB each.</p>
+    </div>
+  )
+}
+
 function MySubmissions() {
   const { data: subs = [] } = useQuery<MySubmission[]>({
     queryKey: ['my-org-submissions'],
@@ -406,6 +487,7 @@ function MySubmissions() {
             {s.admin_notes && (
               <p className="text-xs text-ink-600 bg-ink-50 rounded-lg px-3 py-2 mt-2">{s.admin_notes}</p>
             )}
+            <RequirementChecklist org={s} />
           </div>
         )
       })}

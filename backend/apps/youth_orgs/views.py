@@ -1,18 +1,22 @@
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
 
-from .models import OrgAccomplishment, OrgRequirement, YouthOrganization
+from .models import OrgAccomplishment, OrgRequirement, YouthOrganization, ensure_default_requirements
 from .serializers import (
     OrgAccomplishmentSerializer,
     OrgDetailSerializer,
     OrgListSerializer,
     OrgRequirementSerializer,
     OrgSubmissionSerializer,
+    validate_pdf,
 )
 
 
@@ -85,27 +89,63 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if not IsAdminRole().has_permission(self.request, self):
-            serializer.save(
+            org = serializer.save(
                 registration_category='not_registered',
                 is_active=False,
                 status='pending',
                 submitted_by=self.request.user,
             )
+            ensure_default_requirements(org)
         else:
             serializer.save(status='approved')
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('create', 'my_submissions'):
+        if self.action in ('create', 'my_submissions', 'upload_requirement'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
     @action(detail=False, methods=['get'], url_path='my-submissions', permission_classes=[IsAuthenticated])
     def my_submissions(self, request):
         qs = YouthOrganization.objects.filter(submitted_by=request.user).order_by('-created_at')
+        for org in qs:  # also covers organizations submitted before checklists existed
+            ensure_default_requirements(org)
+        qs = qs.prefetch_related('requirements')
         serializer = OrgSubmissionSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path=r'requirements/(?P<req_id>[0-9]+)/upload',
+        permission_classes=[IsAuthenticated],
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def upload_requirement(self, request, pk=None, req_id=None):
+        """The organization's submitter uploads a PDF for one required document."""
+        org = get_object_or_404(YouthOrganization, pk=pk, submitted_by=request.user)
+        req = get_object_or_404(OrgRequirement, pk=req_id, organization=org)
+        if org.status == 'rejected':
+            return Response(
+                {'detail': 'This application was rejected, so documents can no longer be uploaded.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        file = request.FILES.get('file')
+        if not file:
+            return Response({'file': ['Please choose a PDF file.']}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            validate_pdf(file)
+        except DRFValidationError as exc:
+            return Response({'file': exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+        req.file = file
+        req.is_submitted = True
+        req.submitted_at = timezone.now()
+        req.save()
+        return Response({
+            'id': req.id, 'name': req.name, 'is_submitted': True,
+            'submitted_at': req.submitted_at, 'notes': req.notes,
+        })
 
     # ------------------------------------------------------------------
     # Custom actions

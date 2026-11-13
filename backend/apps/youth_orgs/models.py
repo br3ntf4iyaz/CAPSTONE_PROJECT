@@ -105,3 +105,22 @@ class OrgRequirement(models.Model):
     def __str__(self):
         status = 'Submitted' if self.is_submitted else 'Pending'
         return f'{self.organization.name} — {self.name} ({status})'
+
+
+# Documents every organization must submit for YORP registration.
+DEFAULT_REQUIREMENTS = [
+    'Constitution & By-Laws',
+    'List of Officers',
+    'Member Roster (at least 10 members)',
+    'Recent Activity Report',
+]
+
+
+def ensure_default_requirements(org):
+    """Give an organization its standard requirement checklist (idempotent)."""
+    have = set(org.requirements.values_list('name', flat=True))
+    missing = [n for n in DEFAULT_REQUIREMENTS if n not in have]
+    if missing:
+        OrgRequirement.objects.bulk_create(
+            [OrgRequirement(organization=org, name=n) for n in missing]
+        )

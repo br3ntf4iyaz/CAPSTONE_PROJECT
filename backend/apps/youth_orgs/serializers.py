@@ -73,6 +73,14 @@ class OrgRequirementSerializer(serializers.ModelSerializer):
 
 class OrgListSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
+    requirements_total = serializers.SerializerMethodField()
+    requirements_submitted = serializers.SerializerMethodField()
+
+    def get_requirements_total(self, obj):
+        return len(obj.requirements.all())  # prefetched by the viewset
+
+    def get_requirements_submitted(self, obj):
+        return sum(1 for r in obj.requirements.all() if r.is_submitted)
 
     class Meta:
         model = YouthOrganization
@@ -87,6 +95,8 @@ class OrgListSerializer(serializers.ModelSerializer):
             'contact_person',
             'is_compliant',
             'logo_url',
+            'requirements_total',
+            'requirements_submitted',
         ]
 
     def get_logo_url(self, obj):
@@ -141,15 +151,27 @@ class OrgDetailSerializer(serializers.ModelSerializer):
 class OrgSubmissionSerializer(serializers.ModelSerializer):
     """Used by verified youth users to submit a new org registration."""
 
+    requirements = serializers.SerializerMethodField()
+
     class Meta:
         model = YouthOrganization
         fields = [
             'id', 'name', 'classification', 'sub_classification',
             'registration_category', 'barangay', 'description',
             'contact_person', 'contact_email', 'contact_phone',
-            'status', 'admin_notes', 'created_at',
+            'status', 'admin_notes', 'created_at', 'requirements',
         ]
         read_only_fields = ['status', 'admin_notes', 'created_at']
+
+    def get_requirements(self, obj):
+        # The owner's checklist: which documents are in and which are still missing.
+        return [
+            {
+                'id': r.id, 'name': r.name, 'is_submitted': r.is_submitted,
+                'submitted_at': r.submitted_at, 'notes': r.notes,
+            }
+            for r in obj.requirements.all()
+        ]
 
     def get_logo_url(self, obj):
         request = self.context.get('request')
