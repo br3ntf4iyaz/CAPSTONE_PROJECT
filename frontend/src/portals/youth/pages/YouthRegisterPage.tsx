@@ -192,7 +192,7 @@ export default function YouthRegisterPage() {
             <GoogleSignInButton label="Sign up with Google" />
 
             {/* Divider &mdash; only shown when Google button is available */}
-            <div className="relative flex items-center gap-3">
+            <div className="relative flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-ink-100" />
               <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or register with email</span>
               <div className="flex-1 h-px bg-ink-100" />

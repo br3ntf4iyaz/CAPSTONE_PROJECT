@@ -362,17 +362,17 @@ export default function YouthProfilePage() {
                   </div>
                 </div>
               ) : (
-                <div>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold text-gray-800">{me.full_name}</h2>
+                    <h2 className="text-lg font-bold text-gray-800 break-words">{me.full_name}</h2>
                     {verification?.is_verified && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold">
                         <ShieldCheck size={11} /> Verified
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-500 flex items-center gap-1">
-                    <Mail size={12} /> {me.email}
+                  <p className="text-sm text-gray-500 flex items-center gap-1 min-w-0">
+                    <Mail size={12} className="flex-shrink-0" /> <span className="truncate">{me.email}</span>
                   </p>
                   {profile?.sk_position && (
                     <p className="text-xs text-primary mt-0.5 flex items-center gap-1">

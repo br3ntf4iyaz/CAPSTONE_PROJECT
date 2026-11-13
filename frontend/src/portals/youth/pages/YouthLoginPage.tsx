@@ -118,7 +118,7 @@ export default function YouthLoginPage() {
             {/* ── Google Sign-In ────────────────────────────────────── */}
             <GoogleSignInButton label="Sign in with Google" redirectTo={redirectTo} />
 
-            <div className="relative flex items-center gap-3">
+            <div className="relative flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-ink-100" />
               <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or sign in with email</span>
               <div className="flex-1 h-px bg-ink-100" />

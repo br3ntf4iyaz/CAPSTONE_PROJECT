@@ -11,6 +11,12 @@
     font-family: 'Manrope', system-ui, sans-serif;
     font-feature-settings: 'ss01', 'cv11';
   }
+  /* Phone safety net: a long email, name or link wraps instead of pushing the whole
+     page wider than the screen, and media never exceeds its container. */
+  html { -webkit-text-size-adjust: 100%; }
+  body { overflow-x: clip; }
+  p, h1, h2, h3, h4, li, td, th, label, dd, dt, a, span { overflow-wrap: anywhere; }
+  img, video, canvas { max-width: 100%; height: auto; }
   h1, h2, h3 {
     font-family: 'Bricolage Grotesque', 'Manrope', system-ui, sans-serif;
     letter-spacing: -0.02em;
