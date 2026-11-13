@@ -10,6 +10,8 @@ import { cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
+import { CompareSheet, CompareTray, MAX_COMPARE } from './schools/SchoolCompare'
+import { TYPE_LABELS } from './schools/constants'
 
 interface SchoolProgram {
   id: number
@@ -55,20 +57,12 @@ const TYPE_COLORS: Record<string, string> = {
   technical_vocational: 'bg-amber-100 text-amber-800',
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  public:               'Public',
-  private:              'Private',
-  state_university:     'State University',
-  community_college:    'Community College',
-  technical_vocational: 'Tech-Voc',
-}
-
 // ─── Detail Drawer ──────────────────────────────────────────────────────────
 
 function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () => void }) {
   const { data: detail, isLoading } = useQuery<School>({
     queryKey: ['school-detail', school.id],
-    queryFn: () => apiClient.get(`/schools/${school.slug}/`).then(r => r.data),
+    queryFn: () => apiClient.get(`/schools/${school.id}/`).then(r => r.data),
   })
 
   const s = detail ?? school
@@ -216,8 +210,17 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
 
 // ─── School Card ─────────────────────────────────────────────────────────────
 
-function SchoolCard({ school, onClick }: { school: School; onClick: () => void }) {
+function SchoolCard({
+  school, onClick, compared, canAdd, onToggleCompare,
+}: {
+  school: School
+  onClick: () => void
+  compared: boolean
+  canAdd: boolean
+  onToggleCompare: () => void
+}) {
   return (
+    <div className="relative">
     <button
       onClick={onClick}
       className={cn(
@@ -273,6 +276,22 @@ function SchoolCard({ school, onClick }: { school: School; onClick: () => void }
         </div>
       </div>
     </button>
+    <button
+      type="button"
+      onClick={onToggleCompare}
+      disabled={!compared && !canAdd}
+      aria-pressed={compared}
+      title={!compared && !canAdd ? `You can compare up to ${MAX_COMPARE} schools` : undefined}
+      className={cn(
+        'absolute right-3 bottom-3 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors',
+        compared
+          ? 'bg-primary text-white border-primary'
+          : 'bg-white text-gray-500 border-gray-200 hover:border-primary/40 hover:text-primary disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-500',
+      )}
+    >
+      {compared ? '✓ Comparing' : '+ Compare'}
+    </button>
+    </div>
   )
 }
 
@@ -282,6 +301,15 @@ export default function YouthSchoolsPage() {
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
   const [selected, setSelected] = useState<School | null>(null)
+  const [compare, setCompare] = useState<School[]>([])
+  const [showCompare, setShowCompare] = useState(false)
+
+  const toggleCompare = (school: School) =>
+    setCompare(list =>
+      list.some(x => x.id === school.id)
+        ? list.filter(x => x.id !== school.id)
+        : list.length >= MAX_COMPARE ? list : [...list, school],
+    )
 
   const params = new URLSearchParams()
   if (schoolType) params.set('school_type', schoolType)
@@ -376,7 +404,10 @@ export default function YouthSchoolsPage() {
                 <Star size={10} fill="currentColor" /> Featured Schools
               </p>
               <div className="space-y-2">
-                {featured.map(s => <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)} />)}
+                {featured.map(s => (
+                  <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)}
+                    compared={compare.some(x => x.id === s.id)} canAdd={compare.length < MAX_COMPARE} onToggleCompare={() => toggleCompare(s)} />
+                ))}
               </div>
             </section>
           )}
@@ -388,7 +419,8 @@ export default function YouthSchoolsPage() {
             )}
             <div className="space-y-2">
               {(schoolType || search ? schools : rest).map(s => (
-                <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)} />
+                <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)}
+                  compared={compare.some(x => x.id === s.id)} canAdd={compare.length < MAX_COMPARE} onToggleCompare={() => toggleCompare(s)} />
               ))}
             </div>
           </section>
@@ -398,6 +430,16 @@ export default function YouthSchoolsPage() {
             {schoolType || search ? ' matching your search' : ' in Lucena City'}
           </p>
         </div>
+      )}
+
+      <CompareTray
+        items={compare}
+        onRemove={id => setCompare(list => list.filter(x => x.id !== id))}
+        onClear={() => setCompare([])}
+        onOpen={() => setShowCompare(true)}
+      />
+      {showCompare && compare.length >= 2 && (
+        <CompareSheet items={compare} onClose={() => setShowCompare(false)} />
       )}
 
       {/* Detail drawer */}
