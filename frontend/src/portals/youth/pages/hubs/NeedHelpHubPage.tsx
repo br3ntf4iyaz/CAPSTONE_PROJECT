@@ -10,10 +10,10 @@ const ITEMS: HubItem[] = [
     accent: 'primary',
   },
   {
-    title: 'Contact Support',
+    title: 'Help Center and Support',
     description: 'Stuck on something? Open a support ticket and a LYDO staffer will get back to you.',
     icon: LifeBuoy,
-    badge: 'Coming soon',
+    to: '/help-center',
     accent: 'neutral',
   },
   {

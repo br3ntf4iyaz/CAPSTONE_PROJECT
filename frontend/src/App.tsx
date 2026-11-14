@@ -82,6 +82,8 @@ const AdminJobsSchoolsPage = lazy(() => import('@/portals/admin/pages/AdminJobsS
 const AdminNotifPage       = lazy(() => import('@/portals/admin/pages/AdminNotifPage'))
 const AdminFeaturedPage    = lazy(() => import('@/portals/admin/pages/AdminFeaturedPage'))
 const AdminReportsPage        = lazy(() => import('@/portals/admin/pages/AdminReportsPage'))
+const HelpCenterPage = lazy(() => import('@/portals/youth/pages/HelpCenterPage'))
+const AdminSupportPage = lazy(() => import('@/portals/admin/pages/AdminSupportPage'))
 const AdminVerificationPage   = lazy(() => import('@/portals/admin/pages/AdminVerificationPage'))
 const AdminAuditLogPage       = lazy(() => import('@/portals/admin/pages/AdminAuditLogPage'))
 const AdminParticipationPage  = lazy(() => import('@/portals/admin/pages/AdminParticipationPage'))
@@ -188,6 +190,7 @@ export default function App() {
         <Route path="/lms/:courseId/lesson/:lessonId"  element={<Wrap><LessonPlayerPage /></Wrap>} />
         <Route path="/badges"           element={<Wrap><YouthBadgesPage /></Wrap>} />
         <Route path="/certificates"     element={<Wrap><YouthCertificatesPage /></Wrap>} />
+        <Route path="/help-center"      element={<Wrap><HelpCenterPage /></Wrap>} />
         <Route path="/chatbot"          element={<Wrap><ChatbotPage /></Wrap>} />
         <Route path="/jobs"             element={<Wrap><JobsPage /></Wrap>} />
         <Route path="/scholarships"     element={<Wrap><ScholarshipsPage /></Wrap>} />
@@ -231,6 +234,7 @@ export default function App() {
         <Route path="/admin/featured"        element={<Wrap><AdminFeaturedPage /></Wrap>} />
         <Route path="/admin/programs"         element={<Wrap><AdminProgramsPage /></Wrap>} />
         <Route path="/admin/reports"         element={<Wrap><AdminReportsPage /></Wrap>} />
+        <Route path="/admin/support"         element={<Wrap><AdminSupportPage /></Wrap>} />
         <Route path="/admin/verification"    element={<Wrap><AdminVerificationPage /></Wrap>} />
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
         <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />

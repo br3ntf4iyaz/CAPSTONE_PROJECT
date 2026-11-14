@@ -332,7 +332,7 @@ export default function AdminVerificationPage() {
   // ── CSV export ─────────────────────────────────────────────────────────────
 
   const exportCSV = () => {
-    const headers = ['ID', 'User', 'Email', 'ID Type', 'Status', 'AI Verdict', 'Confidence', 'Submitted']
+    const headers = ['ID', 'User', 'Email', 'ID Type', 'Status', 'Face check', 'Confidence', 'Submitted']
     const rows = records.map(r => [
       r.id, r.user_name, r.user_email, r.id_type_display, r.status_display,
       r.ai_verdict || '—',
@@ -458,7 +458,7 @@ export default function AdminVerificationPage() {
                 <th>Email</th>
                 <th>ID Type</th>
                 <th>Status</th>
-                <th>AI Verdict</th>
+                <th>Face check</th>
                 <th>Confidence</th>
                 <th>Submitted</th>
                 <th>Actions</th>

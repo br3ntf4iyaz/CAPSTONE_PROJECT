@@ -21,6 +21,7 @@ class SupportTicketSerializer(serializers.ModelSerializer):
             'email',
             'subject',
             'message',
+            'admin_response',
             'status',
             'status_display',
             'priority',
@@ -67,6 +68,9 @@ class SupportTicketSerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
 
     def validate_name(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_admin_response(self, value):
         return bleach.clean(value, tags=[], strip=True)
 
 

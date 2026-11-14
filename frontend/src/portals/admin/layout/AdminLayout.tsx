@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderOpen, Users, ClipboardCheck, BarChart3,
   CalendarDays, BookOpen, ClipboardList, UserCog, Library,
   Briefcase, Bell, Shield, LogOut, ChevronLeft, ChevronRight, Menu,
-  Newspaper, FileText, CheckCheck, X, History, UserCheck,
+  Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -168,6 +168,7 @@ const NAV_ITEMS = [
   { label: 'Library',          icon: Library,         to: '/admin/library' },
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
   { label: 'ID Verification',  icon: Shield,          to: '/admin/verification' },
+  { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
   { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
