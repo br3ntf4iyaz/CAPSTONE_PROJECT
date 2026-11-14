@@ -55,6 +55,8 @@ class JobViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
+        if self.action in ('save_toggle', 'saved_jobs'):
+            return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
     def perform_create(self, serializer):
