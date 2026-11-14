@@ -1,4 +1,3 @@
-import threading
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
@@ -8,51 +7,22 @@ from rest_framework.views import APIView
 from apps.accounts.permissions import IsAdminRole
 from .models import IDVerification
 from .serializers import IDVerificationSerializer, IDVerificationSubmitSerializer
-from .ai_checker import run_ai_check
 
 
-def _run_ai_in_background(verification_id: int):
-    """Fetch the verification record, run AI, and save results."""
+def _record_client_face_check(v, data):
+    """Store the in-browser (face-api) comparison result. Admin still decides."""
     try:
-        from .models import IDVerification  # local import keeps thread safe
-        v = IDVerification.objects.get(pk=verification_id)
-        v.status = IDVerification.Status.REVIEWING
-        v.save(update_fields=["status"])
-
-        result = run_ai_check(v)
-
-        v.ai_verdict      = result["verdict"]
-        v.ai_confidence   = result["confidence"]
-        v.ai_notes        = result["notes"]
-        v.ai_raw_response = result.get("raw", "")
-        v.ai_face_match   = result.get("face_match")
-
-        # Auto-approve/reject based on AI confidence threshold
-        HIGH_CONFIDENCE = 0.75
-        if (result["verdict"] == "approved" and result["confidence"] >= HIGH_CONFIDENCE
-                and result.get("face_match") and result.get("back_valid") and result.get("live", True)):
-            v.status = IDVerification.Status.APPROVED
-        elif result["verdict"] == "rejected":
-            v.status = IDVerification.Status.REJECTED
-        else:
-            # Low-confidence approvals → human review queue (stay as "reviewing")
-            v.status = IDVerification.Status.REVIEWING
-
-        v.save(update_fields=[
-            "status", "ai_verdict", "ai_confidence",
-            "ai_notes", "ai_raw_response", "ai_face_match",
-        ])
-    except Exception as exc:
-        # AI call failed — mark rejected so the user can re-submit
-        try:
-            from .models import IDVerification as _IDV
-            _IDV.objects.filter(pk=verification_id).update(
-                status=_IDV.Status.REJECTED,
-                ai_notes="Verification service encountered an error. Please try again.",
-                ai_verdict="rejected",
-            )
-        except Exception:
-            pass
+        distance = float(data.get("face_distance"))
+    except (TypeError, ValueError):
+        v.ai_notes = "Automatic face check was unavailable on the device. Manual review needed."
+        return
+    matched = str(data.get("face_matched", "")).lower() == "true"
+    v.ai_confidence = max(0.0, min(1.0, 1 - distance))
+    v.ai_face_match = matched
+    v.ai_notes = (
+        f"Face check on device: {'match' if matched else 'no clear match'} "
+        f"(distance {distance:.2f}, similarity {round(v.ai_confidence * 100)}%). Awaiting admin review."
+    )
 
 
 class VerificationStatusView(APIView):
@@ -70,7 +40,7 @@ class VerificationStatusView(APIView):
 class VerificationSubmitView(APIView):
     """
     POST /api/verification/submit/
-    Upload an ID image. Triggers AI analysis in a background thread.
+    Upload ID front/back + selfie. Face match is computed in the browser; admin approves.
     Users can re-submit if their previous attempt was rejected.
     """
     permission_classes = [IsAuthenticated]
@@ -95,20 +65,15 @@ class VerificationSubmitView(APIView):
         serializer.is_valid(raise_exception=True)
         v = serializer.save(
             user=request.user,
-            status=IDVerification.Status.PENDING,
+            status=IDVerification.Status.REVIEWING,
             ai_verdict="",
             ai_confidence=None,
             ai_notes="",
             ai_raw_response="",
         )
 
-        # Fire AI check in background so the response is immediate
-        thread = threading.Thread(
-            target=_run_ai_in_background,
-            args=(v.pk,),
-            daemon=True,
-        )
-        thread.start()
+        _record_client_face_check(v, request.data)
+        v.save(update_fields=["ai_confidence", "ai_face_match", "ai_notes"])
 
         return Response(
             IDVerificationSerializer(v).data,

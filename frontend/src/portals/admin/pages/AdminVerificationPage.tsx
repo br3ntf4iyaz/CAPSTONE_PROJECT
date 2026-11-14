@@ -147,7 +147,7 @@ function ReviewModal({ record, onClose, onAction }: {
         {(record.ai_verdict || record.ai_notes) && (
           <div className="rounded-xl border border-ink-100 p-4 space-y-2">
             <p className="text-xs font-semibold text-ink-500 uppercase flex items-center gap-1.5">
-              <Brain size={12} /> AI Analysis
+              <Brain size={12} /> Face check (on device)
             </p>
             <div className="flex items-center gap-3 flex-wrap">
               {record.ai_verdict && (
@@ -233,7 +233,7 @@ type TabKey = 'all' | 'pending' | 'reviewing' | 'approved' | 'rejected'
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'all',       label: 'All' },
   { key: 'pending',   label: 'Pending' },
-  { key: 'reviewing', label: 'AI Reviewing' },
+  { key: 'reviewing', label: 'Under review' },
   { key: 'approved',  label: 'Approved' },
   { key: 'rejected',  label: 'Rejected' },
 ]

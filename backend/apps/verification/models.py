@@ -11,7 +11,7 @@ def id_upload_path(instance, filename):
 class IDVerification(models.Model):
     class Status(models.TextChoices):
         PENDING   = "pending",   "Pending"
-        REVIEWING = "reviewing", "AI Reviewing"
+        REVIEWING = "reviewing", "Under review"
         APPROVED  = "approved",  "Approved"
         REJECTED  = "rejected",  "Rejected"
 

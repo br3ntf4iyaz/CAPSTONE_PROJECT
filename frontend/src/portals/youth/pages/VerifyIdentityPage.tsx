@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ShieldCheck, ShieldX, Shield, Upload, Camera,
@@ -9,6 +9,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import CameraCapture from '../components/CameraCapture'
+import { compareFaces, type FaceMatchResult } from '@/utils/faceMatch'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,20 @@ export default function VerifyIdentityPage() {
   const [back, setBack] = useState<File | null>(null)
   const [selfie, setSelfie] = useState<File | null>(null)
   const [camera, setCamera] = useState(false)
+  const [match, setMatch] = useState<FaceMatchResult | null>(null)
+  const [checking, setChecking] = useState(false)
+
+  // Free in-browser face comparison: selfie vs the photo on the ID front
+  useEffect(() => {
+    setMatch(null)
+    if (!front || !selfie) return
+    let cancelled = false
+    setChecking(true)
+    compareFaces(front, selfie).then(r => {
+      if (!cancelled) { setMatch(r); setChecking(false) }
+    })
+    return () => { cancelled = true }
+  }, [front, selfie])
 
   const verificationQ = useQuery<Verification>({
     queryKey: ['verification-status'],
@@ -98,7 +113,7 @@ export default function VerifyIdentityPage() {
         </div>
         <h1 className="font-display font-extrabold text-3xl text-ink-900">Under Review</h1>
         <p className="text-ink-600 leading-relaxed">
-          Your ID is being reviewed by our AI verification system. This usually takes under a minute.
+          Your ID, its back and your face scan are waiting for review by a LYDO admin. You will be notified once it is approved.
         </p>
         <button
           type="button"
@@ -123,7 +138,7 @@ export default function VerifyIdentityPage() {
         </div>
         <h1 className="font-display font-extrabold text-3xl text-ink-900">Submitted!</h1>
         <p className="text-ink-600 leading-relaxed">
-          Our AI is analysing your ID now. Refresh in a moment to see the result.
+          Your face was checked on your device and your documents were sent to LYDO for admin approval.
         </p>
         <button
           type="button"
@@ -236,7 +251,8 @@ export default function VerifyIdentityPage() {
         const current = slots.key === 'front' ? front : slots.key === 'back' ? back : selfie
         const setCurrent = (f: File | null) => (slots.key === 'front' ? setFront(f) : slots.key === 'back' ? setBack(f) : setSelfie(f))
         const idLabel = ID_TYPES.find(t => t.value === idType)?.label
-        const allReady = !!(front && back && selfie)
+        const noFace = match?.ok === false && (match.reason === 'no-id-face' || match.reason === 'no-selfie-face')
+        const allReady = !!(front && back && selfie) && !checking && !noFace
         return (
           <div className="space-y-4">
             <div>
@@ -263,6 +279,25 @@ export default function VerifyIdentityPage() {
                 <button type="button" onClick={() => { setCurrent(null); setCamera(true) }} className="text-xs font-semibold text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
                   <RefreshCw size={12} /> Retake
                 </button>
+                {slots.key === 'selfie' && (
+                  <div
+                    className={cn(
+                      'rounded-xl border p-3 text-sm',
+                      checking || !match ? 'bg-ink-50 border-ink-100 text-ink-600'
+                      : match.ok && match.matched ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : match.ok ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : match.reason === 'error' ? 'bg-amber-50 border-amber-200 text-amber-800'
+                      : 'bg-alert-50 border-alert-200 text-alert-700',
+                    )}
+                  >
+                    {checking || !match ? 'Comparing your face with the ID photo...'
+                      : match.ok && match.matched ? `Face matches the ID photo (${Math.round((match.similarity ?? 0) * 100)}% similarity).`
+                      : match.ok ? 'The face does not clearly match the ID photo. Retake in better light, or submit and an admin will review it manually.'
+                      : match.reason === 'no-selfie-face' ? 'No face detected in the selfie. Retake it facing the camera in good light.'
+                      : match.reason === 'no-id-face' ? 'No face detected on the ID front. Go back and recapture the front so the photo is clear.'
+                      : 'Automatic face check is unavailable. You can still submit; an admin will review it.'}
+                  </div>
+                )}
               </div>
             ) : (
               <button
@@ -294,6 +329,10 @@ export default function VerifyIdentityPage() {
                       fd.append('id_image', front)
                       fd.append('id_back_image', back)
                       fd.append('selfie_image', selfie)
+                      if (match?.ok) {
+                        fd.append('face_distance', String(match.distance))
+                        fd.append('face_matched', match.matched ? 'true' : 'false')
+                      }
                       submitMutation.mutate(fd)
                     }}
                     className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -319,13 +358,13 @@ export default function VerifyIdentityPage() {
 
       {/* ── How it works ────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-ink-100 bg-white p-5 space-y-3">
-        <h3 className="font-semibold text-sm text-ink-700">How AI verification works</h3>
+        <h3 className="font-semibold text-sm text-ink-700">How verification works</h3>
         <div className="space-y-2.5">
           {[
             ['Scan', 'Capture the front and back of your government ID with your camera.'],
             ['Face check', 'Take a live selfie; it is compared with the photo on the ID.'],
-            ['AI Analysis', 'Claude (Anthropic AI) checks authenticity, photo presence, and readability.'],
-            ['Instant result', 'High-confidence passes are approved automatically. Edge cases go to admin review.'],
+            ['Privacy', 'The face comparison runs on your own device. Your photos are only sent to LYDO, never to a third-party AI.'],
+            ['Admin approval', 'A LYDO admin reviews your ID and the match result before approving.'],
             ['Verified badge', 'Approved users get a verified badge on their profile.'],
           ].map(([title, desc]) => (
             <div key={title} className="flex items-start gap-2.5 text-sm">
