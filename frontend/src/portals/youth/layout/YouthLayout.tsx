@@ -231,7 +231,7 @@ function NotificationPanel() {
   const unreadMessages           = messages.filter(n => !n.is_read).length
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="sm:relative" ref={ref}>
       <button
         onClick={() => setOpen(v => !v)}
         className="relative p-2 rounded-lg text-ink-500 hover:text-primary-700 hover:bg-primary-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
@@ -244,7 +244,7 @@ function NotificationPanel() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-xl border border-ink-100 z-50 overflow-hidden">
+        <div className="absolute inset-x-3 top-full mt-2 sm:inset-x-auto sm:right-0 sm:w-80 bg-white rounded-2xl shadow-xl border border-ink-100 z-50 overflow-hidden">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-ink-100">
             <p className="font-semibold text-sm text-ink-900">Notifications</p>
@@ -291,7 +291,7 @@ function NotificationPanel() {
           </div>
 
           {/* List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-ink-50">
+          <div className="max-h-[65vh] sm:max-h-96 overflow-y-auto divide-y divide-ink-50">
             {isLoading ? (
               <div className="p-6 text-center text-sm text-ink-500">Loading…</div>
 

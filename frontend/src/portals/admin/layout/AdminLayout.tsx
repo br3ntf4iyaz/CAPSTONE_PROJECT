@@ -63,7 +63,7 @@ function AdminNotificationBell() {
   }, [])
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="sm:relative">
       <button
         onClick={() => setOpen(v => !v)}
         className="relative p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
@@ -78,7 +78,7 @@ function AdminNotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+        <div className="absolute inset-x-3 top-full mt-2 sm:inset-x-auto sm:right-0 sm:w-80 bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <span className="font-semibold text-sm text-gray-800">Notifications</span>
             <div className="flex items-center gap-2">
@@ -96,7 +96,7 @@ function AdminNotificationBell() {
             </div>
           </div>
 
-          <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+          <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto divide-y divide-gray-50">
             {notifications.length === 0 ? (
               <div className="px-4 py-8 text-center text-gray-400 text-sm">
                 <Bell size={28} className="mx-auto mb-2 opacity-30" />
@@ -179,8 +179,16 @@ export default function AdminLayout() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const meQuery = useMe()
+
+  useEffect(() => {
+    if (!mobileOpen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileOpen])
 
   if (!auth.isAuthenticated) {
     return <Navigate to="/admin/login" replace />
@@ -203,22 +211,35 @@ export default function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
-      {/* Sidebar */}
+      {/* Backdrop for the phone drawer */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileOpen(false)} aria-hidden />
+      )}
+
+      {/* Sidebar: slides in over the page on phones, stays a column on large screens */}
       <aside
+        aria-label="Admin navigation"
         className={cn(
-          'flex flex-col bg-slate-900 text-white transition-all duration-300 flex-shrink-0',
-          collapsed ? 'w-16' : 'w-64'
+          'flex flex-col bg-slate-900 text-white flex-shrink-0 transition-transform duration-300',
+          'fixed inset-y-0 left-0 z-50 w-64 lg:static lg:z-auto lg:translate-x-0 lg:transition-all',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full',
+          collapsed ? 'lg:w-16' : 'lg:w-64'
         )}
       >
         {/* Logo */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-slate-700 min-h-[72px]">
-          <LydoLogo size={32} className="rounded-full" />
-          {!collapsed && (
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-white leading-tight truncate">LGU Admin Portal</p>
-              <p className="text-xs text-slate-400 truncate">Lucena City</p>
-            </div>
-          )}
+          <LydoLogo size={32} className="rounded-full flex-shrink-0" />
+          <div className={cn('min-w-0 flex-1', collapsed && 'lg:hidden')}>
+            <p className="text-sm font-bold text-white leading-tight truncate">LGU Admin Portal</p>
+            <p className="text-xs text-slate-400 truncate">Lucena City</p>
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+          >
+            <X size={18} />
+          </button>
         </div>
 
         {/* Nav */}
@@ -228,6 +249,7 @@ export default function AdminLayout() {
               key={to}
               to={to}
               end={to === '/admin'}
+              onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 cn(
                   'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors group',
@@ -238,13 +260,13 @@ export default function AdminLayout() {
               }
             >
               <Icon size={18} className="flex-shrink-0" />
-              {!collapsed && <span className="truncate">{label}</span>}
+              <span className={cn('truncate', collapsed && 'lg:hidden')}>{label}</span>
             </NavLink>
           ))}
         </nav>
 
         {/* Collapse toggle */}
-        <div className="border-t border-slate-700 p-2">
+        <div className="hidden lg:block border-t border-slate-700 p-2">
           <button
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors text-sm"
@@ -257,13 +279,15 @@ export default function AdminLayout() {
       {/* Main content */}
       <div className="flex flex-col flex-1 min-w-0">
         {/* Topbar */}
-        <header className="flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
+        <header className="relative z-30 flex items-center justify-between px-4 sm:px-6 py-4 bg-white border-b border-gray-200 shadow-sm">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setCollapsed(!collapsed)}
-              className="text-gray-400 hover:text-gray-600 lg:hidden"
+              onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
+              aria-expanded={mobileOpen}
+              className="p-1.5 -ml-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 lg:hidden"
             >
-              <Menu size={20} />
+              <Menu size={22} />
             </button>
             <span className="text-base font-semibold text-gray-800">Admin Portal</span>
           </div>
@@ -284,7 +308,7 @@ export default function AdminLayout() {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

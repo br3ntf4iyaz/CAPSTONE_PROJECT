@@ -1030,13 +1030,13 @@ export default function AdminSKTrackerPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
+      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto no-scrollbar" role="tablist">
         {TABS.map(tab => (
           <button
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px',
+              'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap flex-shrink-0',
               activeTab === tab.key
                 ? 'border-primary-600 text-primary-700'
                 : 'border-transparent text-ink-500 hover:text-ink-700',

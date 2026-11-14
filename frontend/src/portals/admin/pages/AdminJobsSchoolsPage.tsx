@@ -332,13 +332,13 @@ export default function AdminJobsSchoolsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-0 border-b border-gray-200">
+      <div className="flex gap-0 border-b border-gray-200 overflow-x-auto no-scrollbar" role="tablist">
         {TABS.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
             className={cn(
-              'flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors',
+              'flex items-center gap-1.5 px-5 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap flex-shrink-0',
               activeTab === key
                 ? 'border-primary-700 text-primary-700'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
