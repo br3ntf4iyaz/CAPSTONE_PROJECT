@@ -305,6 +305,7 @@ class SubmissionDetailSerializer(serializers.ModelSerializer):
             'thumbnail',
             'thumbnail_url',
             'file',
+            'file_url',
             'submitted_at',
             'updated_at',
             'status',
@@ -445,7 +446,21 @@ class SubmissionReviewSerializer(serializers.ModelSerializer):
 class CompletionReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProgramSubmission
-        fields = ['actual_participants', 'outcomes_narrative', 'completion_report_file']
+        fields = ['actual_participants', 'actual_disbursement', 'outcomes_narrative', 'completion_report_file']
+
+    def validate_actual_disbursement(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError('Amount spent cannot be negative.')
+        return value
+
+    def validate(self, attrs):
+        # A PPA's accomplishment report must say how much was actually spent.
+        sub = self.instance
+        if sub is not None and sub.submission_type == 'ppa':
+            spent = attrs.get('actual_disbursement', sub.actual_disbursement)
+            if spent is None:
+                raise serializers.ValidationError({'actual_disbursement': ['Amount spent is required.']})
+        return attrs
 
     def validate_completion_report_file(self, value):
         if not value:

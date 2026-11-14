@@ -97,7 +97,9 @@ function CompletionModal({ submission, onClose, onSuccess }: CompletionModalProp
     submission.actual_participants?.toString() ?? ''
   )
   const [narrative, setNarrative] = useState(submission.outcomes_narrative ?? '')
+  const [amountSpent, setAmountSpent] = useState(submission.actual_disbursement ?? '')
   const [reportFile, setReportFile] = useState<File | null>(null)
+  const needsAmount = submission.submission_type !== 'policy'
 
   const hasExistingFile = !!submission.completion_report_file
   const wordCount = narrative.trim() ? narrative.trim().split(/\s+/).length : 0
@@ -105,10 +107,12 @@ function CompletionModal({ submission, onClose, onSuccess }: CompletionModalProp
   const mutation = useMutation({
     mutationFn: () => {
       if (!actualParticipants) throw new Error('Actual participants required')
+      if (needsAmount && (amountSpent === '' || Number(amountSpent) < 0)) throw new Error('Amount spent is required')
       if (!narrative.trim()) throw new Error('Outcomes narrative required')
       if (!reportFile && !hasExistingFile) throw new Error('Completion report file required')
       const fd = new FormData()
       fd.append('actual_participants', actualParticipants)
+      if (amountSpent !== '') fd.append('actual_disbursement', String(amountSpent))
       fd.append('outcomes_narrative', narrative)
       if (reportFile) fd.append('completion_report_file', reportFile)
       return submissionsApi.submitCompletion(submission.id, fd)
@@ -145,6 +149,27 @@ function CompletionModal({ submission, onClose, onSuccess }: CompletionModalProp
             </p>
           )}
         </div>
+
+        {needsAmount && (
+          <div>
+            <label className="label">Amount Spent (₱) *</label>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              inputMode="decimal"
+              className="input"
+              value={amountSpent}
+              onChange={e => setAmountSpent(e.target.value)}
+              placeholder="Total amount actually spent on this activity"
+            />
+            {submission.estimated_budget && (
+              <p className="text-xs text-ink-400 mt-1">
+                Estimated budget: ₱{Number(submission.estimated_budget).toLocaleString('en-PH')}
+              </p>
+            )}
+          </div>
+        )}
 
         <div>
           <label className="label">Outcomes Narrative *</label>
@@ -509,6 +534,12 @@ export default function SubmissionDetailPage() {
                   <Users size={14} className="text-ink-400" />
                   <span className="font-medium">Actual Participants:</span>
                   <span>{submission.actual_participants}</span>
+                </div>
+              )}
+              {submission.actual_disbursement != null && (
+                <div className="flex items-center gap-2 text-sm text-ink-600">
+                  <span className="font-medium">Amount Spent:</span>
+                  <span>₱{Number(submission.actual_disbursement).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                 </div>
               )}
               {submission.outcomes_narrative && (
