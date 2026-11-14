@@ -25,10 +25,12 @@ def _run_ai_in_background(verification_id: int):
         v.ai_confidence   = result["confidence"]
         v.ai_notes        = result["notes"]
         v.ai_raw_response = result.get("raw", "")
+        v.ai_face_match   = result.get("face_match")
 
         # Auto-approve/reject based on AI confidence threshold
         HIGH_CONFIDENCE = 0.75
-        if result["verdict"] == "approved" and result["confidence"] >= HIGH_CONFIDENCE:
+        if (result["verdict"] == "approved" and result["confidence"] >= HIGH_CONFIDENCE
+                and result.get("face_match") and result.get("back_valid") and result.get("live", True)):
             v.status = IDVerification.Status.APPROVED
         elif result["verdict"] == "rejected":
             v.status = IDVerification.Status.REJECTED
@@ -38,7 +40,7 @@ def _run_ai_in_background(verification_id: int):
 
         v.save(update_fields=[
             "status", "ai_verdict", "ai_confidence",
-            "ai_notes", "ai_raw_response",
+            "ai_notes", "ai_raw_response", "ai_face_match",
         ])
     except Exception as exc:
         # AI call failed — mark rejected so the user can re-submit
@@ -132,6 +134,8 @@ class AdminVerificationListView(APIView):
             row["user_name"]  = v.user.full_name
             row["user_email"] = v.user.email
             row["id_image_url"] = request.build_absolute_uri(v.id_image.url) if v.id_image else None
+            row["id_back_image_url"] = request.build_absolute_uri(v.id_back_image.url) if v.id_back_image else None
+            row["selfie_image_url"] = request.build_absolute_uri(v.selfie_image.url) if v.selfie_image else None
             data.append(row)
         return Response(data)
 

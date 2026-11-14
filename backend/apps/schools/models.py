@@ -8,7 +8,6 @@ class School(models.Model):
         ('public', 'Public'),
         ('private', 'Private'),
         ('state_university', 'State University'),
-        ('community_college', 'Community College'),
         ('technical_vocational', 'Technical-Vocational'),
     ]
 

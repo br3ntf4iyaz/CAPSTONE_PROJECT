@@ -44,6 +44,8 @@ class SchoolViewSet(viewsets.ModelViewSet):
             qs = qs.filter(
                 Q(name__icontains=search)
                 | Q(municipality__icontains=search)
+                | Q(address__icontains=search)
+                | Q(description__icontains=search)
                 | Q(province__icontains=search)
                 | Q(school_programs__program__name__icontains=search)
             ).distinct()

@@ -6,6 +6,7 @@ import {
   Building2, Filter, Bookmark, BookmarkCheck,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ApplyModal, { splitRequirements } from '../components/ApplyModal'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
@@ -116,6 +117,7 @@ function BookmarkButton({ job, size = 16 }: { job: Job; size?: number }) {
 // ─── Detail Drawer ──────────────────────────────────────────────────────────
 
 function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
+  const [applying, setApplying] = useState(false)
   const { data: detail } = useQuery<Job>({
     queryKey: ['job-detail', job.id],
     queryFn: () => apiClient.get(`/jobs/${job.id}/`).then(r => r.data),
@@ -209,25 +211,23 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         </div>
 
         {/* CTA */}
-        <div className="sticky bottom-0 bg-white border-t border-ink-100 px-6 py-4">
+        <div className="sticky bottom-0 bg-white border-t border-ink-100 px-6 py-4 space-y-2">
           {dl === 'closed' ? (
             <p className="text-sm text-center text-ink-400 py-1">This position is no longer accepting applications.</p>
-          ) : j.application_link ? (
-            <a href={j.application_link} target="_blank" rel="noopener noreferrer"
-              className="btn-primary w-full flex items-center justify-center gap-2">
-              Apply Now <ExternalLink size={14} />
-            </a>
-          ) : j.contact_email ? (
-            <a href={`mailto:${j.contact_email}?subject=Application for ${encodeURIComponent(j.title)}`}
-              className="btn-primary w-full flex items-center justify-center gap-2">
-              Apply via Email <ExternalLink size={14} />
-            </a>
           ) : (
-            <p className="text-sm text-center text-ink-400 py-1">
-              Contact <span className="font-medium">{j.company_or_org}</span> directly to apply.
-            </p>
+            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
+          )}
+          {dl !== 'closed' && j.application_link && (
+            <a href={j.application_link} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-xs text-primary-600 hover:underline">
+              Employer's own application page <ExternalLink size={12} />
+            </a>
           )}
         </div>
+        {applying && (
+          <ApplyModal kind="job" objectId={j.id} title={j.title} provider={j.company_or_org}
+            requirements={splitRequirements(j.requirements)} onClose={() => setApplying(false)} />
+        )}
       </div>
     </div>
   )

@@ -127,7 +127,7 @@ const TYPE_BADGE: Record<string, string> = {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const JOB_TYPES = ['full_time', 'part_time', 'internship', 'contract']
 const INDUSTRIES = ['government', 'private', 'ngo', 'education', 'health', 'tech', 'other']
-const SCHOOL_TYPES = ['public', 'private', 'state_university', 'community_college', 'technical_vocational']
+const SCHOOL_TYPES = ['public', 'private', 'state_university', 'technical_vocational']
 
 type Tab = 'jobs' | 'scholarships' | 'schools'
 

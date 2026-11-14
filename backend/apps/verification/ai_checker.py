@@ -38,13 +38,20 @@ JSON schema:
   "name_detected": <string | null>,
   "id_number_detected": <boolean>,
   "photo_present": <boolean>,
+  "back_side_valid": <boolean>,
+  "face_match": <boolean>,
+  "selfie_is_live_person": <boolean>,
   "image_quality": "good" | "acceptable" | "poor",
   "issues": [<string>],
   "notes": <string>
 }
 
+You receive THREE images in this order: (1) the FRONT of the ID, (2) the BACK of the ID, (3) a live selfie taken with the device camera.
 Rules:
-- Approve only if: real ID detected, face photo present, full name visible, image quality acceptable or better.
+- back_side_valid is true only if image 2 is the back of a real ID (not a copy of the front, not a random object).
+- face_match is true only if the face in the selfie is clearly the same person as the photo on the ID front.
+- selfie_is_live_person is false if the selfie looks like a photo of a screen or of a printed photo.
+- Approve only if front and back are valid, face_match is true, selfie_is_live_person is true, and: real ID detected, face photo present, full name visible, image quality acceptable or better.
 - Reject if: not an ID, blank/covered/cropped, photo missing, unreadable, or clearly fake.
 - confidence reflects how certain you are of the verdict (1.0 = completely certain).
 - issues is a list of specific problems found (empty list if none).
@@ -59,40 +66,34 @@ def run_ai_check(verification) -> dict:
     """
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
-    try:
-        b64, media_type = encode_image(verification.id_image)
-    except Exception as exc:
-        return _rejection(f"Could not read uploaded image: {exc}")
+    content = []
+    labels = [("id_image", "Image 1: ID front"), ("id_back_image", "Image 2: ID back"), ("selfie_image", "Image 3: live selfie")]
+    for field, label in labels:
+        img = getattr(verification, field)
+        if not img:
+            return _rejection(f"Missing required image: {label}.")
+        try:
+            b64, media_type = encode_image(img)
+        except Exception as exc:
+            return _rejection(f"Could not read uploaded image ({label}): {exc}")
+        content.append({"type": "text", "text": label})
+        content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": b64}})
 
     user_full_name = verification.user.full_name
+    content.append({
+        "type": "text",
+        "text": (
+            f"The registrant's account name is: {user_full_name}\n"
+            f"ID type declared: {verification.get_id_type_display()}\n\n"
+            "Analyse the three images and return your JSON verdict."
+        ),
+    })
 
     message = client.messages.create(
         model="claude-haiku-4-5-20251001",
-        max_tokens=512,
+        max_tokens=600,
         system=SYSTEM_PROMPT,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image",
-                        "source": {
-                            "type": "base64",
-                            "media_type": media_type,
-                            "data": b64,
-                        },
-                    },
-                    {
-                        "type": "text",
-                        "text": (
-                            f"The registrant's account name is: {user_full_name}\n"
-                            f"ID type declared: {verification.get_id_type_display()}\n\n"
-                            "Analyse this ID image and return your JSON verdict."
-                        ),
-                    },
-                ],
-            }
-        ],
+        messages=[{"role": "user", "content": content}],
     )
 
     raw = message.content[0].text.strip()
@@ -118,6 +119,9 @@ def run_ai_check(verification) -> dict:
         "name_detected":     result.get("name_detected"),
         "id_number_detected": result.get("id_number_detected", False),
         "photo_present":     result.get("photo_present", False),
+        "face_match":        bool(result.get("face_match", False)),
+        "back_valid":        bool(result.get("back_side_valid", False)),
+        "live":              bool(result.get("selfie_is_live_person", False)),
         "image_quality":     result.get("image_quality", "poor"),
         "raw":               raw,
     }

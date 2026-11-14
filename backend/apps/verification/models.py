@@ -34,6 +34,8 @@ class IDVerification(models.Model):
     )
     id_type   = models.CharField(max_length=30, choices=IDType.choices)
     id_image  = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
+    id_back_image = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
+    selfie_image  = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
     status    = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     # AI analysis results
@@ -41,6 +43,7 @@ class IDVerification(models.Model):
     ai_confidence   = models.FloatField(null=True, blank=True)       # 0–1
     ai_notes        = models.TextField(blank=True)
     ai_name_match   = models.BooleanField(null=True, blank=True)     # did name on ID match account?
+    ai_face_match   = models.BooleanField(null=True, blank=True)     # does the live selfie match the ID photo?
     ai_raw_response = models.TextField(blank=True)
 
     # Admin override

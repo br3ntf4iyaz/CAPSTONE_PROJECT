@@ -1,7 +1,7 @@
 import bleach
 from rest_framework import serializers
 
-from .models import SKBarangay, SKFeedback, SKRequirement, SKRequirementTemplate
+from .models import SKBarangay, SKFeedback, SKMember, SKRequirement, SKRequirementTemplate
 
 BLEACH_ALLOWED_TAGS = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a']
 BLEACH_ALLOWED_ATTRS = {'a': ['href', 'title', 'rel']}
@@ -104,6 +104,25 @@ class SKRequirementCompactSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
+# SKMember
+# ---------------------------------------------------------------------------
+
+class SKMemberSerializer(serializers.ModelSerializer):
+    photo_url = serializers.SerializerMethodField()
+    position_display = serializers.CharField(source='get_position_display', read_only=True)
+
+    class Meta:
+        model = SKMember
+        fields = ['id', 'name', 'position', 'position_display', 'photo_url', 'order']
+
+    def get_photo_url(self, obj):
+        if obj.photo:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
+        return None
+
+
+# ---------------------------------------------------------------------------
 # SKBarangay — List
 # ---------------------------------------------------------------------------
 
@@ -119,6 +138,7 @@ class SKBarangayListSerializer(serializers.ModelSerializer):
     pending_count = serializers.IntegerField(read_only=True)
     overdue_count = serializers.IntegerField(read_only=True)
     logo_url = serializers.SerializerMethodField()
+    members = SKMemberSerializer(many=True, read_only=True)
 
     class Meta:
         model = SKBarangay
@@ -131,6 +151,7 @@ class SKBarangayListSerializer(serializers.ModelSerializer):
             'contact_email',
             'contact_phone',
             'logo_url',
+            'members',
             'is_active',
             'created_at',
             'requirements',
@@ -158,6 +179,7 @@ class SKBarangayListSerializer(serializers.ModelSerializer):
 class SKBarangayDetailSerializer(serializers.ModelSerializer):
     requirements = SKRequirementSerializer(many=True, read_only=True)
     logo_url = serializers.SerializerMethodField()
+    members = SKMemberSerializer(many=True, read_only=True)
 
     class Meta:
         model = SKBarangay
@@ -169,6 +191,7 @@ class SKBarangayDetailSerializer(serializers.ModelSerializer):
             'contact_phone',
             'description',
             'logo_url',
+            'members',
             'is_active',
             'created_at',
             'requirements',

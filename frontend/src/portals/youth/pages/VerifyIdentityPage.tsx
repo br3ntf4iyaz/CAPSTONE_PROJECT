@@ -1,13 +1,14 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  ShieldCheck, ShieldX, Shield, Upload, FileImage,
+  ShieldCheck, ShieldX, Shield, Upload, Camera,
   CheckCircle2, XCircle, Clock, AlertCircle, ChevronRight, RefreshCw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import CameraCapture from '../components/CameraCapture'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -43,11 +44,12 @@ const ID_TYPES = [
 
 export default function VerifyIdentityPage() {
   const qc = useQueryClient()
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1)
   const [idType, setIdType] = useState('')
-  const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [front, setFront] = useState<File | null>(null)
+  const [back, setBack] = useState<File | null>(null)
+  const [selfie, setSelfie] = useState<File | null>(null)
+  const [camera, setCamera] = useState(false)
 
   const verificationQ = useQuery<Verification>({
     queryKey: ['verification-status'],
@@ -61,7 +63,7 @@ export default function VerifyIdentityPage() {
       }).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['verification-status'] })
-      setStep(3)
+      setStep(5)
     },
   })
 
@@ -113,7 +115,7 @@ export default function VerifyIdentityPage() {
   const wasRejected = verification?.status === 'rejected'
 
   // ── Submission success screen ───────────────────────────────────────────────
-  if (step === 3) {
+  if (step === 5) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-100">
@@ -152,8 +154,7 @@ export default function VerifyIdentityPage() {
           </div>
         </div>
         <p className="text-ink-600 leading-relaxed">
-          Upload a valid Philippine government-issued ID. Our AI will analyse it instantly —
-          no waiting, no human reviewing your photo.
+          Scan the front and back of a valid Philippine government-issued ID with your camera, then take a live selfie so we can match your face to the ID photo.
         </p>
       </header>
 
@@ -172,8 +173,8 @@ export default function VerifyIdentityPage() {
 
       {/* ── Step indicators ─────────────────────────────────────────── */}
       <div className="flex items-center gap-2">
-        {(['Select ID', 'Upload photo', 'Submit'] as const).map((label, i) => {
-          const n = (i + 1) as 1 | 2 | 3
+        {(['Select ID', 'ID front', 'ID back', 'Face scan'] as const).map((label, i) => {
+          const n = (i + 1) as 1 | 2 | 3 | 4
           const active = step === n
           const done   = step > n
           return (
@@ -189,7 +190,7 @@ export default function VerifyIdentityPage() {
               <span className={cn('text-sm font-semibold hidden sm:block', active ? 'text-ink-900' : 'text-ink-400')}>
                 {label}
               </span>
-              {i < 2 && <ChevronRight size={14} className="text-ink-300" />}
+              {i < 3 && <ChevronRight size={14} className="text-ink-300" />}
             </div>
           )
         })}
@@ -225,124 +226,104 @@ export default function VerifyIdentityPage() {
         </div>
       )}
 
-      {/* ── Step 2: Upload image ─────────────────────────────────────── */}
-      {step === 2 && (
-        <div className="space-y-4">
-          <h2 className="font-display font-bold text-lg text-ink-900">
-            Upload your {ID_TYPES.find(t => t.value === idType)?.label}
-          </h2>
-
-          {/* Tips */}
-          <div className="p-4 rounded-2xl bg-primary-50 border border-primary-100 space-y-1.5">
-            {[
-              'Lay the ID flat on a dark surface',
-              'Make sure all four corners are visible',
-              'Ensure name, photo, and ID number are readable',
-              'Avoid glare, shadows, and blurry photos',
-            ].map(tip => (
-              <p key={tip} className="text-xs text-primary-700 flex items-start gap-2">
-                <CheckCircle2 size={12} className="flex-shrink-0 mt-0.5" /> {tip}
-              </p>
-            ))}
-          </div>
-
-          {/* Drop zone */}
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            className={cn(
-              'w-full rounded-2xl border-2 border-dashed p-8 flex flex-col items-center gap-3 transition-colors',
-              preview
-                ? 'border-primary-400 bg-primary-50/30'
-                : 'border-ink-200 hover:border-primary-400 hover:bg-primary-50/30',
-            )}
-          >
-            {preview ? (
-              <img
-                src={preview}
-                alt="ID preview"
-                className="max-h-48 rounded-xl object-contain shadow"
-              />
-            ) : (
-              <>
-                <FileImage size={40} className="text-ink-300" />
-                <span className="text-sm font-semibold text-ink-600">
-                  Click to select a photo
-                </span>
-                <span className="text-xs text-ink-400">JPG, PNG or WEBP · max 10 MB</span>
-              </>
-            )}
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="hidden"
-            onChange={e => {
-              const f = e.target.files?.[0]
-              if (!f) return
-              if (f.size > 10 * 1024 * 1024) {
-                toast.error('File must not exceed 10 MB.')
-                e.target.value = ''
-                return
-              }
-              setFile(f)
-              setPreview(URL.createObjectURL(f))
-            }}
-          />
-
-          {preview && (
-            <button
-              type="button"
-              onClick={() => { setFile(null); setPreview(null) }}
-              className="text-xs font-semibold text-alert-600 hover:text-alert-700"
-            >
-              Remove photo
-            </button>
-          )}
-
-          <div className="flex gap-3">
-            <button type="button" onClick={() => setStep(1)} className="btn-secondary">
-              ← Back
-            </button>
-            <button
-              type="button"
-              disabled={!file}
-              onClick={() => {
-                if (!file) return
-                const fd = new FormData()
-                fd.append('id_type', idType)
-                fd.append('id_image', file)
-                submitMutation.mutate(fd)
-              }}
-              className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {submitMutation.isPending ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Upload size={15} className="animate-bounce" /> Uploading…
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 justify-center">
-                  <ShieldCheck size={15} /> Submit for verification
-                </span>
-              )}
-            </button>
-          </div>
-
-          {submitMutation.isError && (
-            <div className="flex items-center gap-2 text-sm text-alert-700 bg-alert-50 border border-alert-200 rounded-xl p-3">
-              <AlertCircle size={15} /> Submission failed. Please check your connection and try again.
+      {/* ── Steps 2–4: ID front, ID back, live selfie ───────────────── */}
+      {step >= 2 && step <= 4 && (() => {
+        const slots = {
+          2: { key: 'front', title: 'Front of your ID', hint: 'Fit the whole card inside the frame. Name, photo and ID number must be readable.', facing: 'environment' as const, guide: 'card' as const, upload: true },
+          3: { key: 'back', title: 'Back of your ID', hint: 'Now flip the card and capture the back side.', facing: 'environment' as const, guide: 'card' as const, upload: true },
+          4: { key: 'selfie', title: 'Face verification', hint: 'Look straight at the camera in good light, no mask or sunglasses. We compare your face with the photo on the ID.', facing: 'user' as const, guide: 'face' as const, upload: false },
+        }[step as 2 | 3 | 4]
+        const current = slots.key === 'front' ? front : slots.key === 'back' ? back : selfie
+        const setCurrent = (f: File | null) => (slots.key === 'front' ? setFront(f) : slots.key === 'back' ? setBack(f) : setSelfie(f))
+        const idLabel = ID_TYPES.find(t => t.value === idType)?.label
+        const allReady = !!(front && back && selfie)
+        return (
+          <div className="space-y-4">
+            <div>
+              <h2 className="font-display font-bold text-lg text-ink-900">{slots.title}</h2>
+              <p className="text-sm text-ink-500 mt-0.5">{idLabel} · {slots.hint}</p>
             </div>
-          )}
-        </div>
-      )}
+
+            {camera ? (
+              <CameraCapture
+                facing={slots.facing}
+                guide={slots.guide}
+                allowUpload={slots.upload}
+                label={slots.title}
+                onCancel={() => setCamera(false)}
+                onCapture={f => {
+                  if (f.size > 10 * 1024 * 1024) { toast.error('Photo must not exceed 10 MB.'); return }
+                  setCurrent(f)
+                  setCamera(false)
+                }}
+              />
+            ) : current ? (
+              <div className="space-y-3">
+                <img src={URL.createObjectURL(current)} alt={slots.title} className="w-full max-h-72 rounded-2xl object-contain bg-ink-50 border border-ink-100" />
+                <button type="button" onClick={() => { setCurrent(null); setCamera(true) }} className="text-xs font-semibold text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
+                  <RefreshCw size={12} /> Retake
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setCamera(true)}
+                className="w-full rounded-2xl border-2 border-dashed border-ink-200 hover:border-primary-400 hover:bg-primary-50/30 p-8 flex flex-col items-center gap-3 transition-colors"
+              >
+                <Camera size={40} className="text-primary-500" />
+                <span className="text-sm font-semibold text-ink-700">{slots.key === 'selfie' ? 'Open camera for face scan' : 'Scan with camera'}</span>
+                <span className="text-xs text-ink-400">Camera permission is requested by your browser</span>
+              </button>
+            )}
+
+            {!camera && (
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setStep((step - 1) as 1 | 2 | 3)} className="btn-secondary">← Back</button>
+                {step < 4 ? (
+                  <button type="button" disabled={!current} onClick={() => setStep((step + 1) as 3 | 4)} className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed">
+                    Next →
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!allReady || submitMutation.isPending}
+                    onClick={() => {
+                      if (!front || !back || !selfie) return
+                      const fd = new FormData()
+                      fd.append('id_type', idType)
+                      fd.append('id_image', front)
+                      fd.append('id_back_image', back)
+                      fd.append('selfie_image', selfie)
+                      submitMutation.mutate(fd)
+                    }}
+                    className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {submitMutation.isPending ? (
+                      <span className="flex items-center gap-2 justify-center"><Upload size={15} className="animate-bounce" /> Uploading…</span>
+                    ) : (
+                      <span className="flex items-center gap-2 justify-center"><ShieldCheck size={15} /> Submit for verification</span>
+                    )}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {submitMutation.isError && (
+              <div className="flex items-center gap-2 text-sm text-alert-700 bg-alert-50 border border-alert-200 rounded-xl p-3">
+                <AlertCircle size={15} /> Submission failed. Please check your connection and try again.
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── How it works ────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-ink-100 bg-white p-5 space-y-3">
         <h3 className="font-semibold text-sm text-ink-700">How AI verification works</h3>
         <div className="space-y-2.5">
           {[
-            ['Upload', 'Submit a clear photo of your government ID.'],
+            ['Scan', 'Capture the front and back of your government ID with your camera.'],
+            ['Face check', 'Take a live selfie; it is compared with the photo on the ID.'],
             ['AI Analysis', 'Claude (Anthropic AI) checks authenticity, photo presence, and readability.'],
             ['Instant result', 'High-confidence passes are approved automatically. Edge cases go to admin review.'],
             ['Verified badge', 'Approved users get a verified badge on their profile.'],

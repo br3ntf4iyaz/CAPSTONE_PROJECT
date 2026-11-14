@@ -63,7 +63,7 @@ export default function FeedbackPage() {
 
   const { data: myFeedback = [], isLoading, isError, refetch } = useQuery<FeedbackEntry[]>({
     queryKey: ['my-feedback'],
-    queryFn: () => apiClient.get('/feedback/').then(r => {
+    queryFn: () => apiClient.get('/events/feedback/').then(r => {
       const d = r.data
       return Array.isArray(d) ? d : (d.results ?? [])
     }),
@@ -78,7 +78,7 @@ export default function FeedbackPage() {
   })
 
   const submitMutation = useMutation({
-    mutationFn: () => apiClient.post('/feedback/', {
+    mutationFn: () => apiClient.post('/events/feedback/', {
       rating,
       comment: comment.trim(),
       ...(eventId ? { event: eventId } : {}),

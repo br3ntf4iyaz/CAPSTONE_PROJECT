@@ -1,59 +1,13 @@
-﻿import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { X, Send, Sparkles, ChevronDown } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { chatbotApi } from '@/api'
 import { cn } from '@/utils'
+import { ChatMarkdown } from './ChatMarkdown'
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
-}
-
-function renderMarkdown(text: string): React.ReactNode {
-  const lines = text.split('\n')
-  const elements: React.ReactNode[] = []
-  let listItems: React.ReactNode[] = []
-
-  const flushList = () => {
-    if (listItems.length > 0) {
-      elements.push(<ul key={elements.length} className="list-disc list-inside space-y-0.5 my-1">{listItems}</ul>)
-      listItems = []
-    }
-  }
-
-  const inlineFormat = (line: string, key: number): React.ReactNode => {
-    const parts = line.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
-    return (
-      <span key={key}>
-        {parts.map((p, i) => {
-          if (p.startsWith('**') && p.endsWith('**')) return <strong key={i}>{p.slice(2, -2)}</strong>
-          if (p.startsWith('*') && p.endsWith('*')) return <em key={i}>{p.slice(1, -1)}</em>
-          return p
-        })}
-      </span>
-    )
-  }
-
-  lines.forEach((line, i) => {
-    if (/^#{1,3}\s/.test(line)) {
-      flushList()
-      const level = line.match(/^(#+)/)?.[1].length ?? 1
-      const content = line.replace(/^#+\s/, '')
-      const cls = level === 1 ? 'font-bold text-sm mt-1' : level === 2 ? 'font-semibold text-sm mt-1' : 'font-semibold text-xs mt-1'
-      elements.push(<p key={i} className={cls}>{inlineFormat(content, i)}</p>)
-    } else if (/^[-*]\s/.test(line)) {
-      listItems.push(<li key={i}>{inlineFormat(line.slice(2), i)}</li>)
-    } else if (/^\d+\.\s/.test(line)) {
-      listItems.push(<li key={i}>{inlineFormat(line.replace(/^\d+\.\s/, ''), i)}</li>)
-    } else if (line.trim() === '') {
-      flushList()
-    } else {
-      flushList()
-      elements.push(<p key={i}>{inlineFormat(line, i)}</p>)
-    }
-  })
-  flushList()
-  return <>{elements}</>
 }
 
 const SUGGESTIONS = [
@@ -198,7 +152,7 @@ function FloatingChatbotInner() {
                 )}
                 style={msg.role === 'user' ? { background: 'linear-gradient(135deg, #0084ff, #a259ff)' } : {}}
               >
-                {msg.role === 'assistant' ? renderMarkdown(msg.content) : msg.content}
+                {msg.role === 'assistant' ? <ChatMarkdown text={msg.content} /> : msg.content}
               </div>
             </div>
           ))}

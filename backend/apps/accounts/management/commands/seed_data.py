@@ -19,7 +19,7 @@ class Command(BaseCommand):
         self._skills_interests()
         self._badges()
         self._courses()
-        self._schools()
+        from django.core.management import call_command; call_command('seed_lucena_schools')
         self._internships()
         self._events()
         self._projects()

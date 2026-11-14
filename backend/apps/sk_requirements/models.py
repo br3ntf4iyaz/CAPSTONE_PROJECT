@@ -58,6 +58,26 @@ class SKBarangay(models.Model):
         return self.barangay_name
 
 
+class SKMember(models.Model):
+    """A member of a barangay SK council (7 kagawad, secretary, treasurer)."""
+    POSITION_CHOICES = [
+        ('kagawad', 'SK Kagawad'),
+        ('secretary', 'SK Secretary'),
+        ('treasurer', 'SK Treasurer'),
+    ]
+    barangay = models.ForeignKey(SKBarangay, on_delete=models.CASCADE, related_name='members')
+    position = models.CharField(max_length=20, choices=POSITION_CHOICES)
+    name = models.CharField(max_length=200)
+    photo = models.ImageField(upload_to='sk_members/', null=True, blank=True)
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['barangay', 'order', 'id']
+
+    def __str__(self):
+        return f'{self.get_position_display()} {self.name} ({self.barangay})'
+
+
 class SKRequirement(models.Model):
     barangay = models.ForeignKey(
         SKBarangay,

@@ -38,7 +38,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     ordering = ['barangay_name']
 
     def get_queryset(self):
-        qs = SKBarangay.objects.prefetch_related('requirements').annotate(
+        qs = SKBarangay.objects.prefetch_related('requirements', 'members').annotate(
             total_requirements=Count('requirements', distinct=True),
             submitted_count=Count('requirements', filter=Q(requirements__status='submitted'), distinct=True),
             pending_count=Count('requirements', filter=Q(requirements__status='pending'), distinct=True),

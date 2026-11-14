@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.chatbot",
     "apps.verification",
     "apps.community",
+    "apps.applications",
 ]
 
 MIDDLEWARE = [

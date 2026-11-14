@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import ApplyModal, { splitRequirements } from '../components/ApplyModal'
 import { useQuery } from '@tanstack/react-query'
 import {
   Award, Search, X, ExternalLink, BookOpen,
@@ -114,6 +115,7 @@ function ScholarshipDetailDrawer({
   onToggleSave: () => void
 }) {
   const passed = isDeadlinePassed(s.deadline)
+  const [applying, setApplying] = useState(false)
 
   return (
     <div
@@ -205,22 +207,23 @@ function ScholarshipDetailDrawer({
         </div>
 
         {/* CTA */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4">
-          {s.application_url ? (
-            <a
-              href={s.application_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
-              Apply Now <ExternalLink size={14} />
-            </a>
+        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 space-y-2">
+          {passed ? (
+            <p className="text-sm text-center text-gray-500">Applications for this scholarship are closed.</p>
           ) : (
-            <p className="text-sm text-center text-gray-500">
-              Visit the <span className="font-medium">{s.provider}</span> office or contact LYDO for application forms.
-            </p>
+            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
+          )}
+          {s.application_url && (
+            <a href={s.application_url} target="_blank" rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 text-xs text-primary-600 hover:underline">
+              Provider website <ExternalLink size={12} />
+            </a>
           )}
         </div>
+        {applying && (
+          <ApplyModal kind="scholarship" objectId={s.id} title={s.title} provider={s.provider}
+            requirements={splitRequirements(s.requirements)} onClose={() => setApplying(false)} />
+        )}
       </div>
     </div>
   )

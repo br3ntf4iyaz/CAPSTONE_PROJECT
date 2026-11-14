@@ -1,6 +1,12 @@
 from django.contrib import admin
 
-from .models import SKBarangay, SKRequirement, SKRequirementTemplate
+from .models import SKBarangay, SKMember, SKRequirement, SKRequirementTemplate
+
+
+class SKMemberInline(admin.TabularInline):
+    model = SKMember
+    extra = 0
+    fields = ('position', 'name', 'photo', 'order')
 
 
 class SKRequirementInline(admin.TabularInline):
@@ -26,7 +32,7 @@ class SKBarangayAdmin(admin.ModelAdmin):
     list_filter = ('is_active',)
     search_fields = ('barangay_name', 'sk_chairperson', 'contact_email')
     readonly_fields = ('created_at',)
-    inlines = [SKRequirementInline]
+    inlines = [SKMemberInline, SKRequirementInline]
 
 
 @admin.register(SKRequirement)

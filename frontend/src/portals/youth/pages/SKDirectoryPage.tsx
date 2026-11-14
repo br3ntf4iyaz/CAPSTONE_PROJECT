@@ -15,7 +15,16 @@ interface Requirement {
   submitted_at?: string
 }
 
+interface SKMember {
+  id: number
+  name: string
+  position: 'kagawad' | 'secretary' | 'treasurer'
+  position_display: string
+  photo_url: string | null
+}
+
 interface SKBarangay {
+  members?: SKMember[]
   id: number
   barangay_name: string
   sk_chairperson: string
@@ -230,6 +239,19 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
   )
 }
 
+function MemberAvatar({ m }: { m: SKMember }) {
+  const initials = m.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <div className="flex flex-col items-center text-center gap-1.5 min-w-0">
+      <div className="w-14 h-14 rounded-full overflow-hidden bg-primary-100 text-primary-700 flex items-center justify-center font-bold border-2 border-white shadow-sm">
+        {m.photo_url ? <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" /> : initials}
+      </div>
+      <p className="text-xs font-semibold text-ink-900 leading-tight break-words w-full">{m.name}</p>
+      <p className="text-[10px] text-ink-500 leading-tight">{m.position_display}</p>
+    </div>
+  )
+}
+
 function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: () => void }) {
   const total = barangay.submitted_count + barangay.pending_count + barangay.overdue_count
   const pct = total > 0 ? Math.round((barangay.submitted_count / total) * 100) : 0
@@ -240,7 +262,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -320,6 +342,25 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             {barangay.overdue_count > 0 && <span className="badge badge-red text-sm">{barangay.overdue_count} overdue</span>}
           </div>
         </div>
+
+        {/* Council officials */}
+        {(barangay.members?.length ?? 0) > 0 && (
+          <div className="px-4 pb-5">
+            <p className="text-xs font-semibold text-ink-500 mb-3 uppercase tracking-wide">SK Council</p>
+            <div className="flex flex-col items-center mb-4">
+              <div className="w-16 h-16 rounded-full overflow-hidden bg-primary-600 text-white flex items-center justify-center font-bold border-2 border-white shadow">
+                {barangay.logo_url
+                  ? <img src={barangay.logo_url} alt={barangay.sk_chairperson} className="w-full h-full object-cover" />
+                  : (barangay.sk_chairperson || 'SK').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+              </div>
+              <p className="text-sm font-bold text-ink-900 mt-1.5 text-center">{barangay.sk_chairperson || 'SK Chairperson'}</p>
+              <p className="text-[11px] text-ink-500">SK Chairperson</p>
+            </div>
+            <div className="grid grid-cols-3 gap-x-2 gap-y-4">
+              {(barangay.members ?? []).map(m => <MemberAvatar key={m.id} m={m} />)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

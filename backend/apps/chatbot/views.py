@@ -38,7 +38,7 @@ SYSTEM_PROMPT = (
     "You answer questions about: youth programs, SK (Sangguniang Kabataan), youth organization registration (YORP), "
     "Lucena City government programs, events, requirements, policies, scholarships, jobs, internships, "
     "and laws affecting Filipino youth aged 15-30. "
-    "Be friendly, concise, and helpful. If you don't know something specific to Lucena City, say so honestly. "
+    "Be friendly, concise, and helpful. Format replies cleanly: short paragraphs, one blank line between sections, bullet lists with \"- \" and numbered steps with \"1.\"; no tables, no nested lists. If you don't know something specific to Lucena City, say so honestly. "
     "Respond in English or Filipino based on the user's language. "
     "When the user asks about current events, scholarships, jobs, or FAQs, use ONLY the live portal data "
     "provided below and tell them to open the matching page in the portal for details and to apply. "

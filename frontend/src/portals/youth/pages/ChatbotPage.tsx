@@ -1,3 +1,4 @@
+import { ChatMarkdown } from '../components/ChatMarkdown'
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Bot, Send, RotateCcw, User, Sparkles, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react'
@@ -220,12 +221,7 @@ export default function ChatbotPage() {
                 ? 'bg-primary text-white rounded-br-sm'
                 : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'
             )}>
-              {msg.content.split('\n').map((line, j) => (
-                <span key={j}>
-                  {line}
-                  {j < msg.content.split('\n').length - 1 && <br />}
-                </span>
-              ))}
+              {msg.role === 'assistant' ? <ChatMarkdown text={msg.content} /> : <span className="whitespace-pre-wrap break-words">{msg.content}</span>}
               <div className={cn(
                 'text-[10px] mt-1 opacity-60 text-right',
                 msg.role === 'user' ? 'text-white/70' : 'text-gray-400'

@@ -30,6 +30,9 @@ interface VerificationRecord {
   user_name: string
   user_email: string
   id_image_url: string | null
+  id_back_image_url?: string | null
+  selfie_image_url?: string | null
+  ai_face_match?: boolean | null
 }
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
@@ -118,6 +121,25 @@ function ReviewModal({ record, onClose, onAction }: {
           <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700">
             <AlertCircle size={15} className="flex-shrink-0" />
             No ID image uploaded.
+          </div>
+        )}
+
+        {(record.id_back_image_url || record.selfie_image_url) && (
+          <div className="grid grid-cols-2 gap-3">
+            {record.id_back_image_url && (
+              <a href={record.id_back_image_url} target="_blank" rel="noopener noreferrer">
+                <p className="text-xs font-semibold text-ink-500 uppercase mb-1">ID back</p>
+                <img src={record.id_back_image_url} alt="ID back" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
+              </a>
+            )}
+            {record.selfie_image_url && (
+              <a href={record.selfie_image_url} target="_blank" rel="noopener noreferrer">
+                <p className="text-xs font-semibold text-ink-500 uppercase mb-1">
+                  Selfie{record.ai_face_match === true ? ' · face matches' : record.ai_face_match === false ? ' · NO match' : ''}
+                </p>
+                <img src={record.selfie_image_url} alt="Selfie" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
+              </a>
+            )}
           </div>
         )}
 
