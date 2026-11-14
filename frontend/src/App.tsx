@@ -84,6 +84,7 @@ const AdminFeaturedPage    = lazy(() => import('@/portals/admin/pages/AdminFeatu
 const AdminReportsPage        = lazy(() => import('@/portals/admin/pages/AdminReportsPage'))
 const AdminVerificationPage   = lazy(() => import('@/portals/admin/pages/AdminVerificationPage'))
 const AdminAuditLogPage       = lazy(() => import('@/portals/admin/pages/AdminAuditLogPage'))
+const AdminParticipationPage  = lazy(() => import('@/portals/admin/pages/AdminParticipationPage'))
 const AdminProgramsPage       = lazy(() => import('@/portals/admin/pages/AdminProgramsPage'))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -232,6 +233,7 @@ export default function App() {
         <Route path="/admin/reports"         element={<Wrap><AdminReportsPage /></Wrap>} />
         <Route path="/admin/verification"    element={<Wrap><AdminVerificationPage /></Wrap>} />
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
+        <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />
       </Route>
 
       {/* ── Catch-all ─────────────────────────────────────────────────── */}
