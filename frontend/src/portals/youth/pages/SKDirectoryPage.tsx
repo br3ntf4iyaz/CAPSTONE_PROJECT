@@ -423,9 +423,10 @@ function BarangayCard({
 
   return (
     <div className="card overflow-hidden">
-      <button
-        className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-paper-50 transition-colors"
+      <div role="button" tabIndex={0}
+        className="w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left hover:bg-paper-50 transition-colors"
         onClick={() => setExpanded(e => !e)}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(x => !x) } }}
       >
         <div className="flex items-center gap-4 min-w-0">
           {/* Logo / icon — bigger so uploaded logos are visible */}
@@ -495,7 +496,7 @@ function BarangayCard({
           </div>
           {expanded ? <ChevronUp size={18} className="text-ink-400" /> : <ChevronDown size={18} className="text-ink-400" />}
         </div>
-      </button>
+      </div>
 
       {/* Hidden file input for logo upload */}
       {canEditLogo && (

@@ -23,7 +23,7 @@ const ID_TYPES = [
 export function splitRequirements(raw?: string | string[] | null): string[] {
   if (!raw) return []
   const list = Array.isArray(raw) ? raw : raw.split(/\r?\n|;/)
-  return list.map(r => r.replace(/^[\s\-*\d.)]+/, '').trim()).filter(Boolean)
+  return list.map(r => r.replace(/^[\s\-*•·\d.)]+/, '').trim()).filter(Boolean)
 }
 
 export default function ApplyModal({ kind, objectId, title, provider, requirements, onClose }: Props) {

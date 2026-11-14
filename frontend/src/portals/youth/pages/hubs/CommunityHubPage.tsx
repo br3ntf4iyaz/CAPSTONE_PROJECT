@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
@@ -95,14 +95,14 @@ export default function CommunityHubPage() {
     initialPageParam: 1,
   })
 
-  const posts = postsData?.pages.flatMap(p => p.results) ?? []
+  const posts = useMemo(() => postsData?.pages.flatMap(p => p.results) ?? [], [postsData])
 
   // Accumulate known barangays for filter chips (never shrink when filter changes)
   useEffect(() => {
     if (posts.length === 0) return
     setBarangayOptions(prev => {
-      const s = new Set([...prev, ...posts.map(p => p.author_barangay).filter(Boolean)])
-      return [...s].sort()
+      const next = [...new Set([...prev, ...posts.map(p => p.author_barangay).filter(Boolean)])].sort()
+      return next.length === prev.length && next.every((v, i) => v === prev[i]) ? prev : next
     })
   }, [posts])
 
