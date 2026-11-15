@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Briefcase, School as SchoolIcon, Award, Plus, Edit2, Trash2, X,
-  Star, ExternalLink, CheckCircle2, XCircle,
+  Star, ExternalLink, CheckCircle2, XCircle, BookOpen,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
+import AdminSchoolCoursesModal from './AdminSchoolCoursesModal'
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 interface Job {
@@ -73,6 +74,8 @@ const initialSchoolForm = {
   email: '',
   website: '',
   description: '',
+  source_url: '',
+  verification_note: '',
   is_featured: false,
   is_active: true,
 }
@@ -143,6 +146,7 @@ export default function AdminJobsSchoolsPage() {
   // ── Schools state ────────────────────────────────────────────────────────────
   const [showSchoolModal, setShowSchoolModal] = useState(false)
   const [editSchool, setEditSchool] = useState<School | null>(null)
+  const [coursesFor, setCoursesFor] = useState<School | null>(null)
   const [schoolForm, setSchoolForm] = useState({ ...initialSchoolForm })
 
   // ── Scholarships state ────────────────────────────────────────────────────────
@@ -223,8 +227,10 @@ export default function AdminJobsSchoolsPage() {
   })
 
   const openSchoolCreate = () => { setEditSchool(null); setSchoolForm({ ...initialSchoolForm }); setShowSchoolModal(true) }
-  const openSchoolEdit = (s: School) => {
+  const openSchoolEdit = async (s: School) => {
     setEditSchool(s)
+    let full: any = {}
+    try { full = (await apiClient.get(`/schools/${s.id}/`, { params: { include_unverified: 1 } })).data } catch { /* keep list data */ }
     setSchoolForm({
       name: s.name,
       school_type: s.school_type,
@@ -234,7 +240,9 @@ export default function AdminJobsSchoolsPage() {
       phone: s.phone,
       email: s.email,
       website: s.website,
-      description: '',
+      description: full.description ?? '',
+      source_url: full.source_url ?? '',
+      verification_note: full.verification_note ?? '',
       is_featured: s.is_featured,
       is_active: s.is_active,
     })
@@ -541,9 +549,14 @@ export default function AdminJobsSchoolsPage() {
                             </span>
                           </td>
                           <td>
-                            <button onClick={() => openSchoolEdit(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit">
-                              <Edit2 size={13} />
-                            </button>
+                            <div className="flex items-center gap-1.5">
+                              <button onClick={() => setCoursesFor(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Manage courses">
+                                <BookOpen size={13} />
+                              </button>
+                              <button onClick={() => openSchoolEdit(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit">
+                                <Edit2 size={13} />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -555,6 +568,8 @@ export default function AdminJobsSchoolsPage() {
           )}
         </>
       )}
+
+      {coursesFor && <AdminSchoolCoursesModal school={coursesFor} onClose={() => setCoursesFor(null)} />}
 
       {/* ── Job Modal ──────────────────────────────────────────────────────────── */}
       {showJobModal && (
@@ -825,6 +840,15 @@ export default function AdminJobsSchoolsPage() {
               <div>
                 <label className="label">Description</label>
                 <textarea className="input min-h-[60px]" value={schoolForm.description} onChange={e => setSchoolForm(f => ({ ...f, description: e.target.value }))} placeholder="Brief school description…" />
+              </div>
+
+              <div>
+                <label className="label">Official source URL</label>
+                <input type="url" className="input" value={schoolForm.source_url} onChange={e => setSchoolForm(f => ({ ...f, source_url: e.target.value }))} placeholder="https://…" />
+              </div>
+              <div>
+                <label className="label">Verification note (admin only)</label>
+                <textarea className="input min-h-[50px]" value={schoolForm.verification_note} onChange={e => setSchoolForm(f => ({ ...f, verification_note: e.target.value }))} placeholder="What still needs to be verified…" />
               </div>
 
               <div className="flex items-center gap-6">

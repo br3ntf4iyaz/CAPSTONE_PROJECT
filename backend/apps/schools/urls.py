@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AdminSchoolProgramViewSet,
+    CourseSearchView,
     ProgramViewSet,
     RecommendSchoolsView,
     SchoolBookmarkViewSet,
@@ -15,12 +17,14 @@ from .views import (
 router = DefaultRouter()
 router.register(r'bookmarks', SchoolBookmarkViewSet, basename='school-bookmark')
 router.register(r'programs', ProgramViewSet, basename='program')
+router.register(r'school-programs', AdminSchoolProgramViewSet, basename='school-program')
 router.register(r'', SchoolViewSet, basename='school')
 
 urlpatterns = [
     # Standalone paths MUST come before router.urls so the router's
     # ^(?P<pk>[^/.]+)/$ detail pattern does not swallow them.
     path('compare/', SchoolComparisonView.as_view(), name='school-comparison'),
+    path('courses/', CourseSearchView.as_view(), name='school-courses'),
     path('recommend/', RecommendSchoolsView.as_view(), name='school-recommend'),
     path('', include(router.urls)),
 ]

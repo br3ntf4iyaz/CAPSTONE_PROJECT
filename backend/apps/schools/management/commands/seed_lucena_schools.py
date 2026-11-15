@@ -1,4 +1,4 @@
-"""Seed Lucena City schools (public, private, state university, tech-voc).
+"""DEPRECATED - delegates to seed_school_finder. Seed Lucena City schools (public, private, state university, tech-voc).
 
 Idempotent. Removes the old placeholder rows, and any 'community_college' rows
 are converted to 'public'. Verify the list against DepEd / CHED / TESDA
@@ -54,12 +54,6 @@ class Command(BaseCommand):
     help = 'Seed Lucena City schools and retire the community-college type.'
 
     def handle(self, *args, **opts):
-        School.objects.filter(name__in=PLACEHOLDERS).delete()
-        School.objects.filter(school_type='community_college').update(school_type='public')
-        for name, stype, addr, desc in LIST:
-            School.objects.update_or_create(
-                slug=slugify(name),
-                defaults=dict(name=name, school_type=stype, address=addr, description=desc,
-                              municipality='Lucena City', province='Quezon', region='CALABARZON', is_active=True),
-            )
-        self.stdout.write(self.style.SUCCESS(f'{School.objects.count()} schools in database'))
+        # Superseded: the School Finder now uses the verified list of 22 institutions.
+        from django.core.management import call_command
+        call_command('seed_school_finder')

@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 
 from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolProgram
 
@@ -6,11 +7,13 @@ from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolPro
 class SchoolProgramInline(admin.TabularInline):
     model = SchoolProgram
     extra = 1
+    fields = ("program", "verification_status", "source_url", "is_active", "notes")
+    autocomplete_fields = ("program",)
 
 
 @admin.register(School)
 class SchoolAdmin(admin.ModelAdmin):
-    list_display = ("name", "school_type", "municipality", "province", "region", "is_active", "is_featured", "created_at")
+    list_display = ("name", "school_type", "municipality", "province", "is_active", "is_featured", "created_at")
     list_filter = ("school_type", "is_active", "is_featured", "province", "region")
     search_fields = ("name", "slug", "address", "municipality", "province", "region", "email")
     prepopulated_fields = {"slug": ("name",)}
@@ -21,17 +24,28 @@ class SchoolAdmin(admin.ModelAdmin):
 
 @admin.register(Program)
 class ProgramAdmin(admin.ModelAdmin):
-    list_display = ("name", "code", "program_type", "created_at")
-    list_filter = ("program_type",)
+    list_display = ("name", "code", "program_type", "field_of_study", "created_at")
+    list_filter = ("program_type", "field_of_study")
     search_fields = ("name", "code", "description")
     readonly_fields = ("created_at",)
 
 
+@admin.action(description="Mark selected programs as VERIFIED")
+def mark_verified(modeladmin, request, queryset):
+    queryset.update(verification_status="verified", verified_at=timezone.now())
+
+
+@admin.action(description="Mark selected programs as PENDING verification")
+def mark_pending(modeladmin, request, queryset):
+    queryset.update(verification_status="pending", verified_at=None)
+
+
 @admin.register(SchoolProgram)
 class SchoolProgramAdmin(admin.ModelAdmin):
-    list_display = ("school", "program", "is_active", "tuition_per_year", "scholarship_available")
-    list_filter = ("is_active", "scholarship_available", "school", "program")
+    list_display = ("school", "program", "verification_status", "is_active", "source_url")
+    list_filter = ("verification_status", "is_active", "school__school_type", "school")
     search_fields = ("school__name", "program__name", "program__code")
+    actions = [mark_verified, mark_pending]
 
 
 @admin.register(SchoolBookmark)

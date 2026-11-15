@@ -7,7 +7,13 @@ from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolPro
 class ProgramSerializer(serializers.ModelSerializer):
     class Meta:
         model = Program
-        fields = ['id', 'name', 'code', 'description', 'program_type', 'created_at']
+        fields = [
+            'id', 'name', 'code', 'description', 'program_type', 'program_type_display',
+            'field_of_study', 'field_of_study_display', 'created_at',
+        ]
+
+    program_type_display = serializers.CharField(source='get_program_type_display', read_only=True)
+    field_of_study_display = serializers.CharField(source='get_field_of_study_display', read_only=True)
 
     def validate_name(self, value):
         return bleach.clean(value, tags=[], strip=True)
@@ -32,6 +38,9 @@ class SchoolProgramSerializer(serializers.ModelSerializer):
             'tuition_per_year',
             'scholarship_available',
             'admission_requirements',
+            'verification_status',
+            'source_url',
+            'verified_at',
         ]
 
     def validate_admission_requirements(self, value):
@@ -41,6 +50,7 @@ class SchoolProgramSerializer(serializers.ModelSerializer):
 class SchoolListSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     program_count = serializers.IntegerField(read_only=True)
+    programs_unavailable = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -49,11 +59,17 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'school_type',
+            'address',
             'municipality',
             'province',
             'logo_url',
             'program_count',
+            'programs_unavailable',
+            'source_url',
         ]
+
+    def get_programs_unavailable(self, obj):
+        return (getattr(obj, 'program_count', 0) or 0) == 0
 
     def get_logo_url(self, obj):
         request = self.context.get('request')
@@ -66,6 +82,8 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     programs = serializers.SerializerMethodField()
     program_count = serializers.IntegerField(read_only=True)
+    programs_unavailable = serializers.SerializerMethodField()
+    verification_note = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -74,6 +92,9 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'name',
             'slug',
             'school_type',
+            'source_url',
+            'verification_note',
+            'programs_unavailable',
             'description',
             'address',
             'municipality',
@@ -100,9 +121,24 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.logo.url)
         return None
 
+    def _is_admin(self):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return bool(user and user.is_authenticated and getattr(user, 'role', None) in ('lgu_admin', 'super_admin'))
+
     def get_programs(self, obj):
         qs = obj.school_programs.filter(is_active=True).select_related('program')
+        request = self.context.get('request')
+        include_all = self._is_admin() and request is not None and request.query_params.get('include_unverified') in ('1', 'true')
+        if not include_all:
+            qs = qs.filter(verification_status='verified')
         return SchoolProgramSerializer(qs, many=True, context=self.context).data
+
+    def get_programs_unavailable(self, obj):
+        return not obj.school_programs.filter(is_active=True, verification_status='verified').exists()
+
+    def get_verification_note(self, obj):
+        return obj.verification_note if self._is_admin() else ''
 
     def validate_description(self, value):
         return bleach.clean(value, tags=[], strip=True)
@@ -128,6 +164,8 @@ class SchoolWriteSerializer(serializers.ModelSerializer):
             'website',
             'facebook_url',
             'logo',
+            'source_url',
+            'verification_note',
             'is_active',
             'is_featured',
         ]
@@ -176,11 +214,103 @@ class SchoolMiniSerializer(serializers.ModelSerializer):
         return None
 
     def get_program_count(self, obj):
-        return obj.school_programs.filter(is_active=True).count()
+        return obj.school_programs.filter(is_active=True, verification_status='verified').count()
 
     def get_programs(self, obj):
-        qs = obj.school_programs.filter(is_active=True).select_related('program')
+        qs = obj.school_programs.filter(is_active=True, verification_status='verified').select_related('program')
         return SchoolProgramSerializer(qs, many=True, context=self.context).data
+
+
+class CourseSearchSerializer(serializers.ModelSerializer):
+    """One verified program together with the school offering it."""
+
+    name = serializers.CharField(source='program.name')
+    description = serializers.CharField(source='program.description')
+    program_type = serializers.CharField(source='program.program_type')
+    program_type_display = serializers.CharField(source='program.get_program_type_display')
+    field_of_study = serializers.CharField(source='program.field_of_study')
+    field_of_study_display = serializers.CharField(source='program.get_field_of_study_display')
+    school_id = serializers.IntegerField(source='school.id')
+    school_name = serializers.CharField(source='school.name')
+    school_type = serializers.CharField(source='school.school_type')
+
+    class Meta:
+        model = SchoolProgram
+        fields = [
+            'id', 'name', 'description', 'program_type', 'program_type_display',
+            'field_of_study', 'field_of_study_display', 'school_id', 'school_name',
+            'school_type', 'source_url', 'verification_status',
+        ]
+
+
+class AdminSchoolProgramSerializer(serializers.ModelSerializer):
+    """Admin CRUD for the courses of a school (creates/reuses the shared Program by name)."""
+
+    program = ProgramSerializer(read_only=True)
+    name = serializers.CharField(write_only=True, required=False, max_length=255)
+    program_type = serializers.ChoiceField(choices=Program.PROGRAM_TYPE_CHOICES, write_only=True, required=False)
+    field_of_study = serializers.ChoiceField(choices=Program.FIELD_CHOICES, write_only=True, required=False)
+
+    class Meta:
+        model = SchoolProgram
+        fields = [
+            'id', 'school', 'program', 'name', 'program_type', 'field_of_study',
+            'source_url', 'verification_status', 'verified_at', 'is_active', 'notes',
+        ]
+        read_only_fields = ['verified_at']
+        validators = []
+
+    def _program(self, validated, current=None):
+        name = validated.pop('name', None)
+        ptype = validated.pop('program_type', None)
+        field = validated.pop('field_of_study', None)
+        if name is None and ptype is None and field is None:
+            return current
+        name = bleach.clean(name or (current.name if current else ''), tags=[], strip=True)
+        if not name:
+            raise serializers.ValidationError({'name': 'Course name is required.'})
+        prog, created = Program.objects.get_or_create(
+            name=name,
+            defaults={
+                'program_type': ptype or (current.program_type if current else 'bachelor'),
+                'field_of_study': field or (current.field_of_study if current else 'other'),
+            },
+        )
+        if not created and (ptype or field):
+            if ptype:
+                prog.program_type = ptype
+            if field:
+                prog.field_of_study = field
+            prog.save()
+        return prog
+
+    def validate(self, attrs):
+        if self.instance is None and not attrs.get('name'):
+            raise serializers.ValidationError({'name': 'Course name is required.'})
+        if attrs.get('verification_status') == 'verified' and not (attrs.get('source_url') or (self.instance and self.instance.source_url)):
+            raise serializers.ValidationError({'source_url': 'A source URL is required before a program can be marked verified.'})
+        return attrs
+
+    def create(self, validated):
+        from django.utils import timezone
+        program = self._program(validated)
+        validated['program'] = program
+        if validated.get('verification_status') == 'verified':
+            validated['verified_at'] = timezone.now()
+        obj, created = SchoolProgram.objects.update_or_create(
+            school=validated.pop('school'), program=program, defaults=validated
+        )
+        return obj
+
+    def update(self, instance, validated):
+        from django.utils import timezone
+        validated['program'] = self._program(validated, instance.program) or instance.program
+        status = validated.get('verification_status')
+        if status == 'verified' and instance.verification_status != 'verified':
+            validated['verified_at'] = timezone.now()
+        elif status == 'pending':
+            validated['verified_at'] = None
+        return super().update(instance, validated)
 
 
 class SchoolComparisonSerializer(serializers.ModelSerializer):

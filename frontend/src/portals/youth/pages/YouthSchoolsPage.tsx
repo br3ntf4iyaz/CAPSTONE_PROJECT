@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   GraduationCap, Search, MapPin, BookOpen,
   Phone, Mail, Globe, X, ExternalLink,
-  ChevronRight, Star, Facebook,
+  ChevronRight, Star, Facebook, BadgeCheck, AlertCircle,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { cn, toArray } from '@/utils'
@@ -11,14 +11,33 @@ import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CompareSheet, CompareTray, MAX_COMPARE } from './schools/SchoolCompare'
-import { TYPE_LABELS } from './schools/constants'
+import { TYPE_LABELS, FIELD_LABELS, PROGRAM_TYPE_LABELS, UNAVAILABLE_NOTE } from './schools/constants'
 
 interface SchoolProgram {
   id: number
-  program: { id: number; name: string; program_type: string }
+  program: {
+    id: number; name: string; program_type: string; program_type_display?: string
+    field_of_study?: string; field_of_study_display?: string; description?: string
+  }
   is_active: boolean
   scholarship_available: boolean
   tuition_per_year?: string
+  verification_status?: string
+  source_url?: string
+}
+
+interface CourseRow {
+  id: number
+  name: string
+  description?: string
+  program_type: string
+  program_type_display: string
+  field_of_study: string
+  field_of_study_display: string
+  school_id: number
+  school_name: string
+  school_type: string
+  source_url?: string
 }
 
 interface School {
@@ -37,21 +56,23 @@ interface School {
   logo_url?: string
   program_count: number
   programs?: SchoolProgram[]
+  programs_unavailable?: boolean
+  source_url?: string
   is_featured?: boolean
 }
 
 const TYPE_CHIPS = [
   { value: '',                   label: 'All' },
   { value: 'state_university',   label: 'State University' },
-  { value: 'private',            label: 'Private' },
   { value: 'public',             label: 'Public' },
+  { value: 'private',            label: 'Private' },
   { value: 'technical_vocational', label: 'Tech-Voc' },
 ]
 
 const TYPE_COLORS: Record<string, string> = {
   public:               'bg-emerald-100 text-emerald-800',
   private:              'bg-purple-100 text-purple-800',
-  state_university:     'bg-primary/10 text-primary',
+  state_university:     'bg-primary-50 text-primary-700',
   technical_vocational: 'bg-amber-100 text-amber-800',
 }
 
@@ -81,8 +102,8 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
             {s.logo_url ? (
               <img src={s.logo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-gray-100" />
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                <GraduationCap size={22} className="text-primary" />
+              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
+                <GraduationCap size={22} className="text-primary-700" />
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -126,18 +147,18 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
                 </div>
               )}
               {s.phone && (
-                <a href={`tel:${s.phone}`} className="flex items-center gap-2.5 text-sm text-gray-600 hover:text-primary transition-colors">
+                <a href={`tel:${s.phone}`} className="flex items-center gap-2.5 text-sm text-gray-600 hover:text-primary-700 transition-colors">
                   <Phone size={14} className="text-gray-400 flex-shrink-0" /> {s.phone}
                 </a>
               )}
               {s.email && (
-                <a href={`mailto:${s.email}`} className="flex items-center gap-2.5 text-sm text-primary hover:underline">
+                <a href={`mailto:${s.email}`} className="flex items-center gap-2.5 text-sm text-primary-700 hover:underline">
                   <Mail size={14} className="text-gray-400 flex-shrink-0" /> {s.email}
                 </a>
               )}
               {s.website && (
                 <a href={s.website} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-2.5 text-sm text-primary hover:underline">
+                  className="flex items-center gap-2.5 text-sm text-primary-700 hover:underline">
                   <Globe size={14} className="text-gray-400 flex-shrink-0" /> Visit website
                   <ExternalLink size={11} />
                 </a>
@@ -151,35 +172,56 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
               )}
             </div>
 
-            {/* Programs */}
-            {detail?.programs && detail.programs.length > 0 && (
-              <div>
-                <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-1.5">
-                  <BookOpen size={14} className="text-primary" />
-                  Programs Offered
-                  <span className="text-xs font-normal text-gray-400">({detail.programs.length})</span>
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {detail.programs.map(sp => (
-                    <div
-                      key={sp.id}
-                      className={cn(
-                        'text-xs px-3 py-1.5 rounded-full border flex items-center gap-1.5',
-                        sp.scholarship_available
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                          : 'bg-gray-50 border-gray-200 text-gray-700'
-                      )}
-                    >
-                      {sp.program.name}
-                      {sp.scholarship_available && (
-                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-100 px-1.5 py-0.5 rounded-full">
-                          Scholarship
-                        </span>
-                      )}
+            {/* Programs, grouped by field of study (verified only) */}
+            {detail && (
+              detail.programs && detail.programs.length > 0 ? (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <BookOpen size={14} className="text-primary-700" />
+                    Verified Courses
+                    <span className="text-xs font-normal text-gray-400">({detail.programs.length})</span>
+                  </h3>
+                  {Object.entries(
+                    detail.programs.reduce<Record<string, SchoolProgram[]>>((acc, sp) => {
+                      const k = sp.program.field_of_study ?? 'other'
+                      ;(acc[k] ??= []).push(sp)
+                      return acc
+                    }, {}),
+                  ).map(([field, items]) => (
+                    <div key={field}>
+                      <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1.5">
+                        {FIELD_LABELS[field] ?? field} <span className="font-normal text-gray-400">({items.length})</span>
+                      </p>
+                      <ul className="space-y-1.5">
+                        {items.map(sp => (
+                          <li key={sp.id} className="rounded-lg border border-gray-200 px-3 py-2">
+                            <p className="text-sm font-medium text-gray-900 break-words">{sp.program.name}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                              <span className="px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 font-semibold">
+                                {PROGRAM_TYPE_LABELS[sp.program.program_type] ?? sp.program.program_type}
+                              </span>
+                              <span className="inline-flex items-center gap-1 text-emerald-700">
+                                <BadgeCheck size={11} /> Verified
+                              </span>
+                              {sp.source_url && (
+                                <a href={sp.source_url} target="_blank" rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-primary-700 hover:underline">
+                                  Source <ExternalLink size={10} />
+                                </a>
+                              )}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   ))}
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
+                  <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
+                  <span>{UNAVAILABLE_NOTE}</span>
+                </div>
+              )
             )}
           </div>
         )}
@@ -225,7 +267,7 @@ function SchoolCard({
         'w-full text-left bg-white rounded-xl border transition-all duration-200 p-4 group',
         school.is_featured
           ? 'border-amber-200 bg-gradient-to-r from-amber-50/50 to-white hover:border-amber-300 hover:shadow-md hover:shadow-amber-50'
-          : 'border-gray-200 hover:border-primary/30 hover:shadow-md hover:shadow-primary/5'
+          : 'border-gray-200 hover:border-primary-300 hover:shadow-md hover:shadow-primary-100'
       )}
     >
       <div className="flex items-start gap-3">
@@ -234,8 +276,8 @@ function SchoolCard({
           <img src={school.logo_url} alt={school.name}
             className="flex-shrink-0 w-10 h-10 rounded-xl object-cover border border-gray-100" />
         ) : (
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary/10 border border-primary/10 flex items-center justify-center">
-            <GraduationCap size={18} className="text-primary" />
+          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center">
+            <GraduationCap size={18} className="text-primary-700" />
           </div>
         )}
 
@@ -252,11 +294,11 @@ function SchoolCard({
                   {TYPE_LABELS[school.school_type] ?? school.school_type}
                 </span>
               </div>
-              <h3 className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-primary transition-colors line-clamp-2">
+              <h3 className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
                 {school.name}
               </h3>
             </div>
-            <ChevronRight size={15} className="text-gray-300 group-hover:text-primary/50 flex-shrink-0 mt-0.5 transition-colors" />
+            <ChevronRight size={15} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0 mt-0.5 transition-colors" />
           </div>
 
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
@@ -265,12 +307,22 @@ function SchoolCard({
                 <MapPin size={10} /> {school.municipality}{school.province ? `, ${school.province}` : ''}
               </span>
             )}
-            {school.program_count > 0 && (
-              <span className="flex items-center gap-1 text-primary font-medium">
-                <BookOpen size={10} /> {school.program_count} program{school.program_count !== 1 ? 's' : ''}
+            {school.program_count > 0 ? (
+              <span className="flex items-center gap-1 text-primary-700 font-medium">
+                <BadgeCheck size={10} /> {school.program_count} verified program{school.program_count !== 1 ? 's' : ''}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-amber-600 font-medium">
+                <AlertCircle size={10} /> Courses need verification
               </span>
             )}
           </div>
+          {school.address && (
+            <p className="text-xs text-gray-400 mt-1 line-clamp-1">{school.address}</p>
+          )}
+          <span className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-primary-700">
+            <BookOpen size={12} /> View Courses
+          </span>
         </div>
       </div>
     </button>
@@ -283,8 +335,8 @@ function SchoolCard({
       className={cn(
         'absolute right-3 bottom-3 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors',
         compared
-          ? 'bg-primary text-white border-primary'
-          : 'bg-white text-gray-500 border-gray-200 hover:border-primary/40 hover:text-primary disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-500',
+          ? 'bg-primary-600 text-white border-primary-600'
+          : 'bg-white text-gray-500 border-gray-200 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-500',
       )}
     >
       {compared ? '✓ Comparing' : '+ Compare'}
@@ -298,6 +350,10 @@ function SchoolCard({
 export default function YouthSchoolsPage() {
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
+  const [view, setView] = useState<'schools' | 'courses'>('schools')
+  const [field, setField] = useState('')
+  const [ptype, setPtype] = useState('')
+  const [schoolFilter, setSchoolFilter] = useState('')
   const [selected, setSelected] = useState<School | null>(null)
   const [compare, setCompare] = useState<School[]>([])
   const [showCompare, setShowCompare] = useState(false)
@@ -312,11 +368,31 @@ export default function YouthSchoolsPage() {
   const params = new URLSearchParams()
   if (schoolType) params.set('school_type', schoolType)
   if (search) params.set('search', search)
+  if (field) params.set('field_of_study', field)
+  if (ptype) params.set('program_type', ptype)
 
   // Backend already filters to is_active=True
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['youth-schools', schoolType, search],
+    queryKey: ['youth-schools', schoolType, search, field, ptype],
     queryFn: () => apiClient.get(`/schools/?${params.toString()}`).then(r => toArray<School>(r.data)),
+  })
+
+  const courseParams = new URLSearchParams()
+  if (schoolType) courseParams.set('school_type', schoolType)
+  if (search) courseParams.set('search', search)
+  if (field) courseParams.set('field_of_study', field)
+  if (ptype) courseParams.set('program_type', ptype)
+  if (schoolFilter) courseParams.set('school', schoolFilter)
+  const coursesQ = useQuery({
+    queryKey: ['youth-courses', schoolType, search, field, ptype, schoolFilter],
+    enabled: view === 'courses',
+    queryFn: () =>
+      apiClient.get(`/schools/courses/?${courseParams.toString()}`).then(r => r.data as { count: number; results: CourseRow[] }),
+  })
+
+  const { data: allSchools } = useQuery({
+    queryKey: ['youth-schools-all'],
+    queryFn: () => apiClient.get('/schools/?page_size=200').then(r => toArray<School>(r.data)),
   })
 
   const schools = data ?? []
@@ -332,12 +408,12 @@ export default function YouthSchoolsPage() {
       {/* Header */}
       <div>
         <h1 className="page-title flex items-center gap-2">
-          <GraduationCap size={22} className="text-primary" /> School Finder
+          <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
         <p className="page-subtitle">
           Compare schools, programs, and admission paths in Lucena City and nearby areas
           {!isLoading && schools.length > 0 && (
-            <span className="ml-1 text-primary font-medium">· {schools.length} schools</span>
+            <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>
           )}
         </p>
       </div>
@@ -351,8 +427,8 @@ export default function YouthSchoolsPage() {
             className={cn(
               'text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150',
               schoolType === t.value
-                ? 'bg-primary text-white border-primary shadow-sm'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-primary/40 hover:text-primary'
+                ? 'bg-primary-600 text-white border-primary-600 shadow-sm'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-700'
             )}
           >
             {t.label}
@@ -370,7 +446,7 @@ export default function YouthSchoolsPage() {
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder="Search schools, programs, or location…"
+          placeholder="Search school name, course, program, or field of study…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -381,8 +457,80 @@ export default function YouthSchoolsPage() {
         )}
       </div>
 
+      {/* Filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <select className="input" value={field} onChange={e => setField(e.target.value)} aria-label="Field of study">
+          <option value="">All fields of study</option>
+          {Object.entries(FIELD_LABELS).filter(([k]) => k !== 'other').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select className="input" value={ptype} onChange={e => setPtype(e.target.value)} aria-label="Program type">
+          <option value="">All program types</option>
+          {Object.entries(PROGRAM_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select
+          className="input"
+          value={schoolFilter}
+          onChange={e => { setSchoolFilter(e.target.value); if (e.target.value) setView('courses') }}
+          aria-label="School"
+        >
+          <option value="">All schools</option>
+          {(allSchools ?? []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+
+      {/* View switch */}
+      <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+        {(['schools', 'courses'] as const).map(v => (
+          <button
+            key={v}
+            onClick={() => setView(v)}
+            className={cn('px-4 py-1.5 transition-colors', view === v ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50')}
+          >
+            {v === 'schools' ? 'Schools' : 'Courses'}
+          </button>
+        ))}
+      </div>
+
+      {/* Course results */}
+      {view === 'courses' && (
+        coursesQ.isLoading ? <ListSkeleton /> :
+        coursesQ.isError ? <QueryError onRetry={() => coursesQ.refetch()} /> :
+        (coursesQ.data?.results.length ?? 0) === 0 ? (
+          <EmptyState
+            icon={BookOpen}
+            title="No verified courses found"
+            description="Try a different search or filter. Only verified programs are listed."
+            className="py-16"
+          />
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-gray-400">{coursesQ.data?.count} verified course{coursesQ.data?.count !== 1 ? 's' : ''}</p>
+            {coursesQ.data?.results.map(c => (
+              <div key={c.id} className="bg-white rounded-xl border border-gray-200 p-3">
+                <p className="text-sm font-semibold text-gray-900 break-words">{c.name}</p>
+                <p className="text-xs text-gray-500 mt-0.5 break-words">{c.school_name}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+                  <span className={cn('px-2 py-0.5 rounded-full font-semibold', TYPE_COLORS[c.school_type] ?? 'bg-gray-100 text-gray-700')}>
+                    {TYPE_LABELS[c.school_type] ?? c.school_type}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 font-semibold">
+                    {PROGRAM_TYPE_LABELS[c.program_type] ?? c.program_type}
+                  </span>
+                  <span className="text-gray-500">{FIELD_LABELS[c.field_of_study] ?? c.field_of_study}</span>
+                  {c.source_url && (
+                    <a href={c.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline">
+                      Source <ExternalLink size={10} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
       {/* Results */}
-      {isLoading ? (
+      {view === 'schools' && (isLoading ? (
         <ListSkeleton />
       ) : isError ? (
         <QueryError onRetry={() => refetch()} />
@@ -428,7 +576,7 @@ export default function YouthSchoolsPage() {
             {schoolType || search ? ' matching your search' : ' in Lucena City'}
           </p>
         </div>
-      )}
+      ))}
 
       <CompareTray
         items={compare}

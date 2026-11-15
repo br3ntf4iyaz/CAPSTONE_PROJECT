@@ -1,15 +1,18 @@
 from django.db.models import Count, Prefetch, Q
 from rest_framework import filters, serializers, status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import IsSuperAdmin
+from apps.accounts.permissions import IsAdminRole, IsSuperAdmin
 
 from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolProgram
 from .serializers import (
     ProgramSerializer,
+    AdminSchoolProgramSerializer,
+    CourseSearchSerializer,
     SchoolBookmarkSerializer,
     SchoolComparisonSerializer,
     SchoolDetailSerializer,
@@ -17,6 +20,12 @@ from .serializers import (
     SchoolProgramSerializer,
     SchoolWriteSerializer,
 )
+
+
+class SchoolPagination(PageNumberPagination):
+    page_size = 100
+    page_size_query_param = 'page_size'
+    max_page_size = 200
 
 
 class SchoolViewSet(viewsets.ModelViewSet):
@@ -29,6 +38,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
     """
 
     lookup_field = 'pk'
+    pagination_class = SchoolPagination
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ['name', 'created_at']
     ordering = ['name']
@@ -36,7 +46,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = School.objects.filter(is_active=True).prefetch_related(
             'school_programs__program'
-        ).annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True), distinct=True))
+        ).annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True, school_programs__verification_status='verified'), distinct=True))
 
         # Text search across name, program names, municipality, province
         search = self.request.query_params.get('search', '').strip()
@@ -47,13 +57,30 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 | Q(address__icontains=search)
                 | Q(description__icontains=search)
                 | Q(province__icontains=search)
-                | Q(school_programs__program__name__icontains=search)
+                | Q(school_programs__program__name__icontains=search, school_programs__verification_status='verified')
+                | Q(school_programs__program__field_of_study__icontains=search, school_programs__verification_status='verified')
             ).distinct()
 
         # Exact filters
         school_type = self.request.query_params.get('school_type')
         if school_type:
             qs = qs.filter(school_type=school_type)
+
+        field = self.request.query_params.get('field_of_study')
+        if field:
+            qs = qs.filter(
+                school_programs__program__field_of_study=field,
+                school_programs__verification_status='verified',
+                school_programs__is_active=True,
+            ).distinct()
+
+        ptype = self.request.query_params.get('program_type')
+        if ptype:
+            qs = qs.filter(
+                school_programs__program__program_type=ptype,
+                school_programs__verification_status='verified',
+                school_programs__is_active=True,
+            ).distinct()
 
         province = self.request.query_params.get('province')
         if province:
@@ -155,7 +182,7 @@ class SchoolBookmarkViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         annotated_schools = School.objects.annotate(
-            program_count=Count('school_programs', filter=Q(school_programs__is_active=True), distinct=True)
+            program_count=Count('school_programs', filter=Q(school_programs__is_active=True, school_programs__verification_status='verified'), distinct=True)
         )
         return SchoolBookmark.objects.filter(user=self.request.user).prefetch_related(
             Prefetch('school', queryset=annotated_schools)
@@ -226,7 +253,7 @@ class RecommendSchoolsView(APIView):
         qs = (
             School.objects.filter(is_active=True)
             .prefetch_related('school_programs__program')
-            .annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True), distinct=True))
+            .annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True, school_programs__verification_status='verified'), distinct=True))
         )
 
         results = []
@@ -236,6 +263,7 @@ class RecommendSchoolsView(APIView):
             # Program match
             program_match = school.school_programs.filter(
                 is_active=True,
+                verification_status='verified',
                 program__name__icontains=program_name,
             ).exists()
             if program_match:
@@ -266,3 +294,56 @@ class RecommendSchoolsView(APIView):
                 'results': serializer.data,
             }
         )
+
+
+class CourseSearchView(APIView):
+    """
+    GET /api/schools/courses/  - public search over VERIFIED programs.
+    Query params: search, school_type, school (id), field_of_study, program_type
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        qs = (
+            SchoolProgram.objects.filter(is_active=True, verification_status='verified', school__is_active=True)
+            .select_related('school', 'program')
+            .order_by('school__name', 'program__name')
+        )
+        p = request.query_params
+        search = p.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                Q(program__name__icontains=search)
+                | Q(program__description__icontains=search)
+                | Q(school__name__icontains=search)
+            )
+        if p.get('school_type'):
+            qs = qs.filter(school__school_type=p['school_type'])
+        if p.get('school'):
+            qs = qs.filter(school_id=p['school'])
+        if p.get('field_of_study'):
+            qs = qs.filter(program__field_of_study=p['field_of_study'])
+        if p.get('program_type'):
+            qs = qs.filter(program__program_type=p['program_type'])
+        total = qs.count()
+        data = CourseSearchSerializer(qs[:300], many=True, context={'request': request}).data
+        return Response({'count': total, 'results': data})
+
+
+class AdminSchoolProgramViewSet(viewsets.ModelViewSet):
+    """Admin management of a school's courses: add, edit, verify, remove."""
+
+    serializer_class = AdminSchoolProgramSerializer
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = SchoolProgram.objects.select_related('school', 'program').order_by('program__field_of_study', 'program__name')
+        school = self.request.query_params.get('school')
+        if school:
+            qs = qs.filter(school_id=school)
+        status = self.request.query_params.get('verification_status')
+        if status:
+            qs = qs.filter(verification_status=status)
+        return qs

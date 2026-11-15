@@ -26,6 +26,11 @@ class School(models.Model):
     website = models.URLField(blank=True)
     facebook_url = models.URLField(blank=True)
     logo = models.ImageField(upload_to='schools/logos/', null=True, blank=True)
+    source_url = models.URLField(max_length=500, blank=True, help_text='Official page used to describe/verify this school.')
+    verification_note = models.TextField(
+        blank=True,
+        help_text='Internal note: what still needs to be verified (shown to admins only).',
+    )
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -45,16 +50,40 @@ class School(models.Model):
 
 class Program(models.Model):
     PROGRAM_TYPE_CHOICES = [
+        ('bachelor', "Bachelor's Degree"),
+        ('associate', 'Associate'),
+        ('diploma', 'Diploma'),
+        ('certificate', 'Certificate'),
+        ('tesda', 'TESDA Qualification'),
+        ('graduate', 'Graduate (Master)'),
+        ('doctorate', 'Doctorate'),
+        ('law', 'Law'),
+        # legacy values kept so existing rows stay valid
         ('undergraduate', 'Undergraduate'),
-        ('graduate', 'Graduate'),
         ('vocational', 'Vocational'),
         ('short_course', 'Short Course'),
+    ]
+
+    FIELD_CHOICES = [
+        ('it_computing', 'Information Technology and Computer Studies'),
+        ('business', 'Business and Management'),
+        ('education', 'Education'),
+        ('engineering', 'Engineering and Technology'),
+        ('hospitality', 'Hospitality and Tourism'),
+        ('maritime', 'Maritime Studies'),
+        ('health', 'Health Sciences'),
+        ('criminal_justice', 'Criminal Justice'),
+        ('arts_sciences', 'Arts and Sciences'),
+        ('techvoc', 'Technical-Vocational Studies'),
+        ('law', 'Law'),
+        ('other', 'Other'),
     ]
 
     name = models.CharField(max_length=255)
     code = models.CharField(max_length=50, blank=True)
     description = models.TextField(blank=True)
     program_type = models.CharField(max_length=20, choices=PROGRAM_TYPE_CHOICES)
+    field_of_study = models.CharField(max_length=30, choices=FIELD_CHOICES, default='other')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -71,6 +100,14 @@ class SchoolProgram(models.Model):
     tuition_per_year = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     scholarship_available = models.BooleanField(default=False)
     admission_requirements = models.TextField(blank=True)
+    VERIFICATION_CHOICES = [
+        ('verified', 'Verified'),
+        ('pending', 'Pending verification'),
+    ]
+    verification_status = models.CharField(max_length=10, choices=VERIFICATION_CHOICES, default='pending')
+    source_url = models.URLField(max_length=500, blank=True, help_text='Official page confirming this program is offered.')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
 
     class Meta:
         ordering = ['school', 'program']
