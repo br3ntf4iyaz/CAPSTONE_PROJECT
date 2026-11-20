@@ -227,11 +227,11 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
       qc.invalidateQueries({ queryKey: ['youth-surveys'] })
     },
     onError: (err: any) => {
-      const msg =
+      const raw: string =
         err?.response?.data?.non_field_errors?.[0] ??
         err?.response?.data?.detail ??
         'Failed to submit survey.'
-      toast.error(msg)
+      toast.error(/unique set/i.test(raw) ? 'You have already answered this survey.' : raw)
     },
   })
 

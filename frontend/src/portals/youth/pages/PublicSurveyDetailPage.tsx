@@ -296,11 +296,11 @@ export default function PublicSurveyDetailPage() {
       qc.invalidateQueries({ queryKey: ['public-surveys-home'] })
     },
     onError: (err: any) => {
-      const msg =
+      const raw: string =
         err?.response?.data?.non_field_errors?.[0] ??
         err?.response?.data?.detail ??
         'Failed to submit. Please try again.'
-      toast.error(msg)
+      toast.error(/unique set/i.test(raw) ? 'You have already answered this survey.' : raw)
     },
   })
 

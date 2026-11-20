@@ -222,6 +222,7 @@ class EnrollmentViewSet(
             .select_related("course", "course__instructor")
             .prefetch_related("course__modules")
             .annotate(enrollment_count=Count("course__enrollments"))
+            .order_by("-enrolled_at", "-id")
         )
 
     def perform_create(self, serializer):
