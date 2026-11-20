@@ -20,6 +20,11 @@ async function getApi() {
   return loading
 }
 
+/** Start downloading the models early so the comparison is instant later. */
+export async function preloadFaceModels(): Promise<boolean> {
+  try { await getApi(); return true } catch { return false }
+}
+
 function fileToImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file)

@@ -9,7 +9,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import CameraCapture from '../components/CameraCapture'
-import { compareFaces, type FaceMatchResult } from '@/utils/faceMatch'
+import { compareFaces, preloadFaceModels, type FaceMatchResult } from '@/utils/faceMatch'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,6 +54,14 @@ export default function VerifyIdentityPage() {
   const [camera, setCamera] = useState(false)
   const [match, setMatch] = useState<FaceMatchResult | null>(null)
   const [checking, setChecking] = useState(false)
+  const [engine, setEngine] = useState<'loading' | 'ready' | 'unavailable'>('loading')
+
+  // Warm up the face models as soon as the page opens
+  useEffect(() => {
+    let alive = true
+    preloadFaceModels().then(ok => { if (alive) setEngine(ok ? 'ready' : 'unavailable') })
+    return () => { alive = false }
+  }, [])
 
   // Free in-browser face comparison: selfie vs the photo on the ID front
   useEffect(() => {
@@ -266,6 +274,22 @@ export default function VerifyIdentityPage() {
               <h2 className="font-display font-bold text-lg text-ink-900">{slots.title}</h2>
               <p className="text-sm text-ink-500 mt-0.5">{idLabel} · {slots.hint}</p>
             </div>
+
+            {slots.key === 'selfie' && (
+              <div
+                className={cn(
+                  'rounded-xl border px-3 py-2 text-sm flex items-center gap-2',
+                  engine === 'ready' ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : engine === 'loading' ? 'bg-ink-50 border-ink-100 text-ink-600'
+                  : 'bg-amber-50 border-amber-200 text-amber-800',
+                )}
+              >
+                <Shield size={14} />
+                {engine === 'ready' ? 'Face check is ready. Take your selfie and we will compare it with your ID photo.'
+                  : engine === 'loading' ? 'Preparing the face check (one-time download)...'
+                  : 'Automatic face check could not load. You can still submit; an admin will review it manually.'}
+              </div>
+            )}
 
             {camera ? (
               <CameraCapture
