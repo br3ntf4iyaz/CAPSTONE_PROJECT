@@ -19,6 +19,7 @@ def _record_client_face_check(v, data):
     matched = str(data.get("face_matched", "")).lower() == "true"
     v.ai_confidence = max(0.0, min(1.0, 1 - distance))
     v.ai_face_match = matched
+    v.ai_verdict = "match" if matched else "no match"
     v.ai_notes = (
         f"Face check on device: {'match' if matched else 'no clear match'} "
         f"(distance {distance:.2f}, similarity {round(v.ai_confidence * 100)}%). Awaiting admin review."
@@ -73,7 +74,7 @@ class VerificationSubmitView(APIView):
         )
 
         _record_client_face_check(v, request.data)
-        v.save(update_fields=["ai_confidence", "ai_face_match", "ai_notes"])
+        v.save(update_fields=["ai_confidence", "ai_face_match", "ai_verdict", "ai_notes"])
 
         return Response(
             IDVerificationSerializer(v).data,

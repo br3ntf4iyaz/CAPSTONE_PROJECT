@@ -47,6 +47,8 @@ const STATUS_COLORS: Record<string, string> = {
 const VERDICT_COLORS: Record<string, string> = {
   approved: 'text-emerald-600',
   rejected: 'text-red-600',
+  match: 'text-emerald-600',
+  'no match': 'text-amber-600',
 }
 
 // ── Review Modal ───────────────────────────────────────────────────────────────

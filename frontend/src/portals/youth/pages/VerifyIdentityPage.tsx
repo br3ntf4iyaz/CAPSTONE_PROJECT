@@ -23,6 +23,7 @@ interface Verification {
   ai_confidence?: number
   ai_notes?: string
   ai_verdict?: string
+  ai_face_match?: boolean | null
   admin_notes?: string
   submitted_at?: string
 }
@@ -115,6 +116,12 @@ export default function VerifyIdentityPage() {
         <p className="text-ink-600 leading-relaxed">
           Your ID, its back and your face scan are waiting for review by a LYDO admin. You will be notified once it is approved.
         </p>
+        {verification?.ai_face_match != null && (
+          <p className={cn('inline-block rounded-lg border px-3 py-1.5 text-sm', verification.ai_face_match ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800')}>
+            Face check: {verification.ai_face_match ? 'matches the ID photo' : 'no clear match, an admin will review it manually'}
+            {verification.ai_confidence != null ? ` (${Math.round(verification.ai_confidence * 100)}% similarity)` : ''}
+          </p>
+        )}
         <button
           type="button"
           onClick={() => qc.invalidateQueries({ queryKey: ['verification-status'] })}
