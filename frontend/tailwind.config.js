@@ -29,6 +29,7 @@ export default {
         },
         // Primary — Philippine flag blue (eGov PH inspired)
         primary: {
+          DEFAULT: '#0038a8', // so bg-primary / text-primary / border-primary resolve
           50:  '#eef3fb',
           100: '#d6e1f4',
           200: '#adc3e8',
