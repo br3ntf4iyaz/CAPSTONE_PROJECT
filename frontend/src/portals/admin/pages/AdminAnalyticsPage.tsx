@@ -11,6 +11,12 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { StatCard } from '@/components/ui/StatCard'
 import { toArray } from '@/utils'
 
+const ACRONYMS = new Set(['lydo', 'nyc', 'sk', 'yorp', 'ngo'])
+/** school_based -> "School Based", lydo -> "LYDO" */
+function pretty(v: string): string {
+  return v.split('_').map(w => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ')
+}
+
 interface Org { id: number; classification: string; registration_category: string }
 interface Program { id: number; category: string; male_participants?: number; female_participants?: number; start_date?: string }
 interface YouthTypeSummary { [key: string]: number }
@@ -78,18 +84,18 @@ export default function AdminAnalyticsPage() {
   // 1. Orgs by classification
   const orgsByClass = groupCount(orgs, 'classification')
   const orgClassData = Object.entries(orgsByClass).map(([name, value]) => ({
-    name, value, color: CLASSIFICATION_COLORS[name] ?? '#6b7280'
+    name: pretty(name), value, color: CLASSIFICATION_COLORS[name] ?? '#6b7280'
   }))
 
   // 2. Orgs by registration category
   const orgsByReg = groupCount(orgs, 'registration_category')
   const orgRegData = Object.entries(orgsByReg).map(([name, value], i) => ({
-    name, value, color: REG_COLORS[i % REG_COLORS.length]
+    name: pretty(name), value, color: REG_COLORS[i % REG_COLORS.length]
   }))
 
   // 3. Programs by category
   const programsByCat = PROGRAM_CATEGORIES.map(cat => ({
-    name: cat.replace('_', ' '),
+    name: pretty(cat),
     count: programs.filter(p => p.category === cat).length,
   }))
 
@@ -151,7 +157,7 @@ export default function AdminAnalyticsPage() {
         <StatCard label="Total Participants" value={totalParticipants} icon={Users} iconBg="bg-blue-50" iconColor="text-blue-600" />
         <StatCard label="Male %" value={`${malePct}%`} icon={TrendingUp} iconBg="bg-indigo-50" iconColor="text-indigo-600" />
         <StatCard label="Female %" value={`${femalePct}%`} icon={TrendingUp} iconBg="bg-pink-50" iconColor="text-pink-600" />
-        <StatCard label="Top Category" value={mostActiveCategory.replace('_', ' ')} icon={Activity} iconBg="bg-green-50" iconColor="text-green-600" />
+        <StatCard label="Top Category" value={pretty(mostActiveCategory)} icon={Activity} iconBg="bg-green-50" iconColor="text-green-600" />
       </div>
 
       {/* Row 1: Org charts */}

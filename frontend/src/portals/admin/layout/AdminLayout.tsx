@@ -185,6 +185,26 @@ export default function AdminLayout() {
 
   const meQuery = useMe()
 
+  // Pending-work counts shown as badges on the sidebar
+  const isAdminUser = auth.isAuthenticated && (auth.user?.role === 'lgu_admin' || auth.user?.role === 'super_admin')
+  const { data: navCounts } = useQuery<Record<string, number>>({
+    queryKey: ['admin-nav-counts'],
+    enabled: isAdminUser,
+    refetchInterval: 60_000,
+    queryFn: async () => {
+      const list = (url: string, params?: Record<string, string>) =>
+        apiClient.get(url, { params }).then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? []) as { status: string }[]).catch(() => [])
+      const [apps, ver, tix] = await Promise.all([
+        list('/applications/'), list('/verification/admin/'), list('/support/tickets/', { status: 'open' }),
+      ])
+      return {
+        '/admin/applications': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
+        '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
+        '/admin/support': tix.filter(t => t.status === 'open').length,
+      }
+    },
+  })
+
   useEffect(() => {
     if (!mobileOpen) return
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMobileOpen(false) }
@@ -262,7 +282,15 @@ export default function AdminLayout() {
               }
             >
               <Icon size={18} className="flex-shrink-0" />
-              <span className={cn('truncate', collapsed && 'lg:hidden')}>{label}</span>
+              <span className={cn('truncate flex-1', collapsed && 'lg:hidden')}>{label}</span>
+              {(navCounts?.[to] ?? 0) > 0 && (
+                <span
+                  className={cn('inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-bold', collapsed && 'lg:hidden')}
+                  aria-label={`${navCounts?.[to]} pending`}
+                >
+                  {(navCounts?.[to] ?? 0) > 99 ? '99+' : navCounts?.[to]}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

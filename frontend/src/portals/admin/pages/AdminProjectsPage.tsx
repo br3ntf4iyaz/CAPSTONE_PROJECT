@@ -387,7 +387,7 @@ export default function AdminProjectsPage() {
     <div className="space-y-5">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="page-title">Accomplishment Reports</h1>
+          <h1 className="page-title">Project Monitoring</h1>
           <p className="page-subtitle">Review submitted activity and program reports from SK and youth organizations</p>
         </div>
         <button

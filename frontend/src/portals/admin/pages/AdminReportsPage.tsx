@@ -185,7 +185,7 @@ export default function AdminReportsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 print:hidden">
         <div>
-          <h1 className="page-title">Accomplishment Reports</h1>
+          <h1 className="page-title">Reports</h1>
           <p className="page-subtitle">Generate descriptive summaries of program submissions by period.</p>
         </div>
         {report && (

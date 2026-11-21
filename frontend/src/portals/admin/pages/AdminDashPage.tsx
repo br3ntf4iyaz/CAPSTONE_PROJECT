@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Users, FolderOpen, Building2, ClipboardList, CalendarDays,
   Eye, Plus, UserCog, BarChart3, Shield, AlertTriangle,
-  CheckCircle2, ArrowRight, ClipboardCheck, History,
+  CheckCircle2, ArrowRight, ClipboardCheck, History, LifeBuoy, FileCheck2,
 } from 'lucide-react'
 import {
   PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer,
@@ -122,6 +122,16 @@ export default function AdminDashPage() {
         return Array.isArray(d) ? d : (d.results ?? []) as VerificationRecord[]
       }).catch(() => [] as VerificationRecord[]),
   })
+  const applicationsQ = useQuery({
+    queryKey: ['admin-applications'],
+    queryFn: () =>
+      apiClient.get('/applications/').then(r => toArray<{ status: string }>(r.data)).catch(() => [] as { status: string }[]),
+  })
+  const ticketsQ = useQuery({
+    queryKey: ['admin-tickets', 'open-count'],
+    queryFn: () =>
+      apiClient.get('/support/tickets/', { params: { status: 'open' } }).then(r => toArray<{ status: string }>(r.data)).catch(() => [] as { status: string }[]),
+  })
   const skQ = useQuery({
     queryKey: ['admin-sk-barangays'],
     queryFn: () =>
@@ -149,8 +159,10 @@ export default function AdminDashPage() {
   const pendingVerifs   = verifications.filter(v => v.status === 'pending' || v.status === 'reviewing')
   const overdueSkCount  = skBarangays.filter(b => b.overdue_count > 0).length
   const pendingOrgs     = orgs.filter(o => (o as any).is_approved === false).length
+  const pendingApps     = (applicationsQ.data ?? []).filter(a => a.status === 'submitted' || a.status === 'under_review').length
+  const openTickets     = (ticketsQ.data ?? []).filter(t => t.status === 'open').length
 
-  const totalWorkItems = pendingSubs.length + pendingVerifs.length + overdueSkCount + pendingOrgs
+  const totalWorkItems = pendingSubs.length + pendingVerifs.length + overdueSkCount + pendingOrgs + pendingApps + openTickets
 
   // Table: recent submissions needing review
   const actionableSubs = [...pendingSubs]
@@ -246,6 +258,24 @@ export default function AdminDashPage() {
               urgency="medium"
               icon={Building2}
               onClick={() => navigate('/admin/yorp')}
+            />
+            <WorkItem
+              label="Job and scholarship applications"
+              count={pendingApps}
+              description="Applications waiting for a decision"
+              to="/admin/applications"
+              urgency="high"
+              icon={FileCheck2}
+              onClick={() => navigate('/admin/applications')}
+            />
+            <WorkItem
+              label="Open support requests"
+              count={openTickets}
+              description="Concerns from youth that need a reply"
+              to="/admin/support"
+              urgency="medium"
+              icon={LifeBuoy}
+              onClick={() => navigate('/admin/support')}
             />
           </div>
         )}
