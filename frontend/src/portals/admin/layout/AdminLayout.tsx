@@ -167,6 +167,7 @@ const NAV_ITEMS = [
   { label: 'User Management',  icon: UserCog,         to: '/admin/users' },
   { label: 'Library',          icon: Library,         to: '/admin/library' },
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
+  { label: 'Applications',     icon: ClipboardList,  to: '/admin/applications' },
   { label: 'ID Verification',  icon: Shield,          to: '/admin/verification' },
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },

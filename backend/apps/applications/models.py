@@ -26,6 +26,8 @@ class OpportunityApplication(models.Model):
     document = models.FileField(upload_to='applications/docs/', null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
+    admin_note = models.TextField(blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-submitted_at']

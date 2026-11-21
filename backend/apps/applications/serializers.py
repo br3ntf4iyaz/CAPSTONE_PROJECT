@@ -1,3 +1,4 @@
+import bleach
 from rest_framework import serializers
 
 from apps.jobs.models import JobOpportunity
@@ -14,9 +15,9 @@ class ApplicationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'kind', 'object_id', 'title', 'full_name', 'birthdate', 'contact_number', 'email',
             'address', 'id_type', 'id_number', 'message', 'confirmed_requirements', 'document',
-            'document_url', 'status', 'submitted_at',
+            'document_url', 'status', 'submitted_at', 'admin_note', 'reviewed_at',
         ]
-        read_only_fields = ['id', 'title', 'status', 'submitted_at', 'document_url']
+        read_only_fields = ['id', 'title', 'status', 'submitted_at', 'document_url', 'admin_note', 'reviewed_at']
         extra_kwargs = {'document': {'write_only': True, 'required': False}}
 
     def get_document_url(self, obj):
@@ -54,3 +55,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
         if doc is not None and doc.size > 5 * 1024 * 1024:
             raise serializers.ValidationError({'document': 'File must be under 5 MB.'})
         return attrs
+
+
+class ApplicationReviewSerializer(serializers.ModelSerializer):
+    """Admin-only: change the status of an application and leave a note."""
+
+    class Meta:
+        model = OpportunityApplication
+        fields = ['status', 'admin_note']
+
+    def validate_admin_note(self, value):
+        return bleach.clean(value, tags=[], strip=True)[:1000]

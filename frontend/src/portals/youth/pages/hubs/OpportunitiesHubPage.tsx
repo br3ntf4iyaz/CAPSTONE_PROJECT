@@ -190,6 +190,9 @@ export default function OpportunitiesHubPage() {
       <section>
         <div className="flex items-baseline justify-between mb-5">
           <h2 className="section-title !mb-0">Explore by category</h2>
+          <Link to="/my-applications" className="text-sm font-semibold text-primary-700 hover:text-primary-800 inline-flex items-center gap-1">
+            My applications <ArrowRight size={14} />
+          </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <HubCard

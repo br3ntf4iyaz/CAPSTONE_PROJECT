@@ -15,6 +15,7 @@ import type { CommunityPost } from '@/api/community'
 import { useMe } from '@/hooks/useAuth'
 import { formatDate, cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import OpportunitiesTracker from './home/OpportunitiesTracker'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -394,6 +395,8 @@ export default function YouthDashboardPage() {
           </div>
         </section>
       )}
+
+      <OpportunitiesTracker />
 
       {/* ── Submissions (SK/org leaders) OR Programs browse (everyone else) ─ */}
       {canSubmit ? (

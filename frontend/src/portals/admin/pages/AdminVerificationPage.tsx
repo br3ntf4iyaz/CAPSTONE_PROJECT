@@ -323,6 +323,14 @@ export default function AdminVerificationPage() {
     }
   }
 
+  // Quick pick: only submissions whose face matched the ID photo on the device
+  const matchedActionable = actionableRecords.filter(r => r.ai_face_match === true && r.status !== 'rejected')
+  const selectFaceMatches = () => {
+    if (matchedActionable.length === 0) { toast('No face-matched submissions to select.'); return }
+    setSelectedIds(new Set(matchedActionable.map(r => r.id)))
+    toast.success(`${matchedActionable.length} face-matched submission${matchedActionable.length === 1 ? '' : 's'} selected. Review them, then approve.`)
+  }
+
   const toggleOne = (id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -341,7 +349,7 @@ export default function AdminVerificationPage() {
       r.ai_confidence != null ? `${Math.round(r.ai_confidence * 100)}%` : '—',
       formatDate(r.submitted_at),
     ])
-    const escape = (v: any) => `"${String(v).replace(/"/g, '""')}"`
+    const escape = (v: any) => { const t = String(v).replace(/"/g, '""'); return /^[=+\-@]/.test(t) ? `"'${t}"` : `"${t}"` }
     const csv = [headers, ...rows].map(row => row.map(escape).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -362,9 +370,14 @@ export default function AdminVerificationPage() {
           <h1 className="page-title">ID Verification</h1>
           <p className="page-subtitle">Review identity documents submitted by youth users</p>
         </div>
-        <button onClick={exportCSV} className="btn-secondary btn-sm flex items-center gap-1.5">
-          <Download size={14} /> Export CSV
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={selectFaceMatches} className="btn-secondary btn-sm flex items-center gap-1.5" title="Select submissions whose face matched the ID photo">
+            <CheckSquare size={14} /> Select face matches
+          </button>
+          <button onClick={exportCSV} className="btn-secondary btn-sm flex items-center gap-1.5">
+            <Download size={14} /> Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}

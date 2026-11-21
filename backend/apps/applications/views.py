@@ -1,15 +1,19 @@
-from rest_framework import mixins, viewsets
+from django.utils import timezone
+from rest_framework import mixins, status as http, viewsets
+from rest_framework.response import Response
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsAdminRole
 
 from .models import OpportunityApplication
-from .serializers import ApplicationSerializer
+from apps.notifications.models import Notification
+
+from .serializers import ApplicationReviewSerializer, ApplicationSerializer
 
 
-class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-    """Youth: create and list their own applications. Admins: list all."""
+class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin, mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """Youth: create and list their own applications. Admins: list all and review (PATCH status/note)."""
     serializer_class = ApplicationSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
@@ -20,7 +24,35 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         if not IsAdminRole().has_permission(self.request, self):
             qs = qs.filter(applicant=self.request.user)
         kind = self.request.query_params.get('kind')
-        return qs.filter(kind=kind) if kind else qs
+        st = self.request.query_params.get('status')
+        if kind:
+            qs = qs.filter(kind=kind)
+        if st:
+            qs = qs.filter(status=st)
+        return qs
+
+    def get_permissions(self):
+        if self.action in ('update', 'partial_update'):
+            return [IsAuthenticated(), IsAdminRole()]
+        return super().get_permissions()
+
+    def update(self, request, *args, **kwargs):
+        # Admin review only; the applicant's own answers are never edited.
+        instance = self.get_object()
+        old = instance.status
+        ser = ApplicationReviewSerializer(instance, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        app = ser.save(reviewed_at=timezone.now())
+        if app.status != old:
+            label = app.get_status_display()
+            Notification.objects.create(
+                user=app.applicant,
+                title=f'Application {label.lower()}',
+                message=f'Your application for "{app.title}" is now {label.lower()}.' + (f' Note: {app.admin_note}' if app.admin_note else ''),
+                notification_type='system',
+                link='/my-applications',
+            )
+        return Response(self.get_serializer(app).data, status=http.HTTP_200_OK)
 
     def perform_create(self, serializer):
         serializer.save(applicant=self.request.user)
