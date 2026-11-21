@@ -125,3 +125,18 @@ class JobDetailSerializer(serializers.ModelSerializer):
 
     def validate_requirements(self, value):
         return sanitize(value)
+
+    def validate(self, attrs):
+        # Stop admins from posting the same job twice (same title + organisation)
+        import re
+        norm = lambda v: re.sub(r'[^a-z0-9]+', ' ', (v or '').lower()).strip()
+        title = attrs.get('title', getattr(self.instance, 'title', ''))
+        org = attrs.get('company_or_org', getattr(self.instance, 'company_or_org', ''))
+        if title and org:
+            qs = JobOpportunity.objects.all()
+            if self.instance is not None:
+                qs = qs.exclude(pk=self.instance.pk)
+            for other in qs.filter(title__icontains=title.strip()[:30]):
+                if norm(other.title) == norm(title) and norm(other.company_or_org) == norm(org):
+                    raise serializers.ValidationError('A job with this title and organization already exists.')
+        return attrs
