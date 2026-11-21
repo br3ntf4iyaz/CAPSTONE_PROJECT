@@ -1,10 +1,35 @@
 from rest_framework import viewsets, permissions, parsers, status
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from django.db import models
 from .models import CommunityPost, CommunityPostImage, PostReaction, CommunityComment
 from .serializers import CommunityPostSerializer, CommunityCommentSerializer
+
+
+ALLOWED_IMAGE_TYPES = {'JPEG', 'PNG', 'WEBP', 'GIF'}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024
+MAX_POST_CHARS = 2000
+
+
+def validate_images(files):
+    """Only real images (checked by content, not by file name), 5 MB each, at most 4."""
+    from PIL import Image
+    good = []
+    for f in files[:4]:
+        if f.size > MAX_IMAGE_BYTES:
+            raise ValidationError({'images': 'Each photo must be 5 MB or smaller.'})
+        try:
+            img = Image.open(f)
+            fmt = img.format
+            img.verify()
+        except Exception:
+            raise ValidationError({'images': 'Only image files (JPG, PNG, WEBP, GIF) can be attached.'})
+        if fmt not in ALLOWED_IMAGE_TYPES:
+            raise ValidationError({'images': 'Only image files (JPG, PNG, WEBP, GIF) can be attached.'})
+        f.seek(0)
+        good.append(f)
+    return good
 
 
 class IsVerifiedOrAdmin(permissions.BasePermission):
@@ -51,9 +76,14 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
             qs = qs.filter(author=user)
         return qs
 
+    def create(self, request, *args, **kwargs):
+        # Validate attachments first so a bad file never leaves a half-created post behind
+        self._images = validate_images(request.FILES.getlist('images'))
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         post = serializer.save(author=self.request.user)
-        for i, f in enumerate(self.request.FILES.getlist('images')[:4]):
+        for i, f in enumerate(getattr(self, '_images', [])):
             CommunityPostImage.objects.create(post=post, image=f, order=i)
 
     def partial_update(self, request, *args, **kwargs):
@@ -64,6 +94,8 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         content = (request.data.get('content') or '').strip()
         if not content:
             return Response({'detail': 'Content is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(content) > MAX_POST_CHARS:
+            return Response({'detail': f'Post too long (max {MAX_POST_CHARS} characters).'}, status=status.HTTP_400_BAD_REQUEST)
         post.content = content
         post.save(update_fields=['content'])
         return Response(self.get_serializer(post).data)

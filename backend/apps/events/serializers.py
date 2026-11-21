@@ -1,4 +1,5 @@
 import bleach
+from django.utils import timezone
 from rest_framework import serializers
 
 from .models import (
@@ -236,6 +237,8 @@ class PollResponseSerializer(serializers.ModelSerializer):
         user = attrs.get('user')
         if not poll.is_active:
             raise serializers.ValidationError('This poll is no longer active.')
+        if poll.ends_at and poll.ends_at < timezone.now():
+            raise serializers.ValidationError('This poll has already ended.')
         if option.poll_id != poll.id:
             raise serializers.ValidationError('The selected option does not belong to this poll.')
         if PollResponse.objects.filter(poll=poll, user=user).exists():

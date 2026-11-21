@@ -41,6 +41,15 @@ const CLASS_LABELS: Record<string, string> = {
   faith_based:     'Faith-Based',
 }
 
+/** Prefer the server's explanation (too long, bad image...) over a generic message. */
+function serverMsg(e: any, fallback: string): string {
+  const d = e?.response?.data
+  if (!d || typeof d === 'string') return fallback
+  if (d.detail) return String(d.detail)
+  const first = Object.values(d).flat()[0]
+  return first ? String(first) : fallback
+}
+
 export default function CommunityHubPage() {
   const auth = useAuthStore()
   const queryClient = useQueryClient()
@@ -126,7 +135,7 @@ export default function CommunityHubPage() {
       setPostContent('')
       setPostImages([])
     },
-    onError: () => toast.error('Failed to post. Try again.'),
+    onError: (e) => toast.error(serverMsg(e, 'Failed to post. Try again.')),
   })
 
   const deletePostMutation = useMutation({
@@ -197,7 +206,7 @@ export default function CommunityHubPage() {
       setEditContent('')
       toast.success('Post updated.')
     },
-    onError: () => toast.error('Could not save changes.'),
+    onError: (e) => toast.error(serverMsg(e, 'Could not save changes.')),
   })
 
   const pinMutation = useMutation({
@@ -840,7 +849,7 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
       queryClient.invalidateQueries({ queryKey: ['community-posts'] })
       setText('')
     },
-    onError: () => toast.error('Could not post comment.'),
+    onError: (e) => toast.error(serverMsg(e, 'Could not post comment.')),
   })
 
   const deleteComment = useMutation({
