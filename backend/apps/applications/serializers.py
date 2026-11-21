@@ -4,6 +4,8 @@ from rest_framework import serializers
 from apps.jobs.models import JobOpportunity
 from apps.resources.models import Scholarship
 
+from apps.accounts.uploads import DOC_EXTS, IMAGE_EXTS, check_upload
+
 from .models import OpportunityApplication
 
 
@@ -51,9 +53,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         if OpportunityApplication.objects.filter(applicant=user, kind=kind, object_id=oid).exists():
             raise serializers.ValidationError('You already applied to this opportunity.')
-        doc = attrs.get('document')
-        if doc is not None and doc.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError({'document': 'File must be under 5 MB.'})
+        check_upload(attrs.get('document'), DOC_EXTS | IMAGE_EXTS, 5 * 1024 * 1024, field='document')
         return attrs
 
 
