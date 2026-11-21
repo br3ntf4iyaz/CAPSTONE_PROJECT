@@ -13,6 +13,10 @@ interface SavedJob {
   deadline_status?: 'open' | 'soon' | 'closed' | 'none'
 }
 
+interface Scholarship { id: number; title: string; provider: string; deadline: string }
+
+const DAY = 24 * 60 * 60 * 1000
+
 /** Dashboard card: latest application statuses + saved jobs that close soon. */
 export default function OpportunitiesTracker() {
   const apps = useMyApplications()
@@ -22,11 +26,25 @@ export default function OpportunitiesTracker() {
     retry: false,
   })
 
+  const schol = useQuery<Scholarship[]>({
+    queryKey: ['scholarships-dashboard'],
+    queryFn: () => apiClient.get('/scholarships/').then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? [])),
+    retry: false,
+  })
+
+  const appliedSch = new Set((apps.data ?? []).filter(a => a.kind === 'scholarship').map(a => a.object_id))
+  const closingSch = (schol.data ?? [])
+    .filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.deadline) && !appliedSch.has(x.id))
+    .map(x => ({ ...x, ms: new Date(x.deadline).getTime() - Date.now() }))
+    .filter(x => x.ms > 0 && x.ms < 30 * DAY)
+    .sort((a, b) => a.ms - b.ms)
+    .slice(0, 3)
+
   const applied = new Set((apps.data ?? []).filter(a => a.kind === 'job').map(a => a.object_id))
   const latest = (apps.data ?? []).slice(0, 3)
   const closing = (saved.data ?? []).filter(j => j.deadline_status === 'soon' && !applied.has(j.id)).slice(0, 3)
 
-  if (latest.length === 0 && closing.length === 0) return null
+  if (latest.length === 0 && closing.length === 0 && closingSch.length === 0) return null
 
   return (
     <section className="card p-6">
@@ -68,6 +86,22 @@ export default function OpportunitiesTracker() {
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 shrink-0">
                   <Clock size={12} /> {j.application_deadline ? formatDate(j.application_deadline) : 'Soon'}
+                </span>
+              </Link>
+            ))}
+          </div>
+        )}
+        {closingSch.length > 0 && (
+          <div className="space-y-2">
+            <p className="eyebrow">Scholarships closing soon</p>
+            {closingSch.map(x => (
+              <Link key={x.id} to="/scholarships" className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3 hover:bg-amber-50">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-ink-900 truncate">{x.title}</span>
+                  <span className="block text-xs text-ink-500 truncate">{x.provider}</span>
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800 shrink-0">
+                  <Clock size={12} /> {formatDate(x.deadline)}
                 </span>
               </Link>
             ))}

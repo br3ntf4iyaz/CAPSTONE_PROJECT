@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import ApplyModal, { splitRequirements } from '../components/ApplyModal'
+import { AppliedBadge, AppliedNotice, useApplied } from '../components/AppliedStatus'
 import { useQuery } from '@tanstack/react-query'
 import {
   Award, Search, X, ExternalLink, BookOpen,
@@ -116,6 +117,7 @@ function ScholarshipDetailDrawer({
 }) {
   const passed = isDeadlinePassed(s.deadline)
   const [applying, setApplying] = useState(false)
+  const applied = useApplied('scholarship', s.id)
 
   return (
     <div
@@ -210,6 +212,8 @@ function ScholarshipDetailDrawer({
         <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 space-y-2">
           {passed ? (
             <p className="text-sm text-center text-gray-500">Applications for this scholarship are closed.</p>
+          ) : applied ? (
+            <AppliedNotice kind="scholarship" objectId={s.id} />
           ) : (
             <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
           )}
@@ -299,6 +303,8 @@ function ScholarshipCard({
           </div>
         </div>
       </button>
+
+      <AppliedBadge kind="scholarship" objectId={s.id} />
 
       {/* Bookmark button */}
       <button

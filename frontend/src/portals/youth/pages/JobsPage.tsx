@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ApplyModal, { splitRequirements } from '../components/ApplyModal'
+import { AppliedBadge, AppliedNotice, useApplied } from '../components/AppliedStatus'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
@@ -124,6 +125,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
   })
 
   const j = detail ?? job
+  const applied = useApplied('job', job.id)
   const dl = getDeadlineStatus(j)
 
   return (
@@ -214,6 +216,8 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         <div className="sticky bottom-0 bg-white border-t border-ink-100 px-6 py-4 space-y-2">
           {dl === 'closed' ? (
             <p className="text-sm text-center text-ink-400 py-1">This position is no longer accepting applications.</p>
+          ) : applied ? (
+            <AppliedNotice kind="job" objectId={j.id} />
           ) : (
             <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
           )}
@@ -316,6 +320,7 @@ function JobCard({ job, onClick }: { job: Job; onClick: () => void }) {
         </div>
       </div>
     </button>
+    <AppliedBadge kind="job" objectId={job.id} />
     {/* Bookmark — outside the click-through button to avoid event bubbling issues */}
     <div className="absolute top-3 right-3">
       <BookmarkButton job={job} size={14} />
