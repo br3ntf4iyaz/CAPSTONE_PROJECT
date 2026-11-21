@@ -148,6 +148,24 @@ class UserAdminSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["date_joined"]
 
+    def validate(self, attrs):
+        # Only a Super Admin may grant or change roles; an LGU Admin can only manage youth accounts.
+        request = self.context.get("request")
+        actor = getattr(request, "user", None)
+        if actor is not None and actor.role != User.Role.SUPER_ADMIN:
+            new_role = attrs.get("role")
+            if self.instance is None:
+                if new_role not in (None, User.Role.YOUTH):
+                    raise serializers.ValidationError({"role": "Only a Super Admin can create admin accounts."})
+            elif new_role is not None and new_role != self.instance.role:
+                raise serializers.ValidationError({"role": "Only a Super Admin can change roles."})
+        if actor is not None and self.instance is not None and self.instance.pk == actor.pk:
+            if attrs.get("is_active") is False:
+                raise serializers.ValidationError({"is_active": "You cannot deactivate your own account."})
+            if "role" in attrs and attrs["role"] != self.instance.role:
+                raise serializers.ValidationError({"role": "You cannot change your own role."})
+        return attrs
+
     def get_is_verified(self, obj):
         try:
             return obj.id_verification.status == "approved"

@@ -35,10 +35,20 @@ const ROLE_BADGE: Record<string, string> = {
   super_admin: 'badge-red',
 }
 
+function apiError(e: any, fallback: string): string {
+  const d = e?.response?.data
+  if (!d) return fallback
+  if (typeof d === 'string') return fallback
+  if (d.detail) return String(d.detail)
+  const first = Object.values(d).flat()[0]
+  return first ? String(first) : fallback
+}
+
 export default function AdminUsersPage() {
   const qc = useQueryClient()
   const auth = useAuthStore()
   const isSuperAdmin = auth.user?.role === 'super_admin'
+  const myId = auth.user?.id
 
   const [filters, setFilters] = useState({ role: '', barangay: '', is_active: '', is_verified: '' })
   const [search, setSearch] = useState('')
@@ -59,7 +69,7 @@ export default function AdminUsersPage() {
       qc.invalidateQueries({ queryKey: ['admin-users-full'] })
       toast.success('User status updated')
     },
-    onError: () => toast.error('Failed to update user'),
+    onError: (e) => toast.error(apiError(e, 'Failed to update user')),
   })
 
   const changeRole = useMutation({
@@ -69,7 +79,7 @@ export default function AdminUsersPage() {
       qc.invalidateQueries({ queryKey: ['admin-users-full'] })
       toast.success('Role updated')
     },
-    onError: () => toast.error('Failed to update role'),
+    onError: (e) => toast.error(apiError(e, 'Failed to update role')),
   })
 
   const filtered = users.filter(u => {
@@ -232,10 +242,12 @@ export default function AdminUsersPage() {
                   <td className="font-medium">{u.full_name}</td>
                   <td className="text-gray-500 text-xs">{u.email}</td>
                   <td>
-                    {isSuperAdmin ? (
+                    {isSuperAdmin && u.id !== myId ? (
                       <select
                         value={u.role}
-                        onChange={e => changeRole.mutate({ id: u.id, role: e.target.value })}
+                        onChange={e => {
+                          if (window.confirm(`Change ${u.full_name}'s role to ${ROLE_LABELS[e.target.value] ?? e.target.value}?`)) changeRole.mutate({ id: u.id, role: e.target.value })
+                        }}
                         className={cn('text-xs rounded px-1.5 py-0.5 border-0 font-medium cursor-pointer', ROLE_BADGE[u.role] ?? 'badge-gray')}
                       >
                         {ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
@@ -264,10 +276,14 @@ export default function AdminUsersPage() {
                   </td>
                   <td>
                     <button
-                      onClick={() => toggleActive.mutate({ id: u.id, is_active: !u.is_active })}
-                      disabled={toggleActive.isPending}
+                      onClick={() => {
+                        if (u.is_active && !window.confirm(`Deactivate ${u.full_name}? They will no longer be able to sign in.`)) return
+                        toggleActive.mutate({ id: u.id, is_active: !u.is_active })
+                      }}
+                      disabled={toggleActive.isPending || u.id === myId || (u.role === 'super_admin' && !isSuperAdmin)}
+                      title={u.id === myId ? 'You cannot deactivate your own account' : (u.role === 'super_admin' && !isSuperAdmin) ? 'Only a Super Admin can manage Super Admins' : undefined}
                       className={cn(
-                        'btn-sm text-xs flex items-center gap-1',
+                        'btn-sm text-xs flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed',
                         u.is_active ? 'btn-danger' : 'btn-primary'
                       )}
                     >

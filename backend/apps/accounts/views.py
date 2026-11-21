@@ -678,6 +678,31 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         # Admin-created users are auto-verified (admin vouches for the email)
         serializer.save(is_email_verified=True)
 
+    def _guard_target(self, request, user, verb):
+        """Return a 403 Response if request.user may not act on `user`, else None."""
+        if user.pk == request.user.pk and verb in ("deactivate", "delete"):
+            return Response({"detail": f"You cannot {verb} your own account."}, status=403)
+        if user.role == User.Role.SUPER_ADMIN and request.user.role != User.Role.SUPER_ADMIN:
+            return Response({"detail": "Only a Super Admin can manage Super Admin accounts."}, status=403)
+        return None
+
+    def update(self, request, *args, **kwargs):
+        blocked = self._guard_target(request, self.get_object(), "edit")
+        return blocked or super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        user = self.get_object()
+        blocked = self._guard_target(request, user, "delete")
+        if blocked:
+            return blocked
+        AuditLog.objects.create(
+            user=request.user,
+            action="user_deleted",
+            ip_address=get_client_ip(request),
+            details={"target_email": user.email},
+        )
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=False, methods=["get"], url_path="youth-type-counts")
     def youth_type_counts(self, request):
         from django.db.models import Count
@@ -691,6 +716,9 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def deactivate(self, request, pk=None):
         user = self.get_object()
+        blocked = self._guard_target(request, user, "deactivate")
+        if blocked:
+            return blocked
         user.is_active = False
         user.save(update_fields=["is_active"])
         AuditLog.objects.create(
@@ -704,6 +732,9 @@ class UserAdminViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"])
     def activate(self, request, pk=None):
         user = self.get_object()
+        blocked = self._guard_target(request, user, "activate")
+        if blocked:
+            return blocked
         user.is_active = True
         user.save(update_fields=["is_active"])
         AuditLog.objects.create(
@@ -719,6 +750,8 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         if request.user.role != User.Role.SUPER_ADMIN:
             return Response({"detail": "Only Super Admins can change roles."}, status=403)
         user = self.get_object()
+        if user.pk == request.user.pk:
+            return Response({"detail": "You cannot change your own role."}, status=403)
         new_role = request.data.get("role")
         if new_role not in User.Role.values:
             return Response({"detail": "Invalid role."}, status=400)
