@@ -17,6 +17,7 @@ from .serializers import (
     ChangePasswordSerializer, UserAdminSerializer, AuditLogSerializer,
 )
 from .permissions import IsAdminRole, IsSuperAdmin
+from .throttles import EmailSendThrottle, FriendlyThrottleMixin, LoginThrottle
 
 logger = logging.getLogger(__name__)
 
@@ -128,7 +129,9 @@ def _send_verification_email(user, token):
 # Auth views
 # ---------------------------------------------------------------------------
 
-class LoginView(TokenObtainPairView):
+class LoginView(FriendlyThrottleMixin, TokenObtainPairView):
+    throttle_classes = [LoginThrottle]
+
     def post(self, request, *args, **kwargs):
         # Emails are matched case-insensitively: "Juan@Gmail.com" logs in the same
         # account as "juan@gmail.com" (mobile keyboards often capitalise the first letter).
@@ -356,12 +359,13 @@ class GoogleAuthView(generics.GenericAPIView):
         )
 
 
-class ResendVerificationView(generics.GenericAPIView):
+class ResendVerificationView(FriendlyThrottleMixin, generics.GenericAPIView):
     """POST /auth/resend-verification/
     Accepts { email } and sends a fresh verification email if the user exists
     and has not yet verified.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [EmailSendThrottle]
 
     def post(self, request):
         email = request.data.get("email", "").strip().lower()
@@ -482,12 +486,13 @@ def _send_password_reset_email(user, token):
         logger.error("Failed to send password reset email to %s: %s", user.email, exc)
 
 
-class ForgotPasswordView(generics.GenericAPIView):
+class ForgotPasswordView(FriendlyThrottleMixin, generics.GenericAPIView):
     """POST /auth/forgot-password/
     Accepts { email }. Always returns 200 to avoid leaking whether the email exists.
     Sends a reset link if the account exists and is active.
     """
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [EmailSendThrottle]
 
     def post(self, request):
         email = request.data.get("email", "").strip().lower()
