@@ -146,6 +146,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "chatbot_burst": os.getenv("CHATBOT_RATE_BURST", "10/min"),
         "chatbot_daily": os.getenv("CHATBOT_RATE_DAILY", "100/day"),
+        "event_checkin": os.getenv("EVENT_CHECKIN_RATE", "10/min"),
         "auth_login": os.getenv("AUTH_LOGIN_RATE", "10/min"),
         "auth_email": os.getenv("AUTH_EMAIL_RATE", "5/hour"),
     },

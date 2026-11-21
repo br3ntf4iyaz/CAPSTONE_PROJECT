@@ -4,6 +4,7 @@ import string
 from django.db import transaction
 from django.db.models import Count, Prefetch
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import viewsets, status, filters
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -11,6 +12,7 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
 
+from .throttles import CheckinThrottle
 from .models import (
     Event,
     EventRegistration,
@@ -96,6 +98,8 @@ class EventViewSet(viewsets.ModelViewSet):
             )
 
         event = self.get_object()
+        if event.end_datetime and event.end_datetime < timezone.now():
+            return Response({'detail': 'This event has already ended.'}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             locked_event = Event.objects.select_for_update().get(pk=event.pk)
             if EventRegistration.objects.filter(event=locked_event, user=request.user).exists():
@@ -177,6 +181,7 @@ class EventViewSet(viewsets.ModelViewSet):
         methods=['post'],
         url_path='checkin',
         permission_classes=[IsAuthenticated],
+        throttle_classes=[CheckinThrottle],
     )
     def checkin(self, request, pk=None):
         event = self.get_object()
