@@ -1,5 +1,6 @@
 import bleach
 from rest_framework import serializers
+from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
 from .models import SKBarangay, SKFeedback, SKMember, SKRequirement, SKRequirementTemplate
 
@@ -25,8 +26,7 @@ def validate_pdf(file):
     if file:
         if not file.name.lower().endswith('.pdf'):
             raise serializers.ValidationError('Only PDF files are accepted.')
-        if file.size > MAX_FILE_SIZE:
-            raise serializers.ValidationError('File size must not exceed 10 MB.')
+        check_upload(file, {'.pdf'}, MAX_FILE_SIZE, field=None)
     return file
 
 

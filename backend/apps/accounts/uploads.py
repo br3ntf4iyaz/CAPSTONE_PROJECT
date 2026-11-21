@@ -6,6 +6,10 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 DOC_EXTS = {".pdf", ".doc", ".docx"}
 
 
+def _fail(field, message):
+    raise serializers.ValidationError({field: message} if field else message)
+
+
 def check_upload(file, allowed_exts, max_bytes, field="file"):
     """Reject files by extension AND by what is really inside (not the client-sent type).
 
@@ -16,12 +20,10 @@ def check_upload(file, allowed_exts, max_bytes, field="file"):
     if file is None:
         return file
     if file.size > max_bytes:
-        raise serializers.ValidationError({field: f"File must be under {max_bytes // (1024 * 1024)} MB."})
+        _fail(field, f"File must be under {max_bytes // (1024 * 1024)} MB.")
     ext = os.path.splitext(file.name or "")[1].lower()
     if ext not in allowed_exts:
-        raise serializers.ValidationError(
-            {field: "Allowed file types: " + ", ".join(sorted(e.lstrip(".").upper() for e in allowed_exts)) + "."}
-        )
+        _fail(field, "Allowed file types: " + ", ".join(sorted(e.lstrip(".").upper() for e in allowed_exts)) + ".")
     head = file.read(8)
     file.seek(0)
     ok = True
@@ -39,5 +41,5 @@ def check_upload(file, allowed_exts, max_bytes, field="file"):
     elif ext == ".doc":
         ok = head.startswith(b"\xd0\xcf\x11\xe0")
     if not ok:
-        raise serializers.ValidationError({field: "The file content does not match its type."})
+        _fail(field, "The file content does not match its type.")
     return file

@@ -1,5 +1,6 @@
 import bleach
 from rest_framework import serializers
+from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
 from .models import FeaturedSlide, ProgramSubmission, SubmissionAttachment, SubmissionReviewLog, YouthProgram
 
@@ -25,8 +26,7 @@ def validate_pdf(file):
     if file:
         if not file.name.lower().endswith('.pdf'):
             raise serializers.ValidationError('Only PDF files are accepted.')
-        if file.size > MAX_FILE_SIZE:
-            raise serializers.ValidationError('File size must not exceed 10 MB.')
+        check_upload(file, {'.pdf'}, MAX_FILE_SIZE, field=None)
     return file
 
 
@@ -414,11 +414,7 @@ class SubmissionCreateSerializer(serializers.ModelSerializer):
 
     def validate_thumbnail(self, value):
         if value:
-            allowed_types = {'image/jpeg', 'image/png', 'image/webp', 'image/gif'}
-            if hasattr(value, 'content_type') and value.content_type not in allowed_types:
-                raise serializers.ValidationError('Thumbnail must be a JPG, PNG, WEBP, or GIF image.')
-            if value.size > MAX_FILE_SIZE:
-                raise serializers.ValidationError('Thumbnail must not exceed 10 MB.')
+            check_upload(value, IMAGE_EXTS, MAX_FILE_SIZE, field=None)
         return value
 
     def validate(self, attrs):
@@ -467,8 +463,7 @@ class CompletionReportSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Completion report file is required.')
         if not value.name.lower().endswith('.pdf'):
             raise serializers.ValidationError('Only PDF files are accepted.')
-        if value.size > MAX_FILE_SIZE:
-            raise serializers.ValidationError('File size must not exceed 10 MB.')
+        check_upload(value, {'.pdf'}, MAX_FILE_SIZE, field=None)
         return value
 
     def validate_outcomes_narrative(self, value):

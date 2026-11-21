@@ -9,6 +9,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
+from apps.accounts.uploads import IMAGE_EXTS, check_upload
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKRequirement
 from .serializers import (
@@ -90,10 +92,10 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         if 'logo' not in request.FILES:
             return Response({'detail': 'No logo file provided.'}, status=status.HTTP_400_BAD_REQUEST)
         logo_file = request.FILES['logo']
-        if not logo_file.content_type.startswith('image/'):
-            return Response({'detail': 'File must be an image.'}, status=status.HTTP_400_BAD_REQUEST)
-        if logo_file.size > 5 * 1024 * 1024:
-            return Response({'detail': 'Image must not exceed 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            check_upload(logo_file, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+        except DRFValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
         barangay.logo = logo_file
         barangay.save(update_fields=['logo'])
         logo_url = request.build_absolute_uri(barangay.logo.url) if barangay.logo else None
@@ -455,10 +457,10 @@ class SKFeedbackViewSet(viewsets.ModelViewSet):
 
         image = request.FILES.get('image')
         if image:
-            if not image.content_type.startswith('image/'):
-                return Response({'detail': 'Attachment must be an image.'}, status=status.HTTP_400_BAD_REQUEST)
-            if image.size > 5 * 1024 * 1024:
-                return Response({'detail': 'Image must not exceed 5 MB.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                check_upload(image, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+            except DRFValidationError as e:
+                return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
 
         feedback = SKFeedback.objects.create(
             barangay=barangay,
