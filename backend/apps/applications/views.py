@@ -4,6 +4,8 @@ from rest_framework.response import Response
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 
+from apps.accounts.models import AuditLog
+from apps.accounts.views import get_client_ip
 from apps.accounts.permissions import IsAdminRole
 
 from .models import OpportunityApplication
@@ -43,6 +45,14 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         ser = ApplicationReviewSerializer(instance, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
         app = ser.save(reviewed_at=timezone.now())
+        AuditLog.objects.create(
+            user=request.user,
+            action='application_reviewed',
+            model_name='OpportunityApplication',
+            object_id=app.pk,
+            ip_address=get_client_ip(request),
+            details={'applicant': app.email, 'title': app.title, 'from': old, 'to': app.status},
+        )
         if app.status != old:
             label = app.get_status_display()
             Notification.objects.create(
