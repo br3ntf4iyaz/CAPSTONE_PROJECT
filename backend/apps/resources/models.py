@@ -33,6 +33,16 @@ class Scholarship(models.Model):
     requirements = models.JSONField(default=list, blank=True)
     application_url = models.URLField(max_length=500, blank=True)
     category = models.CharField(max_length=30, choices=CATEGORY_CHOICES, default='other')
+    # Online application settings (managed by LYDO admins)
+    eligibility = models.JSONField(default=list, blank=True)           # list of qualification sentences
+    instructions = models.TextField(blank=True)                        # how to apply
+    required_documents = models.JSONField(default=list, blank=True)    # keys from DOCUMENT_TYPES that must be uploaded
+    optional_documents = models.JSONField(default=list, blank=True)    # keys the applicant may upload
+    requires_gwa = models.BooleanField(default=False)
+    opens_on = models.DateField(null=True, blank=True)
+    closes_on = models.DateField(null=True, blank=True)
+    accepting_applications = models.BooleanField(default=True)
+    is_sample = models.BooleanField(default=False, help_text='Demonstration record, not verified information')
     is_published = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
     created_by = models.ForeignKey(

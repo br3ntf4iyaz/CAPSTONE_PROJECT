@@ -151,6 +151,8 @@ REST_FRAMEWORK = {
         "chatbot_burst": os.getenv("CHATBOT_RATE_BURST", "10/min"),
         "chatbot_daily": os.getenv("CHATBOT_RATE_DAILY", "100/day"),
         "verification_submit": os.getenv("VERIFICATION_SUBMIT_RATE", "6/day"),
+        "scholarship_apply": os.getenv("SCHOLARSHIP_APPLY_RATE", "15/day"),
+        "scholarship_apply": os.getenv("SCHOLARSHIP_APPLY_RATE", "15/day"),
         "sk_photo": os.getenv("SK_PHOTO_RATE", "40/hour"),
         "event_checkin": os.getenv("EVENT_CHECKIN_RATE", "10/min"),
         "auth_login": os.getenv("AUTH_LOGIN_RATE", "10/min"),

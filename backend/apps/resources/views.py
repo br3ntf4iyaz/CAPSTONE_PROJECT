@@ -39,6 +39,15 @@ class ScholarshipViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated(), IsAdminRole()]
         return [AllowAny()]
 
+    def perform_destroy(self, instance):
+        # A scholarship that already has applications is archived instead of deleted, so records stay.
+        if instance.applications.exists():
+            instance.is_published = False
+            instance.accepting_applications = False
+            instance.save(update_fields=['is_published', 'accepting_applications'])
+        else:
+            instance.delete()
+
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 

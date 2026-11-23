@@ -43,6 +43,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         kind, oid = attrs['kind'], attrs['object_id']
         if kind == 'scholarship':
+            raise serializers.ValidationError('Please use the scholarship application form.')
+        if kind == 'scholarship':
             obj = Scholarship.objects.filter(pk=oid, is_published=True).first()
             title = obj.title if obj else None
         else:

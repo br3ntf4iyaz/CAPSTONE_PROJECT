@@ -4,15 +4,61 @@ from rest_framework import serializers
 from .models import Resource, Scholarship
 
 class ScholarshipSerializer(serializers.ModelSerializer):
+    application_status = serializers.SerializerMethodField()
+    document_requirements = serializers.SerializerMethodField()
+    applications_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Scholarship
         fields = [
             'id', 'title', 'provider', 'provider_type', 'description',
             'coverage', 'amount', 'deadline', 'slots', 'requirements',
             'application_url', 'category', 'is_published', 'is_featured',
+            'eligibility', 'instructions', 'required_documents', 'optional_documents', 'requires_gwa',
+            'opens_on', 'closes_on', 'accepting_applications', 'is_sample',
+            'application_status', 'document_requirements', 'applications_count',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
+
+    def get_application_status(self, obj):
+        from apps.applications.scholarship_logic import application_state
+        return application_state(obj)
+
+    def get_document_requirements(self, obj):
+        from apps.applications.scholarship_logic import document_requirements
+        return document_requirements(obj)
+
+    def get_applications_count(self, obj):
+        request = self.context.get('request')
+        if request and request.user.is_authenticated and getattr(request.user, 'role', '') in ('lgu_admin', 'super_admin'):
+            return obj.applications.count()
+        return None
+
+    def _keys(self, value):
+        from apps.applications.documents import DOCUMENT_TYPES
+        bad = [k for k in value if k not in DOCUMENT_TYPES]
+        if bad:
+            raise serializers.ValidationError(f'Unknown document type: {", ".join(map(str, bad))}')
+        return value
+
+    def validate_required_documents(self, value):
+        return self._keys(value)
+
+    def validate_optional_documents(self, value):
+        return self._keys(value)
+
+    def validate_eligibility(self, value):
+        return [bleach.clean(str(v), tags=[], strip=True)[:300] for v in value if str(v).strip()]
+
+    def validate_instructions(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate(self, attrs):
+        o, c = attrs.get('opens_on'), attrs.get('closes_on')
+        if o and c and c < o:
+            raise serializers.ValidationError({'closes_on': 'The closing date cannot be before the opening date.'})
+        return attrs
 
 
 ALLOWED_FILE_EXTENSIONS = {'.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.mp4', '.zip'}

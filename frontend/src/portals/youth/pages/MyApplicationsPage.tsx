@@ -3,16 +3,19 @@ import { useQuery } from '@tanstack/react-query'
 import { Briefcase, Award, ClipboardList, MessageSquare } from 'lucide-react'
 import apiClient from '@/api/client'
 import { cn, formatDate } from '@/utils'
+import ScholarshipApplicationCard from '../components/ScholarshipApplicationCard'
+import { SCHOLARSHIP_STATUS, type ScholarshipApplication } from '../scholarshipApps'
 
 export interface MyApplication {
   id: number
   kind: 'job' | 'scholarship'
   object_id: number
   title: string
-  status: 'submitted' | 'under_review' | 'approved' | 'rejected'
+  status: 'submitted' | 'under_review' | 'for_compliance' | 'approved' | 'rejected' | 'withdrawn'
   submitted_at: string
   admin_note?: string
   reviewed_at?: string | null
+  scholarship_app?: ScholarshipApplication  // set for applications made with the full scholarship form
 }
 
 export const APPLICATION_STATUS: Record<MyApplication['status'], { label: string; cls: string; hint: string }> = {
@@ -20,6 +23,8 @@ export const APPLICATION_STATUS: Record<MyApplication['status'], { label: string
   under_review: { label: 'Under review', cls: 'bg-amber-100 text-amber-800',     hint: 'Your application is being reviewed.' },
   approved:     { label: 'Approved',     cls: 'bg-emerald-100 text-emerald-800', hint: 'Congratulations! Check the note below for next steps.' },
   rejected:     { label: 'Not accepted', cls: 'bg-red-100 text-red-700',         hint: 'This application was not accepted this time.' },
+  for_compliance: { label: SCHOLARSHIP_STATUS.for_compliance.label, cls: SCHOLARSHIP_STATUS.for_compliance.cls, hint: SCHOLARSHIP_STATUS.for_compliance.hint },
+  withdrawn:    { label: 'Withdrawn',    cls: 'bg-ink-100 text-ink-500',         hint: 'You withdrew this application.' },
 }
 
 const STEPS: MyApplication['status'][] = ['submitted', 'under_review']
@@ -27,7 +32,15 @@ const STEPS: MyApplication['status'][] = ['submitted', 'under_review']
 export function useMyApplications() {
   return useQuery<MyApplication[]>({
     queryKey: ['my-applications'],
-    queryFn: () => apiClient.get('/applications/').then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? [])),
+    queryFn: async () => {
+      const list = (r: { data: any }) => (Array.isArray(r.data) ? r.data : r.data.results ?? [])
+      const [legacy, full] = await Promise.all([apiClient.get('/applications/'), apiClient.get('/applications/scholarship/')])
+      const mapped: MyApplication[] = list(full).map((a: ScholarshipApplication) => ({
+        id: -a.id, kind: 'scholarship' as const, object_id: a.scholarship, title: a.scholarship_title, status: a.status,
+        submitted_at: a.submitted_at, admin_note: a.admin_remarks, reviewed_at: a.reviewed_at, scholarship_app: a,
+      }))
+      return [...mapped, ...list(legacy)].sort((x, y) => +new Date(y.submitted_at) - +new Date(x.submitted_at))
+    },
   })
 }
 
@@ -58,7 +71,7 @@ function Progress({ status }: { status: MyApplication['status'] }) {
 
 export default function MyApplicationsPage() {
   const { data = [], isLoading, isError } = useMyApplications()
-  const open = data.filter(a => a.status === 'submitted' || a.status === 'under_review').length
+  const open = data.filter(a => ['submitted', 'under_review', 'for_compliance'].includes(a.status)).length
 
   return (
     <div className="space-y-5">
@@ -84,6 +97,7 @@ export default function MyApplicationsPage() {
 
       <div className="space-y-3">
         {data.map(a => {
+          if (a.scholarship_app) return <ScholarshipApplicationCard key={`s${a.id}`} app={a.scholarship_app} />
           const st = APPLICATION_STATUS[a.status]
           const Icon = a.kind === 'job' ? Briefcase : Award
           return (

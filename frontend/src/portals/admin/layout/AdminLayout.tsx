@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { Navigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderOpen, Users, ClipboardCheck, BarChart3,
-  CalendarDays, BookOpen, ClipboardList, UserCog, Library,
+  CalendarDays, BookOpen, ClipboardList, GraduationCap, UserCog, Library,
   Briefcase, Bell, Shield, LogOut, ChevronLeft, ChevronRight, Menu,
   Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy,
 } from 'lucide-react'
@@ -169,6 +169,7 @@ const NAV_ITEMS = [
   { label: 'Library',          icon: Library,         to: '/admin/library' },
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
   { label: 'Applications',     icon: ClipboardList,  to: '/admin/applications' },
+  { label: 'Scholarship Applications', icon: GraduationCap, to: '/admin/scholarship-applications' },
   { label: 'ID Verification',  icon: Shield,          to: '/admin/verification' },
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
@@ -198,8 +199,10 @@ export default function AdminLayout() {
       const [apps, ver, tix] = await Promise.all([
         list('/applications/'), list('/verification/admin/'), list('/support/tickets/', { status: 'open' }),
       ])
+      const sch = await list('/applications/scholarship/')
       return {
         '/admin/applications': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
+        '/admin/scholarship-applications': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
         '/admin/support': tix.filter(t => t.status === 'open').length,
       }

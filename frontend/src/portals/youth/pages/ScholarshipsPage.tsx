@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
-import ApplyModal, { splitRequirements } from '../components/ApplyModal'
-import { AppliedBadge, AppliedNotice, useApplied } from '../components/AppliedStatus'
+import { Link } from 'react-router-dom'
+import ScholarshipApplyFlow from '../components/ScholarshipApplyFlow'
+import { AppliedNotice, useApplied } from '../components/AppliedStatus'
 import { useQuery } from '@tanstack/react-query'
 import {
   Award, Search, X, ExternalLink, BookOpen,
@@ -29,6 +30,14 @@ interface Scholarship {
   application_url: string
   is_featured: boolean
   category: string
+  eligibility?: string[]
+  instructions?: string
+  requires_gwa?: boolean
+  opens_on?: string | null
+  closes_on?: string | null
+  is_sample?: boolean
+  application_status?: 'open' | 'closing_soon' | 'closed' | 'not_yet_open'
+  document_requirements?: { key: string; label: string; required: boolean }[]
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -70,6 +79,22 @@ function isDeadlineSoon(deadline: string): boolean {
   if (!deadline || ROLLING_DEADLINES.has(deadline)) return false
   const diff = new Date(deadline).getTime() - Date.now()
   return diff > 0 && diff < 30 * 24 * 60 * 60 * 1000
+}
+
+function isClosed(s: Scholarship): boolean {
+  return s.application_status === 'closed' || s.application_status === 'not_yet_open' || isDeadlinePassed(s.deadline)
+}
+function isSoon(s: Scholarship): boolean {
+  return s.application_status === 'closing_soon' || isDeadlineSoon(s.deadline)
+}
+function fmtDate(d?: string | null): string {
+  return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
+}
+const STATUS_CHIP: Record<string, { label: string; cls: string }> = {
+  open:         { label: 'Open',         cls: 'bg-emerald-100 text-emerald-800' },
+  closing_soon: { label: 'Closing Soon', cls: 'bg-amber-100 text-amber-800' },
+  closed:       { label: 'Closed',       cls: 'bg-ink-100 text-ink-600' },
+  not_yet_open: { label: 'Opens soon',   cls: 'bg-blue-100 text-blue-800' },
 }
 
 const LS_KEY = 'lydo_saved_scholarships'
@@ -115,7 +140,7 @@ function ScholarshipDetailDrawer({
   isSaved: boolean
   onToggleSave: () => void
 }) {
-  const passed = isDeadlinePassed(s.deadline)
+  const passed = isClosed(s)
   const [applying, setApplying] = useState(false)
   const applied = useApplied('scholarship', s.id)
 
@@ -173,8 +198,9 @@ function ScholarshipDetailDrawer({
           <div className="bg-blue-50 rounded-xl p-3">
             <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-1">Slots</p>
             <p className="text-sm font-semibold text-blue-800">{s.slots}</p>
-            <p className={cn('text-xs mt-0.5', passed ? 'text-red-600' : isDeadlineSoon(s.deadline) ? 'text-amber-600 font-medium' : 'text-blue-700')}>
-              {passed ? 'Applications closed' : s.deadline ? `Deadline: ${s.deadline}` : 'Contact provider for deadline'}
+            <p className={cn('text-xs mt-0.5', passed ? 'text-red-600' : isSoon(s) ? 'text-amber-600 font-medium' : 'text-blue-700')}>
+              {passed ? (s.application_status === 'not_yet_open' ? `Opens ${fmtDate(s.opens_on)}` : 'Applications closed')
+                : s.closes_on ? `Apply until ${fmtDate(s.closes_on)}` : s.deadline ? `Deadline: ${s.deadline}` : 'Open for applications'}
             </p>
           </div>
         </div>
@@ -187,6 +213,42 @@ function ScholarshipDetailDrawer({
                 <BookOpen size={14} className="text-primary-600" /> About this scholarship
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed">{s.description}</p>
+            </div>
+          )}
+          {s.is_sample && (
+            <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+              Sample record for system demonstration. The details here are not verified information.
+            </p>
+          )}
+          {(s.eligibility?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+                <Users size={14} className="text-primary-600" /> Eligibility
+              </h3>
+              <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
+                {s.eligibility!.map((e, i) => <li key={i}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+          {(s.document_requirements?.length ?? 0) > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">Required documents</h3>
+              <ul className="space-y-1 text-sm text-gray-600">
+                {s.document_requirements!.map(d => (
+                  <li key={d.key} className="flex items-start gap-2">
+                    <span className={cn('mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase', d.required ? 'bg-primary-100 text-primary-700' : 'bg-ink-100 text-ink-500')}>
+                      {d.required ? 'Required' : 'Optional'}
+                    </span>
+                    {d.label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {s.instructions && (
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-2">How to apply</h3>
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{s.instructions}</p>
             </div>
           )}
           {s.requirements.length > 0 && (
@@ -215,7 +277,7 @@ function ScholarshipDetailDrawer({
           ) : applied ? (
             <AppliedNotice kind="scholarship" objectId={s.id} />
           ) : (
-            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
+            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply Now</button>
           )}
           {s.application_url && (
             <a href={s.application_url} target="_blank" rel="noopener noreferrer"
@@ -225,8 +287,10 @@ function ScholarshipDetailDrawer({
           )}
         </div>
         {applying && (
-          <ApplyModal kind="scholarship" objectId={s.id} title={s.title} provider={s.provider}
-            requirements={splitRequirements(s.requirements)} onClose={() => setApplying(false)} />
+          <ScholarshipApplyFlow
+            scholarship={{ id: s.id, title: s.title, provider: s.provider, requires_gwa: !!s.requires_gwa, is_sample: s.is_sample,
+              instructions: s.instructions, document_requirements: s.document_requirements ?? [] }}
+            onClose={() => setApplying(false)} />
         )}
       </div>
     </div>
@@ -236,15 +300,18 @@ function ScholarshipDetailDrawer({
 // ── Scholarship Card ───────────────────────────────────────────────────────────
 
 function ScholarshipCard({
-  s, onClick, isSaved, onToggleSave,
+  s, onClick, onApply, isSaved, onToggleSave,
 }: {
   s: Scholarship
   onClick: () => void
+  onApply: () => void
   isSaved: boolean
   onToggleSave: (e: React.MouseEvent) => void
 }) {
-  const passed = isDeadlinePassed(s.deadline)
-  const soon   = isDeadlineSoon(s.deadline)
+  const passed = isClosed(s)
+  const soon   = isSoon(s)
+  const applied = useApplied('scholarship', s.id)
+  const chip = STATUS_CHIP[s.application_status ?? (passed ? 'closed' : 'open')]
 
   return (
     <div className={cn(
@@ -277,6 +344,8 @@ function ScholarshipCard({
                   <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[s.provider_type] ?? 'bg-gray-100 text-gray-700')}>
                     {TYPE_LABELS[s.provider_type] ?? s.provider_type}
                   </span>
+                  <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', chip.cls)}>{chip.label}</span>
+                  {s.is_sample && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Sample data</span>}
                 </div>
                 <h3 className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-primary-700 transition-colors">
                   {s.title}
@@ -284,7 +353,8 @@ function ScholarshipCard({
               </div>
               <ChevronRight size={16} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0 mt-0.5 transition-colors" />
             </div>
-            <p className="text-xs text-gray-500 mb-2">{s.provider}</p>
+            <p className="text-xs text-gray-500 mb-1">{s.provider}</p>
+            {s.description && <p className="text-xs text-gray-600 mb-2 line-clamp-2">{s.description}</p>}
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
               <span className="flex items-center gap-1 text-green-700">
                 <DollarSign size={10} /> {s.amount}
@@ -295,16 +365,24 @@ function ScholarshipCard({
               <span className={cn('flex items-center gap-1', passed ? 'text-red-500' : soon ? 'text-amber-600 font-medium' : '')}>
                 <Calendar size={10} />
                 {passed ? 'Closed'
+                  : s.closes_on ? `Apply until ${fmtDate(s.closes_on)}`
                   : soon ? `Closing soon — ${s.deadline}`
                   : s.deadline ? `Due ${s.deadline}`
-                  : 'Contact provider'}
+                  : 'Open for applications'}
               </span>
             </div>
           </div>
         </div>
       </button>
 
-      <AppliedBadge kind="scholarship" objectId={s.id} />
+      <div className="mt-3 flex flex-wrap items-center gap-2 pl-[60px]">
+        <button onClick={onClick} className="btn-secondary btn-sm">View Details</button>
+        {applied ? (
+          <Link to="/my-applications" className="btn-secondary btn-sm text-emerald-700">Applied · Track</Link>
+        ) : !passed ? (
+          <button onClick={onApply} className="btn-primary btn-sm">Apply Now</button>
+        ) : null}
+      </div>
 
       {/* Bookmark button */}
       <button
@@ -331,6 +409,7 @@ export default function ScholarshipsPage() {
   const [showSaved, setShowSaved]   = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selected, setSelected]     = useState<Scholarship | null>(null)
+  const [applyFor, setApplyFor]     = useState<Scholarship | null>(null)
 
   const { saved, toggle } = useSavedScholarships()
 
@@ -342,7 +421,7 @@ export default function ScholarshipsPage() {
   if (isLoading) return <ListSkeleton />
   if (isError) return <QueryError onRetry={() => refetch()} />
 
-  const closingSoon = scholarships.filter(s => isDeadlineSoon(s.deadline) && !isDeadlinePassed(s.deadline))
+  const closingSoon = scholarships.filter(s => isSoon(s) && !isClosed(s))
 
   const base = showSaved
     ? scholarships.filter(s => saved.has(String(s.id)))
@@ -357,11 +436,11 @@ export default function ScholarshipsPage() {
     return matchesSearch && matchesCategory
   })
 
-  const featuredOpen = filtered.filter(s => s.is_featured && !isDeadlinePassed(s.deadline))
-  const open         = filtered.filter(s => !s.is_featured && !isDeadlinePassed(s.deadline))
+  const featuredOpen = filtered.filter(s => s.is_featured && !isClosed(s))
+  const open         = filtered.filter(s => !s.is_featured && !isClosed(s))
   const rolling      = open.filter(s => ROLLING_DEADLINES.has(s.deadline))
   const datedOpen    = open.filter(s => !ROLLING_DEADLINES.has(s.deadline))
-  const closed       = filtered.filter(s => isDeadlinePassed(s.deadline))
+  const closed       = filtered.filter(s => isClosed(s))
 
   const hasFilters = !!(category || search || showSaved)
 
@@ -393,7 +472,7 @@ export default function ScholarshipsPage() {
       {/* Stat bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Available',   value: scholarships.filter(s => !isDeadlinePassed(s.deadline)).length, color: 'text-green-700' },
+          { label: 'Available',   value: scholarships.filter(s => !isClosed(s)).length, color: 'text-green-700' },
           { label: 'Government',  value: scholarships.filter(s => s.provider_type === 'government' || s.provider_type === 'local_government').length, color: 'text-primary-700' },
           { label: 'Always Open', value: scholarships.filter(s => ROLLING_DEADLINES.has(s.deadline)).length, color: 'text-blue-700' },
         ].map(stat => (
@@ -504,6 +583,7 @@ export default function ScholarshipsPage() {
                   <ScholarshipCard
                     key={s.id} s={s}
                     onClick={() => setSelected(s)}
+                    onApply={() => setApplyFor(s)}
                     isSaved={saved.has(String(s.id))}
                     onToggleSave={e => { e.stopPropagation(); toggle(String(s.id)) }}
                   />
@@ -523,6 +603,7 @@ export default function ScholarshipsPage() {
                   <ScholarshipCard
                     key={s.id} s={s}
                     onClick={() => setSelected(s)}
+                    onApply={() => setApplyFor(s)}
                     isSaved={saved.has(String(s.id))}
                     onToggleSave={e => { e.stopPropagation(); toggle(String(s.id)) }}
                   />
@@ -540,6 +621,7 @@ export default function ScholarshipsPage() {
                   <ScholarshipCard
                     key={s.id} s={s}
                     onClick={() => setSelected(s)}
+                    onApply={() => setApplyFor(s)}
                     isSaved={saved.has(String(s.id))}
                     onToggleSave={e => { e.stopPropagation(); toggle(String(s.id)) }}
                   />
@@ -560,6 +642,7 @@ export default function ScholarshipsPage() {
                   <ScholarshipCard
                     key={s.id} s={s}
                     onClick={() => setSelected(s)}
+                    onApply={() => setApplyFor(s)}
                     isSaved={saved.has(String(s.id))}
                     onToggleSave={e => { e.stopPropagation(); toggle(String(s.id)) }}
                   />
@@ -577,6 +660,13 @@ export default function ScholarshipsPage() {
             </a>
           </p>
         </div>
+      )}
+
+      {applyFor && (
+        <ScholarshipApplyFlow
+          scholarship={{ id: applyFor.id, title: applyFor.title, provider: applyFor.provider, requires_gwa: !!applyFor.requires_gwa,
+            is_sample: applyFor.is_sample, instructions: applyFor.instructions, document_requirements: applyFor.document_requirements ?? [] }}
+          onClose={() => setApplyFor(null)} />
       )}
 
       {/* Detail drawer */}

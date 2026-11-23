@@ -44,3 +44,48 @@ class OpportunityApplication(models.Model):
 
     def __str__(self):
         return f'{self.full_name} -> {self.title}'
+
+
+def scholarship_doc_path(instance, filename):
+    return f"applications/scholarship/{uuid.uuid4().hex}{os.path.splitext(filename)[1].lower()}"
+
+
+class ScholarshipApplication(models.Model):
+    """A full online scholarship application: form answers, documents and review progress."""
+    STATUS_CHOICES = [
+        ('submitted', 'Submitted'), ('under_review', 'Under Review'), ('for_compliance', 'For Compliance'),
+        ('approved', 'Approved'), ('rejected', 'Rejected'), ('withdrawn', 'Withdrawn'),
+    ]
+
+    reference_number = models.CharField(max_length=24, unique=True, editable=False)
+    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='scholarship_applications')
+    scholarship = models.ForeignKey('resources.Scholarship', on_delete=models.PROTECT, related_name='applications')
+    scholarship_title = models.CharField(max_length=255)  # snapshot, so records stay readable if the listing changes
+    personal = models.JSONField(default=dict)
+    education = models.JSONField(default=dict)
+    family = models.JSONField(default=dict)
+    consent_given = models.BooleanField(default=False)
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
+    admin_remarks = models.TextField(blank=True)
+    applicant_message = models.TextField(blank=True)  # reply when complying with a request
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+        constraints = [models.UniqueConstraint(fields=['applicant', 'scholarship'], name='one_application_per_scholarship')]
+
+    def __str__(self):
+        return f'{self.reference_number} {self.scholarship_title}'
+
+
+class ScholarshipApplicationDocument(models.Model):
+    application = models.ForeignKey(ScholarshipApplication, on_delete=models.CASCADE, related_name='documents')
+    doc_type = models.CharField(max_length=30)
+    original_name = models.CharField(max_length=255)
+    file = models.FileField(upload_to=scholarship_doc_path, storage=private_storage)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['id']

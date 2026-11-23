@@ -96,6 +96,28 @@ interface Scholarship {
   category: string
   is_published: boolean
   is_featured: boolean
+  eligibility?: string[]
+  instructions?: string
+  required_documents?: string[]
+  optional_documents?: string[]
+  requires_gwa?: boolean
+  opens_on?: string | null
+  closes_on?: string | null
+  accepting_applications?: boolean
+  is_sample?: boolean
+  applications_count?: number | null
+}
+
+const DOC_TYPES: Record<string, string> = {
+  valid_id: 'Valid government-issued ID or School ID',
+  residency: 'Certificate of Residency',
+  indigency: 'Certificate of Indigency',
+  enrollment: 'Certificate of Enrollment or Registration Form',
+  grades: 'Latest Report Card or Transcript of Records',
+  income_proof: 'Proof of Income or Parent/Guardian Income Certificate',
+  birth_certificate: 'Birth Certificate',
+  id_picture: 'Recent 2x2 ID Picture',
+  other: 'Other Supporting Documents',
 }
 
 const initialScholarshipForm = {
@@ -112,6 +134,13 @@ const initialScholarshipForm = {
   category: 'tuition',
   is_published: true,
   is_featured: false,
+  eligibility_text: '',
+  instructions: '',
+  docs: {} as Record<string, 'required' | 'optional'>,
+  requires_gwa: false,
+  opens_on: '',
+  closes_on: '',
+  accepting_applications: true,
 }
 
 const PROVIDER_TYPES = ['government', 'local_government', 'private', 'ngo']
@@ -298,6 +327,16 @@ export default function AdminJobsSchoolsPage() {
       category: s.category,
       is_published: s.is_published,
       is_featured: s.is_featured,
+      eligibility_text: (s.eligibility ?? []).join('\n'),
+      instructions: s.instructions ?? '',
+      docs: {
+        ...Object.fromEntries((s.optional_documents ?? []).map(k => [k, 'optional' as const])),
+        ...Object.fromEntries((s.required_documents ?? []).map(k => [k, 'required' as const])),
+      },
+      requires_gwa: !!s.requires_gwa,
+      opens_on: s.opens_on ?? '',
+      closes_on: s.closes_on ?? '',
+      accepting_applications: s.accepting_applications ?? true,
     })
     setShowScholarshipModal(true)
   }
@@ -319,6 +358,18 @@ export default function AdminJobsSchoolsPage() {
       category: scholarshipForm.category,
       is_published: scholarshipForm.is_published,
       is_featured: scholarshipForm.is_featured,
+      eligibility: scholarshipForm.eligibility_text.split('\n').map(l => l.trim()).filter(Boolean),
+      instructions: scholarshipForm.instructions,
+      required_documents: Object.keys(scholarshipForm.docs).filter(k => scholarshipForm.docs[k] === 'required'),
+      optional_documents: Object.keys(scholarshipForm.docs).filter(k => scholarshipForm.docs[k] === 'optional'),
+      requires_gwa: scholarshipForm.requires_gwa,
+      opens_on: scholarshipForm.opens_on || null,
+      closes_on: scholarshipForm.closes_on || null,
+      accepting_applications: scholarshipForm.accepting_applications,
+    }
+    if (payload.opens_on && payload.closes_on && payload.closes_on < payload.opens_on) {
+      toast.error('The closing date cannot be before the opening date')
+      return
     }
     if (editScholarship) updateScholarship.mutate({ id: editScholarship.id, data: payload })
     else createScholarship.mutate(payload)
@@ -751,6 +802,61 @@ export default function AdminJobsSchoolsPage() {
               <div>
                 <label className="label">Application URL</label>
                 <input type="url" className="input" value={scholarshipForm.application_url} onChange={e => setScholarshipForm(f => ({ ...f, application_url: e.target.value }))} placeholder="https://…  (leave blank if no direct link)" />
+              </div>
+
+              <div className="rounded-xl border border-primary-100 bg-primary-50/40 p-3 space-y-3">
+                <p className="text-sm font-semibold text-gray-800">Online application settings</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Applications open on</label>
+                    <input type="date" className="input" value={scholarshipForm.opens_on} onChange={e => setScholarshipForm(f => ({ ...f, opens_on: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Applications close on</label>
+                    <input type="date" className="input" value={scholarshipForm.closes_on} onChange={e => setScholarshipForm(f => ({ ...f, closes_on: e.target.value }))} />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Eligibility qualifications <span className="text-gray-400 font-normal">(one per line)</span></label>
+                  <textarea className="input min-h-[70px] text-sm" value={scholarshipForm.eligibility_text}
+                    onChange={e => setScholarshipForm(f => ({ ...f, eligibility_text: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">How to apply (instructions)</label>
+                  <textarea className="input min-h-[60px] text-sm" value={scholarshipForm.instructions}
+                    onChange={e => setScholarshipForm(f => ({ ...f, instructions: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="label">Documents the applicant must upload</label>
+                  <div className="space-y-1.5">
+                    {Object.entries(DOC_TYPES).map(([key, label]) => (
+                      <div key={key} className="flex items-center justify-between gap-3 text-sm">
+                        <span className="text-gray-700">{label}</span>
+                        <select className="input !w-auto py-1 text-xs" value={scholarshipForm.docs[key] ?? ''}
+                          onChange={e => setScholarshipForm(f => {
+                            const docs = { ...f.docs }
+                            if (e.target.value) docs[key] = e.target.value as 'required' | 'optional'
+                            else delete docs[key]
+                            return { ...f, docs }
+                          })}>
+                          <option value="">Not needed</option>
+                          <option value="required">Required</option>
+                          <option value="optional">Optional</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={scholarshipForm.requires_gwa} onChange={e => setScholarshipForm(f => ({ ...f, requires_gwa: e.target.checked }))} className="rounded" />
+                    Ask for the applicant&apos;s GWA
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" checked={scholarshipForm.accepting_applications} onChange={e => setScholarshipForm(f => ({ ...f, accepting_applications: e.target.checked }))} className="rounded" />
+                    Accepting applications
+                  </label>
+                </div>
               </div>
 
               <div className="flex items-center gap-6">
