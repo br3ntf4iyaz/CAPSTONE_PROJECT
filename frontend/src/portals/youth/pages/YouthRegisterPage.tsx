@@ -50,9 +50,9 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>
 
 const YOUTH_TYPES = [
-  { value: 'general_youth' as const,    label: 'General youth',     hint: 'Lucena resident, ages 15–30' },
-  { value: 'sk' as const,               label: 'SK member',         hint: 'Sangguniang Kabataan official' },
-  { value: 'youth_org_leader' as const, label: 'Youth org leader',  hint: 'Recognized organization rep' },
+  { value: 'general_youth' as const,    label: 'General Youth',     hint: 'Lucena resident, ages 15–30' },
+  { value: 'sk' as const,               label: 'SK Officials',      hint: 'Sangguniang Kabataan official' },
+  { value: 'youth_org_leader' as const, label: 'Youth Organization Leaders', hint: 'Recognized organization rep' },
 ]
 
 function getPasswordStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string } {
