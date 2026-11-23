@@ -13,6 +13,7 @@ from apps.accounts.uploads import IMAGE_EXTS, check_upload
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKMember, SKRequirement
+from .throttles import SKPhotoThrottle
 from .serializers import (
     SKBarangayDetailSerializer,
     SKBarangayListSerializer,
@@ -26,6 +27,48 @@ from .serializers import (
 # ---------------------------------------------------------------------------
 # SKBarangayViewSet
 # ---------------------------------------------------------------------------
+
+def can_manage_council_pictures(user, barangay):
+    """LYDO admins, or a signed-in SK official of THIS barangay whose identity has been verified.
+
+    SK status is chosen at sign-up, so it is not trusted on its own: the person must also have passed
+    ID verification, otherwise anyone could claim to be SK and change the public pictures.
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if getattr(user, 'role', '') in ('lgu_admin', 'super_admin'):
+        return True
+    own = _own_barangay(user)
+    if own is None or own.pk != barangay.pk:
+        return False
+    try:
+        return user.id_verification.status == 'approved'
+    except Exception:
+        return False
+
+
+def _picture_denied(request, barangay):
+    """A helpful 403 explaining WHY the person cannot change the pictures."""
+    user = request.user
+    if getattr(user, 'youth_type', '') == 'sk':
+        own = _own_barangay(user)
+        if own is not None and own.pk == barangay.pk:
+            return Response(
+                {'detail': 'Please verify your identity first (Verify ID) to change the council pictures.', 'code': 'verify_first'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+    return Response({'detail': 'Only the SK of this barangay or LYDO staff can change these pictures.'}, status=status.HTTP_403_FORBIDDEN)
+
+
+def _audit_picture(request, barangay, seat, action_name):
+    from apps.accounts.models import AuditLog
+    from apps.accounts.views import get_client_ip
+    AuditLog.objects.create(
+        user=request.user, action=action_name, model_name='SKBarangay', object_id=barangay.pk,
+        ip_address=get_client_ip(request),
+        details={'barangay': barangay.barangay_name, 'seat': seat, 'by': request.user.email},
+    )
+
 
 class SKBarangayViewSet(viewsets.ModelViewSet):
     """
@@ -62,7 +105,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action == 'upload_logo':
+        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -106,17 +149,21 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['post'],
         url_path='chairperson-photo',
-        permission_classes=[IsAuthenticated, IsAdminRole],
+        permission_classes=[IsAuthenticated],
         parser_classes=[MultiPartParser, FormParser],
+        throttle_classes=[SKPhotoThrottle],
     )
     def chairperson_photo(self, request, pk=None):
-        """Admin: set (file in 'photo') or remove (no file, remove=true) the Chairperson's picture."""
+        """Set (file in 'photo') or remove (remove=true) the Chairperson's picture. Admin or verified SK of this barangay."""
         barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
         if str(request.data.get('remove', '')).lower() in ('1', 'true') and 'photo' not in request.FILES:
             if barangay.chairperson_photo:
                 barangay.chairperson_photo.delete(save=False)
                 barangay.chairperson_photo = None
                 barangay.save(update_fields=['chairperson_photo'])
+            _audit_picture(request, barangay, 'chairperson', 'sk_photo_removed')
             return Response({'chairperson_photo_url': None})
         if 'photo' not in request.FILES:
             return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -130,7 +177,44 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         barangay.save(update_fields=['chairperson_photo'])
         if old and old != barangay.chairperson_photo.name:
             barangay.chairperson_photo.storage.delete(old)
+        _audit_picture(request, barangay, 'chairperson', 'sk_photo_changed')
         return Response({'chairperson_photo_url': request.build_absolute_uri(barangay.chairperson_photo.url)})
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='member-photo',
+        permission_classes=[IsAuthenticated],
+        parser_classes=[MultiPartParser, FormParser],
+        throttle_classes=[SKPhotoThrottle],
+    )
+    def member_photo(self, request, pk=None):
+        """Set (file in 'photo') or remove (remove=true) the picture of one council member of THIS barangay."""
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        member = get_object_or_404(SKMember, pk=request.data.get('member') or 0, barangay=barangay)  # never another barangay's member
+        if str(request.data.get('remove', '')).lower() in ('1', 'true') and 'photo' not in request.FILES:
+            if member.photo:
+                member.photo.storage.delete(member.photo.name)
+                member.photo = None
+                member.save(update_fields=['photo'])
+            _audit_picture(request, barangay, f'{member.position}:{member.name}', 'sk_photo_removed')
+            return Response({'id': member.id, 'photo_url': None})
+        if 'photo' not in request.FILES:
+            return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        photo = request.FILES['photo']
+        try:
+            check_upload(photo, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+        except DRFValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
+        old = member.photo.name if member.photo else None
+        member.photo = photo
+        member.save(update_fields=['photo'])
+        if old and old != member.photo.name:
+            member.photo.storage.delete(old)
+        _audit_picture(request, barangay, f'{member.position}:{member.name}', 'sk_photo_changed')
+        return Response({'id': member.id, 'photo_url': request.build_absolute_uri(member.photo.url)})
 
     @action(
         detail=False,

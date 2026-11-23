@@ -139,3 +139,66 @@ class SKOfficialsTests(TestCase):
         self.assertEqual(member.photo.name, real_name)  # the real picture survived the clean-up
         others = SKMember.objects.filter(barangay=self.a).exclude(pk=member.pk)
         self.assertTrue(all(not m.photo for m in others))
+
+    # ── SK officials changing the pictures of their own council ────────────────────────────
+
+    def _sk(self, email, barangay_name, verified=True):
+        from apps.verification.models import IDVerification
+        user = User.objects.create_user(email=email, password="x", role="youth", youth_type="sk", is_active=True, is_email_verified=True)
+        user.profile.barangay = barangay_name
+        user.profile.save()
+        if verified:
+            IDVerification.objects.create(user=user, id_type="umid", status="approved")
+        client = APIClient()
+        client.force_authenticate(user)
+        return user, client
+
+    def _photo(self, name="p.png"):
+        return SimpleUploadedFile(name, _png(), content_type="image/png")
+
+    def test_verified_sk_can_change_and_remove_pictures_of_their_own_council_only(self):
+        call_command("ensure_sk_officials", stdout=io.StringIO())
+        _, sk_a = self._sk("ska@t.local", "Barangay A")
+        mine = SKMember.objects.filter(barangay=self.a, position="kagawad").first()
+        theirs = SKMember.objects.filter(barangay=self.b, position="kagawad").first()
+        url_a = f"/api/sk-requirements/barangays/{self.a.id}/member-photo/"
+        url_b = f"/api/sk-requirements/barangays/{self.b.id}/member-photo/"
+
+        ok = sk_a.post(url_a, {"member": mine.id, "photo": self._photo()}, format="multipart")
+        self.assertEqual(ok.status_code, 200)
+        self.assertTrue(ok.data["photo_url"])
+        self.assertEqual(sk_a.post(url_a, {"member": theirs.id, "photo": self._photo()}, format="multipart").status_code, 404)   # B's member through A's door
+        self.assertEqual(sk_a.post(url_b, {"member": theirs.id, "photo": self._photo()}, format="multipart").status_code, 403)   # B's barangay
+        self.assertEqual(sk_a.post(url_a, {"member": mine.id, "remove": "true"}, format="multipart").status_code, 200)
+        mine.refresh_from_db()
+        self.assertFalse(mine.photo)
+
+        chair = sk_a.post(f"/api/sk-requirements/barangays/{self.a.id}/chairperson-photo/", {"photo": self._photo("c.png")}, format="multipart")
+        self.assertEqual(chair.status_code, 200)
+
+    def test_an_sk_who_has_not_verified_their_identity_cannot_change_pictures(self):
+        call_command("ensure_sk_officials", stdout=io.StringIO())
+        _, sk = self._sk("unverified@t.local", "Barangay A", verified=False)
+        member = SKMember.objects.filter(barangay=self.a).first()
+        r = sk.post(f"/api/sk-requirements/barangays/{self.a.id}/member-photo/", {"member": member.id, "photo": self._photo()}, format="multipart")
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.data["code"], "verify_first")
+
+    def test_picture_rules_still_apply_to_sk_uploads_and_are_audited(self):
+        from apps.accounts.models import AuditLog
+        call_command("ensure_sk_officials", stdout=io.StringIO())
+        _, sk = self._sk("ska2@t.local", "Barangay A")
+        member = SKMember.objects.filter(barangay=self.a).first()
+        url = f"/api/sk-requirements/barangays/{self.a.id}/member-photo/"
+        bad = sk.post(url, {"member": member.id, "photo": SimpleUploadedFile("x.html", b"<script>1</script>", content_type="image/png")}, format="multipart")
+        self.assertEqual(bad.status_code, 400)
+        sk.post(url, {"member": member.id, "photo": self._photo()}, format="multipart")
+        self.assertTrue(AuditLog.objects.filter(action="sk_photo_changed", details__by="ska2@t.local").exists())
+
+    def test_can_edit_flag_is_true_only_for_admins_and_the_verified_sk_of_that_barangay(self):
+        _, sk_a = self._sk("ska3@t.local", "Barangay A")
+        flags = lambda c: {b["barangay_name"]: b["can_edit_officials"] for b in c.get("/api/sk-requirements/barangays/").data}  # noqa: E731
+        self.assertEqual(flags(sk_a), {"Barangay A": True, "Barangay B": False})
+        self.assertEqual(flags(self.ac), {"Barangay A": True, "Barangay B": True})
+        self.assertEqual(flags(self.yc), {"Barangay A": False, "Barangay B": False})
+        self.assertEqual(flags(APIClient()), {"Barangay A": False, "Barangay B": False})

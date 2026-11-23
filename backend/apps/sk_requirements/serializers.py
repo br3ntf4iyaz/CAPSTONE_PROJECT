@@ -116,6 +116,13 @@ class SKOfficialsMixin(serializers.Serializer):
 
     chairperson_photo_url = serializers.SerializerMethodField()
     officials = serializers.SerializerMethodField()
+    can_edit_officials = serializers.SerializerMethodField()
+
+    def get_can_edit_officials(self, obj):
+        """True for LYDO admins and for a verified SK of this barangay (used to show the Change picture buttons)."""
+        from .views import can_manage_council_pictures
+        request = self.context.get('request')
+        return bool(request) and can_manage_council_pictures(request.user, obj)
 
     def _abs(self, f):
         if not f:
@@ -245,6 +252,7 @@ class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
             'logo_url',
             'chairperson_photo_url',
             'officials',
+            'can_edit_officials',
             'members',
             'is_active',
             'created_at',
@@ -287,6 +295,7 @@ class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
             'logo_url',
             'chairperson_photo_url',
             'officials',
+            'can_edit_officials',
             'members',
             'is_active',
             'created_at',

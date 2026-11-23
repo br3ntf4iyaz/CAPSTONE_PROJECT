@@ -58,6 +58,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.gzip.GZipMiddleware",  # big lists (e.g. the SK directory) shrink ~10x on mobile data
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -150,6 +151,7 @@ REST_FRAMEWORK = {
         "chatbot_burst": os.getenv("CHATBOT_RATE_BURST", "10/min"),
         "chatbot_daily": os.getenv("CHATBOT_RATE_DAILY", "100/day"),
         "verification_submit": os.getenv("VERIFICATION_SUBMIT_RATE", "6/day"),
+        "sk_photo": os.getenv("SK_PHOTO_RATE", "40/hour"),
         "event_checkin": os.getenv("EVENT_CHECKIN_RATE", "10/min"),
         "auth_login": os.getenv("AUTH_LOGIN_RATE", "10/min"),
         "auth_email": os.getenv("AUTH_EMAIL_RATE", "5/hour"),

@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
 import ImageLightbox from '@/components/ui/ImageLightbox'
+import { shrinkImage } from '@/utils/shrinkImage'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, cn } from '@/utils'
 
@@ -38,6 +39,7 @@ interface SKBarangay {
   members?: SKMember[]
   officials?: SKOfficial[]
   chairperson_photo_url?: string | null
+  can_edit_officials?: boolean
   id: number
   barangay_name: string
   sk_chairperson: string
@@ -253,8 +255,19 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
 }
 
 /** One official: square picture (face-first crop), full name, then the position. */
-function OfficialCard({ o, featured = false, onZoom }: { o: SKOfficial; featured?: boolean; onZoom?: () => void }) {
+function OfficialCard({
+  o, featured = false, onZoom, canEdit = false, busy = false, onPick, onRemove,
+}: {
+  o: SKOfficial
+  featured?: boolean
+  onZoom?: () => void
+  canEdit?: boolean
+  busy?: boolean
+  onPick?: (file: File) => void
+  onRemove?: () => void
+}) {
   const [broken, setBroken] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
   const showPhoto = !!o.photo_url && !broken
   return (
     <article
@@ -296,6 +309,42 @@ function OfficialCard({ o, featured = false, onZoom }: { o: SKOfficial; featured
       >
         {o.position_display}
       </p>
+
+      {canEdit && (
+        <div className="mt-2.5 flex w-full flex-wrap items-center justify-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+          >
+            <Camera size={12} /> {busy ? 'Saving...' : showPhoto ? 'Change picture' : 'Upload picture'}
+          </button>
+          {o.photo_url && (
+            <button
+              type="button"
+              onClick={() => { if (window.confirm(`Remove the picture of ${o.name}?`)) onRemove?.() }}
+              disabled={busy}
+              aria-label={`Remove the picture of ${o.name}`}
+              title="Remove the picture"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-ink-200 text-ink-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+            </button>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0]
+              if (f) onPick?.(f)
+              e.target.value = ''
+            }}
+          />
+        </div>
+      )}
     </article>
   )
 }
@@ -312,6 +361,54 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
     },
     ...(barangay.members ?? []).map(m => ({ key: `m-${m.id}`, id: m.id, name: m.name, position: m.position, position_display: m.position_display, photo_url: m.photo_url, order: 0 })),
   ]
+  const qc = useQueryClient()
+  const auth = useAuthStore()
+  const canEdit = !!barangay.can_edit_officials
+  const isSkOfThisBarangay =
+    auth.user?.youth_type === 'sk' &&
+    (auth.user?.profile?.barangay ?? '').trim().toLowerCase() === barangay.barangay_name.trim().toLowerCase()
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+
+  const picture = useMutation({
+    mutationFn: async ({ o, file }: { o: SKOfficial; file: File | null }) => {
+      const fd = new FormData()
+      if (file) fd.append('photo', await shrinkImage(file, 900, 0.88))
+      else fd.append('remove', 'true')
+      const headers = { 'Content-Type': undefined as unknown as string }
+      if (o.position === 'chairperson') {
+        return apiClient.post(`/sk-requirements/barangays/${barangay.id}/chairperson-photo/`, fd, { headers })
+      }
+      fd.append('member', String(o.id))
+      return apiClient.post(`/sk-requirements/barangays/${barangay.id}/member-photo/`, fd, { headers })
+    },
+    onMutate: ({ o }) => setBusyKey(o.key),
+    onSettled: () => setBusyKey(null),
+    onSuccess: (res, { o, file }) => {
+      toast.success(file ? 'Picture updated' : 'Picture removed')
+      // show the new picture at once, then let the list refresh in the background
+      const url: string | null = res.data?.photo_url ?? res.data?.chairperson_photo_url ?? null
+      qc.setQueryData<SKBarangay[]>(['sk-barangays-directory'], old =>
+        old?.map(b => b.id !== barangay.id ? b : {
+          ...b,
+          chairperson_photo_url: o.position === 'chairperson' ? url : b.chairperson_photo_url,
+          officials: b.officials?.map(x => x.key === o.key ? { ...x, photo_url: url } : x),
+          members: b.members?.map(m => o.id !== null && m.id === o.id ? { ...m, photo_url: url } : m),
+        }),
+      )
+      qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
+    },
+    onError: (e: any) => {
+      const d = e?.response?.data
+      toast.error(d?.detail ?? 'Could not save the picture. Use a JPG or PNG under 5 MB.')
+    },
+  })
+  const editProps = (o: SKOfficial) => ({
+    canEdit,
+    busy: busyKey === o.key,
+    onPick: (file: File) => picture.mutate({ o, file }),
+    onRemove: () => picture.mutate({ o, file: null }),
+  })
+
   const [zoomKey, setZoomKey] = useState<string | null>(null)
   const withPhotos = officials.filter(o => !!o.photo_url)
   const zoomIndex = withPhotos.findIndex(o => o.key === zoomKey)
@@ -413,11 +510,22 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
           <div>
             <h3 className="font-display font-extrabold text-xl text-ink-900">SK Officials of {barangay.barangay_name}</h3>
             <p className="text-sm text-ink-500">The elected and appointed members of the Sangguniang Kabataan council.</p>
+            {canEdit && (
+              <p className="mt-2 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-800">
+                You can change the pictures of your council. Use <strong>Change picture</strong> under each official, anytime.
+              </p>
+            )}
+            {!canEdit && isSkOfThisBarangay && (
+              <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                You are signed in as SK of this barangay. To change your council&apos;s pictures, first{' '}
+                <a href="/verify-identity" className="font-semibold underline">verify your identity</a>.
+              </p>
+            )}
           </div>
 
           {chair && (
             <div className="flex justify-center">
-              <OfficialCard o={chair} featured onZoom={() => setZoomKey(chair.key)} />
+              <OfficialCard o={chair} featured onZoom={() => setZoomKey(chair.key)} {...editProps(chair)} />
             </div>
           )}
 
@@ -425,7 +533,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Kagawads ({kagawads.length})</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {kagawads.map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} />)}
+                {kagawads.map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} {...editProps(o)} />)}
               </div>
             </div>
           )}
@@ -434,7 +542,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Secretary and Treasurer</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} />)}
+                {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} {...editProps(o)} />)}
               </div>
             </div>
           )}
@@ -694,7 +802,7 @@ const isSearching = search.trim().length > 0
   return (
     <div className="space-y-6">
       {profileBarangay && (
-        <SKProfileModal barangay={profileBarangay} onClose={() => setProfileBarangay(null)} />
+        <SKProfileModal barangay={barangays.find(b => b.id === profileBarangay.id) ?? profileBarangay} onClose={() => setProfileBarangay(null)} />
       )}
       {feedbackBarangay && (
         <FeedbackModal barangayName={feedbackBarangay.barangay_name} onClose={() => setFeedbackBarangay(null)} />
