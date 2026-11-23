@@ -227,9 +227,41 @@ export interface BlinkState {
 export function stepBlink(st: BlinkState, ear: number): boolean {
   if (!(ear > 0)) return false
   st.open = Math.max(st.open * 0.995, ear)
-  if (ear < st.open * 0.74) {
+  if (ear < st.open * 0.8 && st.open - ear > 0.03) {
     st.closed = true
     return false
   }
-  return st.closed && ear > st.open * 0.85
+  return st.closed && ear > st.open * 0.88
+}
+
+export interface TurnState {
+  samples: number[]
+  base: number | null
+}
+
+/** Where the nose sits between the left and right jaw points: ~0.5 when facing the camera. */
+export function yawRatio(points: { x: number; y: number }[]): number | null {
+  if (points.length < 31) return null
+  const left = points[0].x
+  const right = points[16].x
+  const nose = points[30].x
+  const width = right - left
+  return width > 10 ? (nose - left) / width : null
+}
+
+/**
+ * A slow head turn (left or right) is the second way to show a live person, for people whose blink
+ * is too quick for the camera. The first frames set the "facing forward" level.
+ */
+export function stepTurn(st: TurnState, yaw: number | null): boolean {
+  if (yaw === null) return false
+  if (st.base === null) {
+    st.samples.push(yaw)
+    if (st.samples.length >= 5) {
+      const sorted = [...st.samples].sort((a, b) => a - b)
+      st.base = sorted[Math.floor(sorted.length / 2)]
+    }
+    return false
+  }
+  return Math.abs(yaw - st.base) >= 0.09
 }

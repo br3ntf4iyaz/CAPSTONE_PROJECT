@@ -3,7 +3,8 @@ import { Camera, CheckCircle2, AlertTriangle, RefreshCw, Upload, X } from 'lucid
 import { cn } from '@/utils'
 import { loadRealtimeFaceApi } from '@/utils/faceMatch'
 import {
-  coverMapping, detectCard, exposure, eyeAspectRatio, sharpness, stepBlink, toGray, type Rect,
+  coverMapping, detectCard, exposure, eyeAspectRatio, sharpness, stepBlink, stepTurn, toGray, yawRatio,
+  type Rect, type TurnState,
 } from '@/utils/imageAnalysis'
 
 export interface CaptureMeta {
@@ -37,7 +38,7 @@ type Tone = 'info' | 'warn' | 'good'
 interface Hint { text: string; tone: Tone; progress?: number }
 
 const HOLD_MS = 1500          // how long the framing must stay steady before capture is allowed
-const FALLBACK_MS = 9000      // after this long without success, allow a manual capture (flagged for review)
+const FALLBACK_MS = 6000      // after this long without success, allow a manual capture (flagged for review)
 const CARD_RATIO = 1.586      // ID-1 card (credit-card size)
 const SHARP_MIN = 80          // Laplacian variance of the card at 640 px wide; below this the text is not readable
 
@@ -75,6 +76,9 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
   const hiresRef = useRef<HTMLCanvasElement | null>(null)
   const liveRef = useRef(false)
   const blinkRef = useRef({ open: 0, closed: false })
+  const turnRef = useRef<TurnState>({ samples: [], base: null })
+  const holdDone = useRef(0)
+  const [eyes, setEyes] = useState<'open' | 'closed' | null>(null)
   const lastFace = useRef<{ x: number; y: number; w: number; h: number; fill: number } | null>(null)
   const lastCard = useRef<Rect | null>(null)
   const lastSharp = useRef(0)
@@ -93,6 +97,9 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
     setFallback(false)
     liveRef.current = false
     blinkRef.current = { open: 0, closed: false }
+    turnRef.current = { samples: [], base: null }
+    holdDone.current = 0
+    setEyes(null)
     goodSince.current = 0
     lastCenter.current = null
     startedAt.current = performance.now()
@@ -109,7 +116,8 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
       streamRef.current = stream
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play().catch(() => undefined)
+        // do not wait for play(): some phones only resolve it once the first frame arrives
+        videoRef.current.play().catch(() => undefined)
       }
       setCamReady(true)
     } catch (e: any) {
@@ -167,20 +175,34 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
       if (!v || !v.videoWidth) return
       const api = await loadRealtimeFaceApi()
       const res = await api
-        .detectAllFaces(v, new api.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        .detectAllFaces(v, new api.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.45 }))
         .withFaceLandmarks(true)
       const now = performance.now()
       const { s, ox, oy } = coverMapping(cw, ch, v.videoWidth, v.videoHeight)
 
       if (res.length === 0) {
         goodSince.current = 0
+        holdDone.current = 0
         lastFace.current = null
         return setSafe({ text: 'No face detected. Look at the camera.', tone: 'warn' }, false)
       }
       if (res.length > 1) {
         goodSince.current = 0
+        holdDone.current = 0
         lastFace.current = null
         return setSafe({ text: 'Only one face should be visible.', tone: 'warn' }, false)
+      }
+
+      // Liveness evidence is collected on EVERY frame with one face, not only at the end of
+      // "Hold Still": a natural blink or a slow head turn at any moment counts.
+      if (!liveRef.current) {
+        const lm = res[0].landmarks
+        const ear = (eyeAspectRatio(lm.getLeftEye()) + eyeAspectRatio(lm.getRightEye())) / 2
+        const blinked = stepBlink(blinkRef.current, ear)
+        const turned = stepTurn(turnRef.current, yawRatio(lm.positions))
+        if (blinked || turned) liveRef.current = true
+        const closed = ear < blinkRef.current.open * 0.8
+        setEyes(prev => (prev === (closed ? 'closed' : 'open') ? prev : closed ? 'closed' : 'open'))
       }
 
       const b = res[0].detection.box
@@ -198,35 +220,35 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
 
       if (fill < 0.45) {
         goodSince.current = 0
+        holdDone.current = 0
         return setSafe({ text: 'Move Closer', tone: 'warn' }, false)
       }
       if (fill > 0.88) {
         goodSince.current = 0
+        holdDone.current = 0
         return setSafe({ text: 'Move Back', tone: 'warn' }, false)
       }
       if (Math.abs(dx) > 0.14 || Math.abs(dy) > 0.15 || fx < g.x - 4 || fx + fw > g.x + g.w + 4) {
         goodSince.current = 0
+        holdDone.current = 0
         return setSafe({ text: 'Center Your Face', tone: 'warn' }, false)
       }
 
-      const held = stable(cxf, cyf, 0.04 * g.w, now)
-      if (held < HOLD_MS) {
-        return setSafe({ text: 'Hold Still', tone: 'info', progress: held / HOLD_MS }, false)
+      // Hold Still. Once it has been satisfied, small movements (like blinking) no longer reset it.
+      if (!holdDone.current) {
+        const held = stable(cxf, cyf, 0.05 * g.w, now)
+        if (held < HOLD_MS) {
+          return setSafe({ text: 'Hold Still', tone: 'info', progress: held / HOLD_MS }, false)
+        }
+        holdDone.current = now
       }
 
-      // Basic liveness: the person must blink once while framed (defeats a flat printed photo)
       if (!liveRef.current) {
-        const lm = res[0].landmarks
-        const ear = (eyeAspectRatio(lm.getLeftEye()) + eyeAspectRatio(lm.getRightEye())) / 2
-        if (stepBlink(blinkRef.current, ear)) liveRef.current = true
-
-        if (!liveRef.current) {
-          if (now - goodSince.current - HOLD_MS > FALLBACK_MS) {
-            setFallback(true)
-            return setSafe({ text: 'Could not confirm a blink. You can still capture; an admin will review it.', tone: 'warn' }, true)
-          }
-          return setSafe({ text: 'Blink once to confirm you are live', tone: 'info' }, false)
+        if (now - holdDone.current > FALLBACK_MS) {
+          setFallback(true)
+          return setSafe({ text: 'Could not confirm you are live. You can still capture; an admin will review it.', tone: 'warn' }, true)
         }
+        return setSafe({ text: 'Blink once, or slowly turn your head', tone: 'info' }, false)
       }
       setSafe({ text: 'Face Detected. Ready to capture.', tone: 'good' }, true)
     }
@@ -314,7 +336,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
           setSafe({ text: 'Automatic guidance is unavailable. You can capture manually; an admin will review it.', tone: 'warn' }, true)
         }
       }
-      if (!cancelled) timer = setTimeout(loop, kind === 'face' ? 140 : 160)
+      if (!cancelled) timer = setTimeout(loop, kind === 'face' ? 0 : 160)
     }
     loop()
     return () => { cancelled = true; clearTimeout(timer) }
@@ -466,6 +488,11 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
               {hint.tone === 'good' ? <CheckCircle2 size={16} className="shrink-0" /> : hint.tone === 'warn' ? <AlertTriangle size={16} className="shrink-0" /> : null}
               <span>{hint.text}</span>
             </div>
+            {kind === 'face' && holdDone.current > 0 && !liveRef.current && eyes && (
+              <p className="mt-1.5 text-center text-xs text-white/90">
+                {eyes === 'closed' ? 'Eyes closed. Now open them.' : 'Eyes detected. Blink slowly once.'}
+              </p>
+            )}
             {hint.progress !== undefined && (
               <div className="mx-auto mt-1.5 h-1.5 w-40 rounded-full bg-white/30 overflow-hidden">
                 <div className="h-full bg-white transition-all" style={{ width: `${Math.round(hint.progress * 100)}%` }} />
