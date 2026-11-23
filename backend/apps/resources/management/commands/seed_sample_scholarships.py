@@ -37,6 +37,38 @@ SAMPLES = [
         required_documents=['valid_id', 'enrollment', 'grades'],
         optional_documents=['income_proof', 'id_picture', 'other'], requires_gwa=True,
     ),
+    dict(
+        title='TESDA Technical-Vocational Scholarship', provider='TESDA', provider_type='government', category='vocational',
+        description='Training support for qualified individuals who want to take a technical-vocational course.',
+        coverage='Training costs and other support, depending on the program',
+        eligibility=["Must meet the program's official qualifications."],
+        required_documents=['valid_id', 'residency', 'birth_certificate', 'id_picture'],
+        optional_documents=['grades', 'other'], requires_gwa=False,
+    ),
+    dict(
+        title='Youth Leadership Grant', provider='Sponsoring organization', provider_type='ngo', category='youth_leadership',
+        description='Support for young leaders who take part in community and youth development work.',
+        coverage='Depends on the sponsoring organization',
+        eligibility=["Based on the sponsor's qualifications."],
+        required_documents=['valid_id', 'residency', 'enrollment', 'id_picture'],
+        optional_documents=['grades', 'other'], requires_gwa=False,
+    ),
+    dict(
+        title='Board Exam Review Assistance', provider='Sponsoring organization', provider_type='ngo', category='board_exam',
+        description='Help for graduates who are preparing to take a professional board examination.',
+        coverage='Review fees or materials, depending on the sponsor',
+        eligibility=["Based on the sponsor's qualifications."],
+        required_documents=['valid_id', 'grades', 'id_picture'],
+        optional_documents=['income_proof', 'other'], requires_gwa=True,
+    ),
+    dict(
+        title='Student Educational Loan Program', provider='Lending institution', provider_type='government', category='loan',
+        description='A low-interest educational loan for students who need to finance their studies.',
+        coverage='Loan terms depend on the lending institution',
+        eligibility=["Must meet the lender's qualifications."],
+        required_documents=['valid_id', 'enrollment', 'income_proof', 'id_picture'],
+        optional_documents=['other'], requires_gwa=False,
+    ),
 ]
 
 
