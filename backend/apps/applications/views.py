@@ -1,5 +1,6 @@
 from django.utils import timezone
 from rest_framework import mixins, status as http, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -32,6 +33,13 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         if st:
             qs = qs.filter(status=st)
         return qs
+
+    @action(detail=True, methods=['get'], url_path='document')
+    def document(self, request, pk=None):
+        """The applicant's own file, or any file for an admin. Login required."""
+        from apps.accounts.uploads import private_file_response
+        app = self.get_object()  # get_queryset already limits non-admins to their own rows
+        return private_file_response(app.document)
 
     def get_permissions(self):
         if self.action in ('update', 'partial_update'):

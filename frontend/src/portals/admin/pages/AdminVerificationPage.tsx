@@ -5,6 +5,7 @@ import {
   Brain, AlertCircle, Download, CheckSquare,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { SecureImage } from '@/components/ui/SecureImage'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
@@ -110,13 +111,11 @@ function ReviewModal({ record, onClose, onAction }: {
         {record.id_image_url ? (
           <div>
             <p className="text-xs font-semibold text-ink-500 uppercase mb-2">Uploaded ID</p>
-            <a href={record.id_image_url} target="_blank" rel="noopener noreferrer">
-              <img
-                src={record.id_image_url}
-                alt="Uploaded ID"
-                className="w-full max-h-64 object-contain rounded-xl border border-ink-100 bg-ink-50 hover:opacity-90 transition-opacity cursor-zoom-in"
-              />
-            </a>
+            <SecureImage
+              src={record.id_image_url}
+              alt="Uploaded ID"
+              className="w-full max-h-64 object-contain rounded-xl border border-ink-100 bg-ink-50 hover:opacity-90 transition-opacity"
+            />
             <p className="text-xs text-ink-400 mt-1">Click image to open full size in new tab</p>
           </div>
         ) : (
@@ -129,18 +128,18 @@ function ReviewModal({ record, onClose, onAction }: {
         {(record.id_back_image_url || record.selfie_image_url) && (
           <div className="grid grid-cols-2 gap-3">
             {record.id_back_image_url && (
-              <a href={record.id_back_image_url} target="_blank" rel="noopener noreferrer">
+              <div>
                 <p className="text-xs font-semibold text-ink-500 uppercase mb-1">ID back</p>
-                <img src={record.id_back_image_url} alt="ID back" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
-              </a>
+                <SecureImage src={record.id_back_image_url} alt="ID back" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
+              </div>
             )}
             {record.selfie_image_url && (
-              <a href={record.selfie_image_url} target="_blank" rel="noopener noreferrer">
+              <div>
                 <p className="text-xs font-semibold text-ink-500 uppercase mb-1">
                   Selfie{record.ai_face_match === true ? ' · face matches' : record.ai_face_match === false ? ' · NO match' : ''}
                 </p>
-                <img src={record.selfie_image_url} alt="Selfie" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
-              </a>
+                <SecureImage src={record.selfie_image_url} alt="Selfie" className="w-full max-h-40 object-contain rounded-xl border border-ink-100 bg-ink-50" />
+              </div>
             )}
           </div>
         )}

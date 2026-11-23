@@ -1,6 +1,15 @@
 from django.conf import settings
 from django.db import models
 
+import os
+import uuid
+
+from apps.accounts.storage import private_storage
+
+
+def application_doc_path(instance, filename):
+    return f"applications/docs/{uuid.uuid4().hex}{os.path.splitext(filename)[1].lower()}"
+
 
 class OpportunityApplication(models.Model):
     """A youth member's application to a scholarship or a job opportunity."""
@@ -23,7 +32,7 @@ class OpportunityApplication(models.Model):
     id_number = models.CharField(max_length=60, blank=True)
     message = models.TextField(blank=True)
     confirmed_requirements = models.JSONField(default=list, blank=True)
-    document = models.FileField(upload_to='applications/docs/', null=True, blank=True)
+    document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
     admin_note = models.TextField(blank=True)

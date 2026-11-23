@@ -26,6 +26,33 @@ def _record_client_face_check(v, data):
     )
 
 
+FILE_FIELDS = ("id_image", "id_back_image", "selfie_image")
+
+
+def _file_urls(request, v):
+    """API addresses (login required) instead of public media links."""
+    return {
+        f"{name}_url": (request.build_absolute_uri(f"/api/verification/admin/{v.pk}/file/{name}/") if getattr(v, name) else None)
+        for name in FILE_FIELDS
+    }
+
+
+class AdminVerificationFileView(APIView):
+    """GET /api/verification/admin/<id>/file/<id_image|id_back_image|selfie_image>/  (admins only)"""
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request, pk, which):
+        from apps.accounts.uploads import private_file_response
+        from django.http import Http404
+        if which not in FILE_FIELDS:
+            raise Http404()
+        try:
+            v = IDVerification.objects.get(pk=pk)
+        except IDVerification.DoesNotExist:
+            raise Http404()
+        return private_file_response(getattr(v, which))
+
+
 class VerificationStatusView(APIView):
     """GET /api/verification/  — current user's verification status."""
     permission_classes = [IsAuthenticated]
@@ -99,9 +126,7 @@ class AdminVerificationListView(APIView):
             row = IDVerificationSerializer(v).data
             row["user_name"]  = v.user.full_name
             row["user_email"] = v.user.email
-            row["id_image_url"] = request.build_absolute_uri(v.id_image.url) if v.id_image else None
-            row["id_back_image_url"] = request.build_absolute_uri(v.id_back_image.url) if v.id_back_image else None
-            row["selfie_image_url"] = request.build_absolute_uri(v.selfie_image.url) if v.selfie_image else None
+            row.update(_file_urls(request, v))
             data.append(row)
         return Response(data)
 
@@ -146,7 +171,7 @@ class AdminVerificationDetailView(APIView):
             pass
 
         row = IDVerificationSerializer(v).data
-        row["id_image_url"] = request.build_absolute_uri(v.id_image.url) if v.id_image else None
+        row.update(_file_urls(request, v))
         return Response(row)
 
 

@@ -1,11 +1,15 @@
 import os
+import uuid
 from django.db import models
 from django.conf import settings
+
+from apps.accounts.storage import private_storage
 
 
 def id_upload_path(instance, filename):
     ext = os.path.splitext(filename)[1]
-    return f"verification/{instance.user_id}{ext}"
+    # Unguessable name (the folder is private too, this is defence in depth)
+    return f"verification/{instance.user_id}/{uuid.uuid4().hex}{ext.lower()}"
 
 
 class IDVerification(models.Model):
@@ -33,9 +37,9 @@ class IDVerification(models.Model):
         related_name="id_verification",
     )
     id_type   = models.CharField(max_length=30, choices=IDType.choices)
-    id_image  = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
-    id_back_image = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
-    selfie_image  = models.ImageField(upload_to=id_upload_path, null=True, blank=True)
+    id_image  = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
+    id_back_image = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
+    selfie_image  = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
     status    = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     # AI analysis results

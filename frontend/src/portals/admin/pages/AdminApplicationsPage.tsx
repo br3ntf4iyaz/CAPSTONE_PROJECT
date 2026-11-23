@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, Save, Download, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
+import { openPrivateFile } from '@/components/ui/SecureImage'
 import { cn, formatDateTime } from '@/utils'
 
 interface Application {
@@ -71,7 +72,7 @@ function Card({ a }: { a: Application }) {
             <dt className="text-xs text-gray-500">Document</dt>
             <dd>
               {a.document_url
-                ? <a href={a.document_url} target="_blank" rel="noopener noreferrer" className="text-primary-700 inline-flex items-center gap-1"><Paperclip size={12} /> Open file</a>
+                ? <button type="button" onClick={() => openPrivateFile(a.document_url!).catch(() => toast.error('Could not open the file'))} className="text-primary-700 inline-flex items-center gap-1"><Paperclip size={12} /> Open file</button>
                 : '—'}
             </dd>
           </div>

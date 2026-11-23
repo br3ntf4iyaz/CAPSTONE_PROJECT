@@ -121,6 +121,9 @@ STORAGES = {
 
 MEDIA_URL = os.getenv("MEDIA_URL", "/media/")
 MEDIA_ROOT = BASE_DIR / os.getenv("MEDIA_ROOT", "media")
+# Sensitive uploads (government IDs, selfies, application documents) live OUTSIDE the public
+# media folder and are only handed out by authenticated API endpoints.
+PRIVATE_MEDIA_ROOT = BASE_DIR / os.getenv("PRIVATE_MEDIA_ROOT", "private_media")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

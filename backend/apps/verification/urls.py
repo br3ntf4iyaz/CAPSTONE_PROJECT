@@ -5,6 +5,7 @@ from .views import (
     AdminVerificationListView,
     AdminVerificationDetailView,
     AdminVerificationBulkView,
+    AdminVerificationFileView,
 )
 
 urlpatterns = [
@@ -13,4 +14,5 @@ urlpatterns = [
     path("admin/",       AdminVerificationListView.as_view(), name="verification-admin-list"),
     path("admin/bulk/",  AdminVerificationBulkView.as_view(), name="verification-admin-bulk"),
     path("admin/<int:pk>/", AdminVerificationDetailView.as_view(), name="verification-admin-detail"),
+    path("admin/<int:pk>/file/<str:which>/", AdminVerificationFileView.as_view(), name="verification-admin-file"),
 ]

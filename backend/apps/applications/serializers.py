@@ -24,8 +24,9 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def get_document_url(self, obj):
         if obj.document:
+            path = f'/api/applications/{obj.pk}/document/'
             request = self.context.get('request')
-            return request.build_absolute_uri(obj.document.url) if request else obj.document.url
+            return request.build_absolute_uri(path) if request else path
         return None
 
     def to_internal_value(self, data):

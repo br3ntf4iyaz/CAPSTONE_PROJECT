@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.http import HttpResponseNotFound
 from django.urls import path, include, re_path
 from django.views.static import serve
 from django.conf import settings
@@ -32,5 +33,7 @@ urlpatterns = [
     path("api/verification/", include("apps.verification.urls")),
     path("api/community/", include("apps.community.urls")),
     # static() is a no-op when DEBUG is off, so serve uploads explicitly.
+    # Sensitive folders must never be reachable by URL, even if a copy is still in the public media dir
+    re_path(r"^media/(verification|applications)/", lambda request, *a, **k: HttpResponseNotFound()),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]
