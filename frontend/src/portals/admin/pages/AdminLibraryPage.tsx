@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Library, Plus, Eye, EyeOff, Trash2, X, Upload, Download } from 'lucide-react'
+import { Library, Plus, Eye, EyeOff, Trash2, X, Upload, Download, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -22,6 +22,13 @@ interface Resource {
   created_at: string
   file_url?: string
   external_url?: string
+  author?: string
+  source_url?: string
+  download_url?: string
+  material_type?: string
+  source_kind?: string
+  status_note?: string
+  verified_on?: string | null
 }
 
 const CATEGORIES = [
@@ -44,13 +51,26 @@ const initialForm = {
   title: '', description: '', category: 'legal', resource_type: 'link',
   law_number: '', year_enacted: '', tags: '',
   external_url: '', is_published: false, is_featured: false,
+  author: '', source_url: '', download_url: '', material_type: '', source_kind: '', status_note: '', verified_on: '',
 }
+
+const MATERIAL_TYPES = ['pdf', 'article', 'website', 'handbook', 'guide', 'video', 'learning']
+const MATERIAL_LABEL: Record<string, string> = {
+  pdf: 'PDF', article: 'Article', website: 'Website', handbook: 'Handbook', guide: 'Guide', video: 'Video', learning: 'Learning Material',
+}
+const SOURCE_KINDS = [
+  { value: 'government', label: 'Official Philippine government publication' },
+  { value: 'international', label: 'International organization' },
+  { value: 'institution', label: 'Educational or research institution' },
+  { value: 'other', label: 'Third-party material' },
+]
 
 export default function AdminLibraryPage() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ ...initialForm })
   const [fileInput, setFileInput] = useState<File | null>(null)
+  const [editing, setEditing] = useState<Resource | null>(null)
   const [filterCategory, setFilterCategory] = useState('')
   const [filterType, setFilterType] = useState('')
 
@@ -67,14 +87,18 @@ export default function AdminLibraryPage() {
         else if (typeof v === 'boolean') fd.append(k, String(v))
         else if (v !== undefined && v !== null) fd.append(k, String(v))
       })
-      return apiClient.post('/resources/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+      const headers = { 'Content-Type': 'multipart/form-data' }
+      return editing
+        ? apiClient.patch(`/resources/${editing.id}/`, fd, { headers })
+        : apiClient.post('/resources/', fd, { headers })
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-resources'] })
-      toast.success('Resource added')
+      qc.invalidateQueries({ queryKey: ['library-resources'] })
+      toast.success(editing ? 'Resource updated' : 'Resource added')
       closeModal()
     },
-    onError: () => toast.error('Failed to add resource'),
+    onError: () => toast.error(editing ? 'Failed to update resource' : 'Failed to add resource'),
   })
 
   const togglePublished = useMutation({
@@ -96,7 +120,19 @@ export default function AdminLibraryPage() {
     onError: () => toast.error('Failed to delete'),
   })
 
-  const closeModal = () => { setShowModal(false); setForm({ ...initialForm }); setFileInput(null) }
+  const closeModal = () => { setShowModal(false); setForm({ ...initialForm }); setFileInput(null); setEditing(null) }
+  const openEdit = (r: Resource) => {
+    setEditing(r)
+    setForm({
+      title: r.title, description: r.description ?? '', category: r.category, resource_type: r.resource_type,
+      law_number: r.law_number ?? '', year_enacted: r.year_enacted ? String(r.year_enacted) : '', tags: r.tags ?? '',
+      external_url: r.external_url ?? '', is_published: r.is_published, is_featured: r.is_featured,
+      author: r.author ?? '', source_url: r.source_url ?? '', download_url: r.download_url ?? '',
+      material_type: r.material_type ?? '', source_kind: r.source_kind ?? '', status_note: r.status_note ?? '',
+      verified_on: r.verified_on ?? '',
+    })
+    setShowModal(true)
+  }
 
   const handleSubmit = () => {
     if (!form.title) { toast.error('Title is required'); return }
@@ -197,6 +233,9 @@ export default function AdminLibraryPage() {
                           <Download size={13} />
                         </a>
                       )}
+                      <button onClick={() => openEdit(r)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit" aria-label={`Edit ${r.title}`}>
+                        <Pencil size={13} />
+                      </button>
                       <button onClick={() => confirmDelete(r)} className="btn-danger btn-sm text-xs p-1.5">
                         <Trash2 size={13} />
                       </button>
@@ -214,7 +253,7 @@ export default function AdminLibraryPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6" onClick={closeModal}>
           <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
-              <h2 className="text-base font-semibold">Add Resource</h2>
+              <h2 className="text-base font-semibold">{editing ? 'Edit Resource' : 'Add Resource'}</h2>
               <button onClick={closeModal} aria-label="Close dialog" className="p-1 rounded hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"><X size={18} className="text-gray-400" /></button>
             </div>
             <div className="space-y-4">
@@ -263,6 +302,47 @@ export default function AdminLibraryPage() {
                   onChange={e => setForm(f => ({ ...f, external_url: e.target.value }))}
                   placeholder="https://www.officialgazette.gov.ph/…"
                 />
+              </div>
+              <div className="rounded-xl border border-primary-100 bg-primary-50/40 p-3 space-y-3">
+                <p className="text-sm font-semibold text-gray-800">Library details <span className="font-normal text-gray-500">(only what you have verified)</span></p>
+                <div>
+                  <label className="label">Author or publishing organization</label>
+                  <input className="input" value={form.author} onChange={e => setForm(f => ({ ...f, author: e.target.value }))} placeholder="e.g. National Youth Commission" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Material type</label>
+                    <select className="input" value={form.material_type} onChange={e => setForm(f => ({ ...f, material_type: e.target.value }))}>
+                      <option value="">Not set</option>
+                      {MATERIAL_TYPES.map(m => <option key={m} value={m}>{MATERIAL_LABEL[m]}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Source</label>
+                    <select className="input" value={form.source_kind} onChange={e => setForm(f => ({ ...f, source_kind: e.target.value }))}>
+                      <option value="">Not set</option>
+                      {SOURCE_KINDS.map(k => <option key={k.value} value={k.value}>{k.label}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Official source page <span className="text-ink-400 font-normal">(where it is published)</span></label>
+                  <input className="input" type="url" value={form.source_url} onChange={e => setForm(f => ({ ...f, source_url: e.target.value }))} placeholder="https://…" />
+                </div>
+                <div>
+                  <label className="label">Direct download link <span className="text-ink-400 font-normal">(official file only)</span></label>
+                  <input className="input" type="url" value={form.download_url} onChange={e => setForm(f => ({ ...f, download_url: e.target.value }))} placeholder="https://…" />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Link last checked</label>
+                    <input className="input" type="date" value={form.verified_on} onChange={e => setForm(f => ({ ...f, verified_on: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="label">Status note</label>
+                    <input className="input" value={form.status_note} onChange={e => setForm(f => ({ ...f, status_note: e.target.value }))} placeholder="e.g. Updated by JMC 2025" />
+                  </div>
+                </div>
               </div>
               <div>
                 <label className="label">Or Upload File <span className="text-ink-400 font-normal">(PDF, max 10 MB)</span></label>

@@ -7,11 +7,13 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 
 from .models import Resource, Scholarship
+from .pagination import LibraryPagination
 from .serializers import ResourceSerializer, ScholarshipSerializer
 
 
 class ScholarshipViewSet(viewsets.ModelViewSet):
     serializer_class = ScholarshipSerializer
+    pagination_class = LibraryPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ['title', 'provider', 'description']
     ordering_fields = ['created_at', 'title']
@@ -61,8 +63,9 @@ class ResourceViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = ResourceSerializer
+    pagination_class = LibraryPagination
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
-    search_fields = ['title', 'description']
+    search_fields = ['title', 'description', 'tags', 'author', 'law_number']
     ordering_fields = ['title', 'created_at', 'download_count']
     ordering = ['-created_at']
 
@@ -111,6 +114,8 @@ class ResourceViewSet(viewsets.ModelViewSet):
         file_url = None
         if resource.file:
             file_url = request.build_absolute_uri(resource.file.url)
+        elif resource.download_url:
+            file_url = resource.download_url
         elif resource.external_url:
             file_url = resource.external_url
 

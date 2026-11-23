@@ -23,6 +23,13 @@ interface Resource {
   tags: string
   file_url: string | null
   external_url: string
+  author?: string
+  source_url?: string
+  download_url?: string
+  material_type?: string
+  source_kind?: string
+  status_note?: string
+  verified_on?: string | null
   is_published: boolean
   is_featured: boolean
   download_count: number
@@ -61,6 +68,21 @@ const TYPE_COLORS: Record<string, string> = {
   form: 'bg-teal-50 text-teal-600',
 }
 
+const MATERIAL_LABELS: Record<string, string> = {
+  pdf: 'PDF', article: 'Article', website: 'Website', handbook: 'Handbook', guide: 'Guide', video: 'Video', learning: 'Learning Material',
+}
+const SOURCE_KIND: Record<string, { label: string; cls: string }> = {
+  government:    { label: 'Official government publication', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+  international: { label: 'International organization',      cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  institution:   { label: 'Educational or research institution', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+  other:         { label: 'Third-party material',            cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+}
+function typeLabel(r: Resource): string {
+  return (r.material_type && MATERIAL_LABELS[r.material_type]) || TYPE_LABELS[r.resource_type] || r.resource_type
+}
+function readUrl(r: Resource): string { return r.external_url || r.file_url || '' }
+function downloadUrl(r: Resource): string { return r.file_url || r.download_url || '' }
+
 // ── Resource Card ───────────────────────────────────────────────────────────
 
 function ResourceCard({ resource, featured = false }: { resource: Resource; featured?: boolean }) {
@@ -70,26 +92,10 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
 
   const trackDownload = useMutation({
     mutationFn: (id: number) => apiClient.get(`/resources/${id}/download/`).then(r => r.data),
-    onSuccess: (data) => {
-      qc.invalidateQueries({ queryKey: ['library-resources'] })
-      if (data.file_url) {
-        window.open(data.file_url, '_blank', 'noopener,noreferrer')
-      }
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['library-resources'] }),
   })
-
-  const href = resource.external_url || resource.file_url || '#'
-  const isExternal = !!resource.external_url
-
-  const handleOpen = (e: React.MouseEvent) => {
-    e.preventDefault()
-    if (isExternal) {
-      trackDownload.mutate(resource.id)
-      window.open(resource.external_url, '_blank', 'noopener,noreferrer')
-    } else if (resource.file_url) {
-      trackDownload.mutate(resource.id)
-    }
-  }
+  // the link opens by itself; this only counts the visit
+  const handleOpen = () => trackDownload.mutate(resource.id)
 
   return (
     <div
@@ -117,7 +123,7 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
           )}
         </div>
         <span className={cn('flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[resource.resource_type] ?? TYPE_COLORS.link)}>
-          {TYPE_LABELS[resource.resource_type] ?? resource.resource_type.toUpperCase()}
+          {typeLabel(resource)}
         </span>
       </div>
 
@@ -133,6 +139,10 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
       <h3 className="font-semibold text-sm text-ink-900 leading-snug line-clamp-2">
         {resource.title}
       </h3>
+
+      {resource.author && (
+        <p className="text-[11px] font-medium text-ink-600 -mt-1.5">{resource.author}</p>
+      )}
 
       {/* Description */}
       {resource.description && (
@@ -153,20 +163,32 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
       )}
 
       {/* Footer */}
-      <div className="flex items-center justify-end mt-auto pt-2 border-t border-ink-50">
-        <a
-          href={href}
-          onClick={handleOpen}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800 transition-colors"
-        >
-          {isExternal ? (
-            <><ExternalLink size={12} /> View Resource</>
-          ) : (
-            <><Download size={12} /> Download</>
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-auto pt-2 border-t border-ink-50" onClick={e => e.stopPropagation()}>
+        <span className="text-[11px] font-semibold text-ink-400">View details</span>
+        <div className="flex items-center gap-3">
+          {readUrl(resource) && (
+            <a
+              href={readUrl(resource)}
+              onClick={handleOpen}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary-700 hover:text-primary-800 transition-colors"
+            >
+              <ExternalLink size={12} /> Read Online
+            </a>
           )}
-        </a>
+          {downloadUrl(resource) && (
+            <a
+              href={downloadUrl(resource)}
+              onClick={() => trackDownload.mutate(resource.id)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-semibold text-ink-600 hover:text-primary-800 transition-colors"
+            >
+              <Download size={12} /> Download
+            </a>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -229,8 +251,13 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
               {category.label}
             </span>
             <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', TYPE_COLORS[resource.resource_type] ?? TYPE_COLORS.link)}>
-              {TYPE_LABELS[resource.resource_type] ?? resource.resource_type}
+              {typeLabel(resource)}
             </span>
+            {resource.source_kind && SOURCE_KIND[resource.source_kind] && (
+              <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full border', SOURCE_KIND[resource.source_kind].cls)}>
+                {SOURCE_KIND[resource.source_kind].label}
+              </span>
+            )}
             {resource.is_featured && (
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
                 <Star size={10} fill="currentColor" /> Featured Resource
@@ -244,6 +271,23 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
               <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">About This Resource</p>
               <p className="text-sm text-ink-700 leading-relaxed">{resource.description}</p>
             </div>
+          )}
+
+          {/* Details */}
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+            {resource.author && (
+              <div><dt className="text-xs text-ink-400">Author or publisher</dt><dd className="font-medium text-ink-800">{resource.author}</dd></div>
+            )}
+            {resource.year_enacted && (
+              <div><dt className="text-xs text-ink-400">Year</dt><dd className="font-medium text-ink-800">{resource.year_enacted}</dd></div>
+            )}
+            <div><dt className="text-xs text-ink-400">Resource type</dt><dd className="font-medium text-ink-800">{typeLabel(resource)}</dd></div>
+            {resource.verified_on && (
+              <div><dt className="text-xs text-ink-400">Link last checked</dt><dd className="font-medium text-ink-800">{formatDate(resource.verified_on)}</dd></div>
+            )}
+          </dl>
+          {resource.status_note && (
+            <p className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">{resource.status_note}</p>
           )}
 
           {/* Tags */}
@@ -265,23 +309,30 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
             <span>Added {formatDate(resource.created_at)}</span>
           </div>
 
-          {/* CTA */}
-          {href && (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => trackDownload.mutate(resource.id)}
-              className="flex items-center justify-center gap-2 w-full btn-primary py-3 text-sm font-semibold rounded-xl"
-            >
-              {resource.external_url ? (
-                <><ExternalLink size={16} /> Open on Official Gazette / Source</>
-              ) : (
-                <><Download size={16} /> Download File</>
-              )}
-            </a>
-          )}
-          {!href && (
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            {readUrl(resource) && (
+              <a href={readUrl(resource)} target="_blank" rel="noopener noreferrer"
+                onClick={() => trackDownload.mutate(resource.id)}
+                className="flex-1 flex items-center justify-center gap-2 btn-primary py-3 text-sm font-semibold rounded-xl">
+                <ExternalLink size={16} /> Read Online
+              </a>
+            )}
+            {downloadUrl(resource) && (
+              <a href={downloadUrl(resource)} target="_blank" rel="noopener noreferrer"
+                onClick={() => trackDownload.mutate(resource.id)}
+                className="flex-1 flex items-center justify-center gap-2 btn-secondary py-3 text-sm font-semibold rounded-xl">
+                <Download size={16} /> Download
+              </a>
+            )}
+            {resource.source_url && resource.source_url !== readUrl(resource) && (
+              <a href={resource.source_url} target="_blank" rel="noopener noreferrer"
+                className="flex-1 flex items-center justify-center gap-2 btn-secondary py-3 text-sm font-semibold rounded-xl">
+                <Landmark size={16} /> Visit Official Source
+              </a>
+            )}
+          </div>
+          {!href && !resource.source_url && (
             <div className="flex items-center justify-center gap-2 w-full py-3 text-sm text-ink-400 bg-paper-50 rounded-xl">
               <FileText size={16} /> No external link available yet
             </div>
@@ -322,6 +373,8 @@ export default function LibraryPage() {
           r.title.toLowerCase().includes(q) ||
           r.description.toLowerCase().includes(q) ||
           r.law_number.toLowerCase().includes(q) ||
+          (r.author ?? '').toLowerCase().includes(q) ||
+          (r.material_type ?? '').toLowerCase().includes(q) ||
           r.tags.toLowerCase().includes(q),
       )
     }
@@ -377,7 +430,7 @@ export default function LibraryPage() {
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search by title, RA number, keyword…"
+              placeholder="Search by title, keyword, organization, topic…"
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-white text-ink-900 text-sm placeholder:text-ink-400 border-0 shadow-lg focus:outline-none focus:ring-2 focus:ring-accent-400"
             />
             {search && (
@@ -395,8 +448,8 @@ export default function LibraryPage() {
         <div className="relative flex items-center gap-3 mt-6 pt-5 border-t border-primary-600/50">
           <Scale size={14} className="text-accent-300 flex-shrink-0" />
           <p className="text-xs text-primary-200 leading-relaxed">
-            Covers Republic Acts, DILG circulars, NYC policies, DepEd orders, DOH regulations,
-            and constitutional provisions relevant to the Filipino youth sector.
+            Covers Republic Acts, DILG circulars, NYC manuals and plans, learning portals, and guides
+            on finance, safety, the environment and careers relevant to the Filipino youth sector.
           </p>
         </div>
       </div>
@@ -496,9 +549,11 @@ export default function LibraryPage() {
           <div>
             <p className="text-xs font-semibold text-amber-800 mb-0.5">Legal Disclaimer</p>
             <p className="text-xs text-amber-700 leading-relaxed">
-              Resources link to official government sources (Official Gazette, DILG, DOH, etc.).
-              For the most current version of any law or regulation, always verify with the
-              official government repository. This library is for informational purposes only.
+              Each resource is labeled by its source: official government publication, international
+              organization, or third-party material. Links were checked on the date shown in each
+              resource. For the most current version of any law or regulation, always verify with the
+              official government repository. Listing here does not mean LYDO Lucena City endorses a
+              resource. This library is for informational purposes only.
             </p>
           </div>
         </div>

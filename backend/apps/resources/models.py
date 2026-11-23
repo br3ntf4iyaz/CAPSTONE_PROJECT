@@ -70,6 +70,18 @@ class Resource(models.Model):
         ('form', 'Form'),
     ]
 
+    MATERIAL_TYPE_CHOICES = [
+        ('pdf', 'PDF'), ('article', 'Article'), ('website', 'Website'), ('handbook', 'Handbook'),
+        ('guide', 'Guide'), ('video', 'Video'), ('learning', 'Learning Material'),
+    ]
+
+    SOURCE_KIND_CHOICES = [
+        ('government', 'Official Philippine government publication'),
+        ('international', 'International organization'),
+        ('institution', 'Educational or research institution'),
+        ('other', 'Third-party material'),
+    ]
+
     CATEGORY_CHOICES = [
         ('leadership', 'Leadership'),
         ('governance', 'Governance'),
@@ -89,6 +101,14 @@ class Resource(models.Model):
     tags = models.CharField(max_length=500, blank=True, help_text='Comma-separated tags')
     file = models.FileField(upload_to='resources/files/', null=True, blank=True)
     external_url = models.URLField(max_length=1000, blank=True)
+    # Library details (all optional; never filled with guesses)
+    author = models.CharField(max_length=255, blank=True, help_text='Author or publishing organization')
+    source_url = models.URLField(max_length=1000, blank=True, help_text='The official page where this material is published')
+    download_url = models.URLField(max_length=1000, blank=True, help_text='Direct link to an official downloadable file')
+    material_type = models.CharField(max_length=20, choices=MATERIAL_TYPE_CHOICES, blank=True)
+    source_kind = models.CharField(max_length=20, choices=SOURCE_KIND_CHOICES, blank=True)
+    status_note = models.CharField(max_length=255, blank=True, help_text='e.g. "Updated by JMC No. 1, s. 2025"')
+    verified_on = models.DateField(null=True, blank=True, help_text='Last date the link was checked')
     thumbnail = models.ImageField(upload_to='resources/thumbnails/', null=True, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

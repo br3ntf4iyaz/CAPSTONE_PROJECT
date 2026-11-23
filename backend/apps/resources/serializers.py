@@ -84,6 +84,13 @@ class ResourceSerializer(serializers.ModelSerializer):
             'file',
             'file_url',
             'external_url',
+            'author',
+            'source_url',
+            'download_url',
+            'material_type',
+            'source_kind',
+            'status_note',
+            'verified_on',
             'thumbnail',
             'thumbnail_url',
             'uploaded_by',
@@ -118,6 +125,12 @@ class ResourceSerializer(serializers.ModelSerializer):
         return None
 
     def validate_title(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_author(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_status_note(self, value):
         return bleach.clean(value, tags=[], strip=True)
 
     def validate_description(self, value):
