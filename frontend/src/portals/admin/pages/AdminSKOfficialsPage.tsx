@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { shrinkImage } from '@/utils/shrinkImage'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 interface Official {
   key: string
@@ -152,14 +153,14 @@ function SeatCard({
           <Camera size={12} /> {official?.photo_url ? 'Change' : 'Picture'}
         </button>
         {official?.photo_url && (
-          <button type="button" onClick={() => removePhoto.mutate()} disabled={busy} className="btn-secondary btn-sm inline-flex items-center gap-1" title="Remove the picture">
+          <button type="button" onClick={async () => { if (await confirmDeletion({ what: 'picture', name: official.name, confirmLabel: 'Delete Picture' })) removePhoto.mutate() }} disabled={busy} className="btn-secondary btn-sm inline-flex items-center gap-1" title="Remove the picture">
             <ImageOff size={12} />
           </button>
         )}
         {official && !isChair && (
           <button
             type="button"
-            onClick={() => { if (window.confirm(`Remove ${official.name} (${label}) from this council?`)) remove.mutate() }}
+            onClick={async () => { if (await confirmDeletion({ what: 'official', verb: 'remove', name: `${official.name} (${label})`, confirmLabel: 'Remove Official' })) remove.mutate() }}
             disabled={busy}
             className="ml-auto text-red-600 hover:bg-red-50 rounded-lg p-1.5"
             aria-label="Remove official"

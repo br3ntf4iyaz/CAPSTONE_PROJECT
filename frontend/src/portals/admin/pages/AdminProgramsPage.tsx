@@ -499,8 +499,8 @@ export default function AdminProgramsPage() {
       {deleteId !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Delete Program</h2>
-            <p className="text-sm text-gray-500 mb-6">This will permanently delete the program. This cannot be undone.</p>
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Are you sure you want to delete this program?</h2>
+            <p className="text-sm text-gray-500 mb-6">This action cannot be undone. Once deleted, the program will be permanently removed.</p>
             <div className="flex justify-end gap-3">
               <button onClick={() => setDeleteId(null)} className="btn-secondary">Cancel</button>
               <button
@@ -508,7 +508,7 @@ export default function AdminProgramsPage() {
                 disabled={deleteM.isPending}
                 className="btn-danger"
               >
-                {deleteM.isPending ? 'Deleting…' : 'Delete'}
+                {deleteM.isPending ? 'Deleting…' : 'Delete Program'}
               </button>
             </div>
           </div>

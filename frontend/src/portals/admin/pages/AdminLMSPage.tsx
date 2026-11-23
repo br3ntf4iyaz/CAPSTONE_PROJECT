@@ -11,6 +11,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import type { Course } from '@/types'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Badge {
@@ -407,7 +408,7 @@ export default function AdminLMSPage() {
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => openBadgeEdit(b)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit"><Edit2 size={13} /></button>
                               <button
-                                onClick={() => window.confirm(`Delete badge "${b.name}"?`) && deleteBadge.mutate(b.id)}
+                                onClick={async () => { if (await confirmDeletion({ what: 'badge', name: b.name })) deleteBadge.mutate(b.id) }}
                                 className="btn-danger btn-sm text-xs p-1.5"
                                 title="Delete"
                               >

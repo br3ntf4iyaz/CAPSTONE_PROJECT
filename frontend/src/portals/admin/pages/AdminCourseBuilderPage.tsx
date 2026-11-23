@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { cn } from '@/utils'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Choice { id?: number; text: string; is_correct: boolean; order: number }
@@ -90,7 +91,7 @@ function QuestionEditor({ question, courseId, moduleId, lessonId, onDelete }: {
         {open ? <ChevronDown size={13} className="text-gray-400 flex-shrink-0" /> : <ChevronRight size={13} className="text-gray-400 flex-shrink-0" />}
         <span className="text-sm font-medium flex-1 truncate">{draft.text || 'New question'}</span>
         <button
-          onClick={e => { e.stopPropagation(); if (window.confirm('Delete this question?')) del.mutate() }}
+          onClick={async e => { e.stopPropagation(); if (await confirmDeletion({ what: 'question' })) del.mutate() }}
           className="text-red-400 hover:text-red-600 p-1"
         ><Trash2 size={12} /></button>
       </div>
@@ -201,7 +202,7 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
         {lesson.video_url && <Video size={13} className="text-indigo-400" />}
         <span className="text-xs text-gray-400">{lesson.questions.length} Q</span>
         <button
-          onClick={e => { e.stopPropagation(); if (window.confirm('Delete this lesson?')) delLesson.mutate() }}
+          onClick={async e => { e.stopPropagation(); if (await confirmDeletion({ what: 'lesson', note: 'Its questions will be removed too.' })) delLesson.mutate() }}
           className="text-red-400 hover:text-red-600 p-1"
         ><Trash2 size={13} /></button>
       </div>
@@ -334,7 +335,7 @@ function ModuleBlock({ module, courseId }: { module: Module; courseId: number })
         </div>
         <span className="text-xs text-gray-400">{module.lessons.length} lesson{module.lessons.length !== 1 ? 's' : ''}</span>
         <button
-          onClick={() => { if (window.confirm(`Delete module "${module.title}"?`)) delModule.mutate() }}
+          onClick={async () => { if (await confirmDeletion({ what: 'module', name: module.title, note: 'Its lessons and questions will be removed too.' })) delModule.mutate() }}
           className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50"
         ><Trash2 size={14} /></button>
       </div>

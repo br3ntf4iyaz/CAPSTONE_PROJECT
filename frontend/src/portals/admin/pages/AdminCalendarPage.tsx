@@ -9,6 +9,7 @@ import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDateTime, cn, toArray } from '@/utils'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 interface Event {
   id: number
@@ -485,7 +486,7 @@ export default function AdminCalendarPage() {
                         <Edit2 size={13} />
                       </button>
                       <button
-                        onClick={() => { if (window.confirm(`Delete "${e.title}"?`)) deleteEvent.mutate(e.id) }}
+                        onClick={async () => { if (await confirmDeletion({ what: 'event', name: e.title })) deleteEvent.mutate(e.id) }}
                         className="btn-danger btn-sm text-xs p-1.5"
                       >
                         <Trash2 size={13} />

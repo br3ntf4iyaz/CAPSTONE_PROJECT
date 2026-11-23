@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { FIELD_LABELS, PROGRAM_TYPE_LABELS } from '@/portals/youth/pages/schools/constants'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 interface Row {
   id: number
@@ -152,7 +153,7 @@ export default function AdminSchoolCoursesModal({ school, onClose }: Props) {
                       </button>
                     )}
                     <button
-                      onClick={() => { if (window.confirm(`Remove "${r.program.name}" from ${school.name}?`)) remove.mutate(r.id) }}
+                      onClick={async () => { if (await confirmDeletion({ what: 'course', verb: 'remove', name: `${r.program.name} (from ${school.name})`, confirmLabel: 'Remove Course' })) remove.mutate(r.id) }}
                       className="p-1.5 rounded-lg hover:bg-red-50 text-red-500"
                       aria-label="Remove course"
                     >

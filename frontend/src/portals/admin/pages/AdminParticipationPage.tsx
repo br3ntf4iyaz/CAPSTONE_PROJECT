@@ -7,6 +7,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { cn, formatDate, toArray } from '@/utils'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 interface YouthUser {
   id: number
@@ -232,7 +233,7 @@ export default function AdminParticipationPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => { if (window.confirm('Delete this participation record?')) remove.mutate(r.id) }}
+                  onClick={async () => { if (await confirmDeletion({ what: 'participation record' })) remove.mutate(r.id) }}
                   disabled={remove.isPending}
                   aria-label="Delete record"
                   className="p-2 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 flex-shrink-0"

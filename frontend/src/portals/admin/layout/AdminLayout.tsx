@@ -14,6 +14,7 @@ import { cn, formatDate } from '@/utils'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { LydoLogo } from '@/components/ui/LydoLogo'
+import { ConfirmDialogHost } from '@/components/ui/ConfirmDialog'
 
 interface AdminNotification {
   id: number
@@ -346,6 +347,7 @@ export default function AdminLayout() {
           <Outlet />
         </main>
       </div>
+      <ConfirmDialogHost />
     </div>
   )
 }

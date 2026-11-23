@@ -355,12 +355,12 @@ function FeaturedPostsTab() {
       {/* Delete confirm */}
       <Modal isOpen={deleteId !== null} onClose={() => setDeleteId(null)} labelId="del-post-title">
         <div className="p-6">
-          <h2 id="del-post-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Delete Featured Post</h2>
-          <p className="text-sm text-gray-500 mb-6">This cannot be undone.</p>
+          <h2 id="del-post-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Are you sure you want to delete this featured post?</h2>
+          <p className="text-sm text-gray-500 mb-6">This action cannot be undone. Once deleted, the post will be permanently removed.</p>
           <div className="flex justify-end gap-3">
             <button onClick={() => setDeleteId(null)} className="btn-secondary">Cancel</button>
             <button onClick={() => deleteId !== null && deleteM.mutate(deleteId)} className="btn-danger" disabled={deleteM.isPending}>
-              {deleteM.isPending ? 'Deleting…' : 'Delete'}
+              {deleteM.isPending ? 'Deleting…' : 'Delete Post'}
             </button>
           </div>
         </div>
@@ -607,12 +607,12 @@ function ActivitySlidesTab() {
       {/* Delete confirm */}
       <Modal isOpen={deleteId !== null} onClose={() => setDeleteId(null)} labelId="del-slide-title">
         <div className="p-6">
-          <h2 id="del-slide-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Delete Slide</h2>
-          <p className="text-sm text-gray-500 mb-6">This will permanently remove the slide from the home-page slider.</p>
+          <h2 id="del-slide-title" className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">Are you sure you want to delete this slide?</h2>
+          <p className="text-sm text-gray-500 mb-6">This action cannot be undone. Once deleted, the slide will be permanently removed from the home-page slider.</p>
           <div className="flex justify-end gap-3">
             <button onClick={() => setDeleteId(null)} className="btn-secondary">Cancel</button>
             <button onClick={() => deleteId !== null && deleteM.mutate(deleteId)} className="btn-danger" disabled={deleteM.isPending}>
-              {deleteM.isPending ? 'Deleting…' : 'Delete'}
+              {deleteM.isPending ? 'Deleting…' : 'Delete Slide'}
             </button>
           </div>
         </div>

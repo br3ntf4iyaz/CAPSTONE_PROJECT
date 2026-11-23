@@ -6,6 +6,7 @@ import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 interface Resource {
   id: number
@@ -139,8 +140,8 @@ export default function AdminLibraryPage() {
     createResource.mutate({ ...form, file: fileInput ?? undefined })
   }
 
-  const confirmDelete = (r: Resource) => {
-    if (window.confirm(`Delete "${r.title}"?`)) deleteResource.mutate(r.id)
+  const confirmDelete = async (r: Resource) => {
+    if (await confirmDeletion({ what: 'resource', name: r.title })) deleteResource.mutate(r.id)
   }
 
   const filtered = resources.filter(r => {

@@ -7,6 +7,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
+import { confirmDialog } from '@/components/ui/ConfirmDialog'
 
 interface AdminUser {
   id: number
@@ -245,8 +246,15 @@ export default function AdminUsersPage() {
                     {isSuperAdmin && u.id !== myId ? (
                       <select
                         value={u.role}
-                        onChange={e => {
-                          if (window.confirm(`Change ${u.full_name}'s role to ${ROLE_LABELS[e.target.value] ?? e.target.value}?`)) changeRole.mutate({ id: u.id, role: e.target.value })
+                        onChange={async e => {
+                          const role = e.target.value
+                          const ok = await confirmDialog({
+                            title: `Change ${u.full_name}'s role?`,
+                            description: `Their role will become ${ROLE_LABELS[role] ?? role}. This changes what they can access.`,
+                            confirmLabel: 'Change Role',
+                            tone: 'primary',
+                          })
+                          if (ok) changeRole.mutate({ id: u.id, role })
                         }}
                         className={cn('text-xs rounded px-1.5 py-0.5 border-0 font-medium cursor-pointer', ROLE_BADGE[u.role] ?? 'badge-gray')}
                       >
@@ -276,8 +284,13 @@ export default function AdminUsersPage() {
                   </td>
                   <td>
                     <button
-                      onClick={() => {
-                        if (u.is_active && !window.confirm(`Deactivate ${u.full_name}? They will no longer be able to sign in.`)) return
+                      onClick={async () => {
+                        if (u.is_active && !(await confirmDialog({
+                          title: `Deactivate ${u.full_name}?`,
+                          description: 'They will no longer be able to sign in until you activate the account again.',
+                          confirmLabel: 'Deactivate',
+                          tone: 'danger',
+                        }))) return
                         toggleActive.mutate({ id: u.id, is_active: !u.is_active })
                       }}
                       disabled={toggleActive.isPending || u.id === myId || (u.role === 'super_admin' && !isSuperAdmin)}

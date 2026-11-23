@@ -10,6 +10,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import AdminSchoolCoursesModal from './AdminSchoolCoursesModal'
+import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 interface Job {
@@ -461,7 +462,7 @@ export default function AdminJobsSchoolsPage() {
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => openJobEdit(j)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit"><Edit2 size={13} /></button>
                               <button
-                                onClick={() => window.confirm(`Delete "${j.title}"?`) && deleteJob.mutate(j.id)}
+                                onClick={async () => { if (await confirmDeletion({ what: 'job posting', name: j.title })) deleteJob.mutate(j.id) }}
                                 className="btn-danger btn-sm text-xs p-1.5"
                                 title="Delete"
                               >
@@ -538,7 +539,7 @@ export default function AdminJobsSchoolsPage() {
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => openScholarshipEdit(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit"><Edit2 size={13} /></button>
                               <button
-                                onClick={() => window.confirm(`Delete "${s.title}"?`) && deleteScholarship.mutate(s.id)}
+                                onClick={async () => { if (await confirmDeletion({ what: 'scholarship', name: s.title, note: 'If it already has applications, it is archived instead so the records stay.' })) deleteScholarship.mutate(s.id) }}
                                 className="btn-danger btn-sm text-xs p-1.5"
                                 title="Delete"
                               >
