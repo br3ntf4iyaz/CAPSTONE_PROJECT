@@ -20,6 +20,24 @@ async function getApi() {
   return loading
 }
 
+let realtime: Promise<typeof import('@vladmandic/face-api')> | null = null
+
+/** Small, fast detector + landmarks for the live camera guidance (a few hundred KB). */
+export async function loadRealtimeFaceApi() {
+  if (!realtime) {
+    realtime = (async () => {
+      const faceapi = await import('@vladmandic/face-api')
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+        faceapi.nets.faceLandmark68TinyNet.loadFromUri('/models'),
+      ])
+      return faceapi
+    })()
+    realtime.catch(() => { realtime = null })
+  }
+  return realtime
+}
+
 /** Start downloading the models early so the comparison is instant later. */
 export async function preloadFaceModels(): Promise<boolean> {
   try { await getApi(); return true } catch { return false }

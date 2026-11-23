@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ShieldCheck, Eye, X, CheckCircle2, XCircle,
-  Brain, AlertCircle, Download, CheckSquare,
+  Brain, AlertCircle, Download, CheckSquare, Settings2, RotateCcw,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SecureImage } from '@/components/ui/SecureImage'
@@ -34,6 +34,16 @@ interface VerificationRecord {
   id_back_image_url?: string | null
   selfie_image_url?: string | null
   ai_face_match?: boolean | null
+  auto_approved?: boolean
+  decision_flags?: string[]
+  flag_texts?: string[]
+  client_checks?: Record<string, Record<string, number | boolean>>
+  image_checks?: Record<string, { width: number; height: number; sharpness: number; brightness: number; glare: number } | null>
+  ocr_result?: {
+    ran?: boolean; confidence?: number; name_score?: number; keyword_found?: boolean; id_number_found?: boolean
+    id_number?: string; expiry_date?: string; expired?: boolean; text?: string
+  }
+  consent_at?: string | null
 }
 
 // ── Status helpers ─────────────────────────────────────────────────────────────
@@ -79,6 +89,14 @@ function ReviewModal({ record, onClose, onAction }: {
   })
 
   const canAct = record.status === 'pending' || record.status === 'reviewing' || record.status === 'rejected'
+  const [revoking, setRevoking] = useState(false)
+  const revoke = useMutation({
+    mutationFn: () => apiClient.patch(`/verification/admin/${record.id}/`, { status: 'rejected', admin_notes: notes }).then(r => r.data),
+    onSuccess: () => { toast.success('Verification revoked. The user can submit again.'); onAction(); onClose() },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not revoke'),
+  })
+  const ocr = record.ocr_result
+  const checks = record.client_checks ?? {}
   const confidencePct = record.ai_confidence != null ? Math.round(record.ai_confidence * 100) : null
 
   return (
@@ -168,6 +186,63 @@ function ReviewModal({ record, onClose, onAction }: {
           </div>
         )}
 
+        {/* Automatic checks */}
+        <div className="rounded-xl border border-ink-100 p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <p className="text-xs font-semibold text-ink-500 uppercase flex items-center gap-1.5">
+              <ShieldCheck size={12} /> Automatic checks
+            </p>
+            {record.auto_approved && <span className="text-xs font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5">Verified automatically</span>}
+          </div>
+
+          {(record.flag_texts?.length ?? 0) > 0 ? (
+            <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+              <p className="font-semibold mb-1">Why this needs a person:</p>
+              <ul className="list-disc pl-5 space-y-0.5">{record.flag_texts!.map(t => <li key={t}>{t}</li>)}</ul>
+            </div>
+          ) : record.auto_approved ? (
+            <p className="text-sm text-emerald-700">Every check passed.</p>
+          ) : (
+            <p className="text-sm text-ink-500">No automatic result was recorded for this submission.</p>
+          )}
+
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+            <div><dt className="text-xs text-ink-400">Overall confidence</dt><dd className="font-semibold">{confidencePct != null ? `${confidencePct}%` : '—'}</dd></div>
+            <div><dt className="text-xs text-ink-400">Blink (liveness)</dt><dd className="font-semibold">{checks.selfie?.liveness === true ? 'Confirmed' : 'Not confirmed'}</dd></div>
+            <div><dt className="text-xs text-ink-400">ID scanned live</dt><dd className="font-semibold">{checks.front?.cardDetected && checks.back?.cardDetected && !checks.front?.uploaded && !checks.back?.uploaded ? 'Yes, both sides' : 'No or partly'}</dd></div>
+            <div><dt className="text-xs text-ink-400">Consent given</dt><dd className="font-semibold">{record.consent_at ? formatDateTime(record.consent_at) : '—'}</dd></div>
+          </dl>
+
+          <div>
+            <p className="text-xs font-semibold text-ink-500 uppercase mb-1">Text read from the ID</p>
+            {ocr?.ran ? (
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                <div><dt className="text-xs text-ink-400">Name matches account</dt><dd className="font-semibold">{Math.round((ocr.name_score ?? 0) * 100)}%</dd></div>
+                <div><dt className="text-xs text-ink-400">ID number</dt><dd className="font-semibold break-all">{ocr.id_number ?? 'not found'}</dd></div>
+                <div><dt className="text-xs text-ink-400">Expiry date</dt><dd className={cn('font-semibold', ocr.expired && 'text-red-600')}>{ocr.expiry_date ? `${ocr.expiry_date}${ocr.expired ? ' (expired)' : ''}` : 'none found'}</dd></div>
+                <div><dt className="text-xs text-ink-400">Looks like the chosen ID</dt><dd className="font-semibold">{ocr.keyword_found ? 'Yes' : 'Not clear'}</dd></div>
+                {ocr.text && (
+                  <details className="col-span-2 text-xs text-ink-500">
+                    <summary className="cursor-pointer font-semibold text-primary-700">Show the text that was read</summary>
+                    <p className="mt-1 whitespace-pre-wrap break-words">{ocr.text}</p>
+                  </details>
+                )}
+              </dl>
+            ) : <p className="text-sm text-ink-500">The ID text could not be read automatically.</p>}
+          </div>
+
+          {record.image_checks && (
+            <div>
+              <p className="text-xs font-semibold text-ink-500 uppercase mb-1">Photo quality measured by the server</p>
+              <ul className="text-xs text-ink-600 space-y-0.5">
+                {Object.entries(record.image_checks).map(([k, v]) => (
+                  <li key={k} className="capitalize">{k}: {v ? `${v.width}×${v.height}px, detail ${v.sharpness}, brightness ${Math.round(v.brightness)}, glare ${Math.round(v.glare * 100)}%` : 'could not be analysed'}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
         {/* Previous admin notes */}
         {record.admin_notes && record.status === 'approved' && (
           <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-sm text-emerald-700">
@@ -199,6 +274,27 @@ function ReviewModal({ record, onClose, onAction }: {
           </div>
         )}
 
+        {record.status === 'approved' && (
+          <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 space-y-2">
+            {!revoking ? (
+              <button onClick={() => setRevoking(true)} className="text-sm font-semibold text-red-700 inline-flex items-center gap-1.5">
+                <RotateCcw size={14} /> Revoke this verification…
+              </button>
+            ) : (
+              <>
+                <label className="label">Reason for revoking (required, saved in the audit log)</label>
+                <textarea className="input min-h-[70px]" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why is this verification being taken back?" />
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setRevoking(false)} className="btn-secondary btn-sm">Cancel</button>
+                  <button onClick={() => revoke.mutate()} disabled={revoke.isPending || notes.trim().length < 5} className="btn-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
+                    {revoke.isPending ? 'Revoking…' : 'Revoke verification'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 justify-end pt-1">
           <button onClick={onClose} className="btn-secondary btn-sm">Close</button>
           {canAct && (
@@ -223,6 +319,46 @@ function ReviewModal({ record, onClose, onAction }: {
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Accepted ID types ──────────────────────────────────────────────────────────
+
+function AcceptedIdTypes() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const { data = [] } = useQuery<{ code: string; label: string; is_enabled: boolean }[]>({
+    queryKey: ['verification-admin-id-types'],
+    queryFn: () => apiClient.get('/verification/admin/id-types/').then(r => r.data),
+    enabled: open,
+  })
+  const toggle = useMutation({
+    mutationFn: ({ code, is_enabled }: { code: string; is_enabled: boolean }) =>
+      apiClient.patch(`/verification/admin/id-types/${code}/`, { is_enabled }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['verification-admin-id-types'] })
+      qc.invalidateQueries({ queryKey: ['verification-id-types'] })
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not update'),
+  })
+  return (
+    <div className="rounded-xl border border-ink-100 bg-white">
+      <button type="button" onClick={() => setOpen(o => !o)} className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-semibold text-ink-800">
+        <span className="inline-flex items-center gap-2"><Settings2 size={15} /> Accepted ID types</span>
+        <span className="text-xs text-primary-700">{open ? 'Hide' : 'Edit'}</span>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {data.map(t => (
+            <label key={t.code} className="flex items-center gap-2 text-sm text-ink-700 cursor-pointer">
+              <input type="checkbox" checked={t.is_enabled} onChange={e => toggle.mutate({ code: t.code, is_enabled: e.target.checked })} className="h-4 w-4" />
+              {t.label}
+            </label>
+          ))}
+          <p className="sm:col-span-2 text-xs text-ink-400">Youth can only choose the checked types. Already-submitted verifications are not affected.</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -379,6 +515,8 @@ export default function AdminVerificationPage() {
         </div>
       </div>
 
+      <AcceptedIdTypes />
+
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap">
         {TABS.map(t => {
@@ -497,8 +635,9 @@ export default function AdminVerificationPage() {
                     <td className="text-sm">{rec.id_type_display}</td>
                     <td>
                       <span className={cn('badge text-xs', STATUS_COLORS[rec.status] ?? 'badge-gray')}>
-                        {rec.status_display}
+                        {rec.status === 'approved' ? 'Verified' : rec.status === 'reviewing' ? 'Pending review' : rec.status_display}
                       </span>
+                      {rec.auto_approved && <span className="ml-1.5 text-[10px] font-semibold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5">Auto</span>}
                       <IntegrityBadge result={integrity?.results[String(rec.id)]} className="ml-1.5" intactLabel={rec.status === 'rejected' ? 'Record intact' : undefined} />
                     </td>
                     <td>

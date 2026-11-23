@@ -30,6 +30,8 @@ class IDVerification(models.Model):
         VOTERS_ID        = "voters_id",        "Voter's ID"
         PHILHEALTH       = "philhealth",       "PhilHealth ID"
         POSTAL           = "postal",           "Postal ID"
+        PRC              = "prc",              "PRC ID"
+        OTHER_GOV        = "other_gov",        "Other government-issued ID"
 
     user      = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -49,6 +51,14 @@ class IDVerification(models.Model):
     ai_name_match   = models.BooleanField(null=True, blank=True)     # did name on ID match account?
     ai_face_match   = models.BooleanField(null=True, blank=True)     # does the live selfie match the ID photo?
     ai_raw_response = models.TextField(blank=True)
+
+    # Automatic checks (all computed from the real submission, see decision.py)
+    client_checks  = models.JSONField(default=dict, blank=True)    # what the camera measured on the device
+    ocr_result     = models.JSONField(default=dict, blank=True)    # text read from the ID front
+    image_checks   = models.JSONField(default=dict, blank=True)    # what the server measured on the saved photos
+    decision_flags = models.JSONField(default=list, blank=True)    # reasons a submission needs a human
+    auto_approved  = models.BooleanField(default=False)
+    consent_at     = models.DateTimeField(null=True, blank=True)
 
     # Admin override
     admin_notes = models.TextField(blank=True)
@@ -72,3 +82,17 @@ class IDVerification(models.Model):
     @property
     def is_verified(self):
         return self.status == self.Status.APPROVED
+
+
+class IDTypeSetting(models.Model):
+    """Which government IDs are accepted. LYDO admins can switch types on or off."""
+    code       = models.CharField(max_length=30, unique=True)
+    label      = models.CharField(max_length=80)
+    is_enabled = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "label"]
+
+    def __str__(self):
+        return f"{self.label} ({'on' if self.is_enabled else 'off'})"

@@ -13,11 +13,13 @@ class IDVerificationSerializer(serializers.ModelSerializer):
             "id", "id_type", "id_type_display",
             "status", "status_display", "is_verified",
             "ai_confidence", "ai_notes", "ai_verdict", "ai_face_match",
+            "decision_flags", "auto_approved",
             "admin_notes",
             "submitted_at", "updated_at",
         ]
         read_only_fields = [
             "status", "ai_confidence", "ai_notes", "ai_verdict",
+            "decision_flags", "auto_approved",
             "admin_notes", "submitted_at", "updated_at",
         ]
 
