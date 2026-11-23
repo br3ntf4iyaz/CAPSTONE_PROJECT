@@ -184,13 +184,13 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
         goodSince.current = 0
         holdDone.current = 0
         lastFace.current = null
-        return setSafe({ text: 'No face detected. Look at the camera.', tone: 'warn' }, false)
+        return setSafe({ text: 'We cannot see your face yet. Please look at the camera.', tone: 'warn' }, false)
       }
       if (res.length > 1) {
         goodSince.current = 0
         holdDone.current = 0
         lastFace.current = null
-        return setSafe({ text: 'Only one face should be visible.', tone: 'warn' }, false)
+        return setSafe({ text: 'Please make sure only your face is in view.', tone: 'warn' }, false)
       }
 
       // Liveness evidence is collected on EVERY frame with one face, not only at the end of
@@ -246,9 +246,9 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
       if (!liveRef.current) {
         if (now - holdDone.current > FALLBACK_MS) {
           setFallback(true)
-          return setSafe({ text: 'Could not confirm you are live. You can still capture; an admin will review it.', tone: 'warn' }, true)
+          return setSafe({ text: 'Almost done! You can take your photo now. The LYDO team will quickly double-check it.', tone: 'warn' }, true)
         }
-        return setSafe({ text: 'Blink once, or slowly turn your head', tone: 'info' }, false)
+        return setSafe({ text: 'Almost there! Please blink once or slowly turn your head.', tone: 'info' }, false)
       }
       setSafe({ text: 'Face Detected. Ready to capture.', tone: 'good' }, true)
     }
@@ -278,7 +278,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
         lastCard.current = null
         if (now - lostSince.current > FALLBACK_MS) {
           setFallback(true)
-          return setSafe({ text: 'Could not find the ID edges. Keep the whole ID in the frame, then capture; an admin will review it.', tone: 'warn' }, true)
+          return setSafe({ text: 'Having trouble detecting your ID? Keep the whole card in the frame and take the photo. The LYDO team will check it.', tone: 'warn' }, true)
         }
         return setSafe({ text: 'Place the whole ID inside the frame', tone: 'warn' }, false)
       }
@@ -333,7 +333,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
         // detector hiccup: keep going, the user can still use the fallback below
         if (!cancelled && performance.now() - startedAt.current > FALLBACK_MS) {
           setFallback(true)
-          setSafe({ text: 'Automatic guidance is unavailable. You can capture manually; an admin will review it.', tone: 'warn' }, true)
+          setSafe({ text: 'Guidance is not available right now. You can still take the photo; the LYDO team will check it.', tone: 'warn' }, true)
         }
       }
       if (!cancelled) timer = setTimeout(loop, kind === 'face' ? 0 : 160)
@@ -472,7 +472,6 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
           playsInline
           muted
           className="w-full h-full object-cover"
-          style={facing === 'user' ? { transform: 'scaleX(-1)' } : undefined}
         />
 
         {camReady && frame && (
@@ -490,7 +489,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
             </div>
             {kind === 'face' && holdDone.current > 0 && !liveRef.current && eyes && (
               <p className="mt-1.5 text-center text-xs text-white/90">
-                {eyes === 'closed' ? 'Eyes closed. Now open them.' : 'Eyes detected. Blink slowly once.'}
+                {eyes === 'closed' ? 'Great! Now open your eyes.' : 'We can see your eyes. Blink slowly once.'}
               </p>
             )}
             {hint.progress !== undefined && (
@@ -516,7 +515,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
 
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" disabled={!camReady || !ready} onClick={snap} className="btn-primary inline-flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
-          <Camera size={16} /> {fallback ? 'Capture anyway' : 'Capture'}
+          <Camera size={16} /> Capture
         </button>
         {allowUpload && (
           <>

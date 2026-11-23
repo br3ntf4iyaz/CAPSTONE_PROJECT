@@ -88,7 +88,7 @@ FLAG_TEXT = {
     "back_unreadable": "The back of the ID is not clear enough.",
     "selfie_quality": "The selfie is too dark or too small.",
     "no_live_scan": "The ID was not scanned live with the camera.",
-    "liveness_failed": "A live blink could not be confirmed.",
+    "liveness_failed": "The quick live check (blink or head turn) could not be completed.",
     "face_mismatch": "The selfie does not match the ID photo.",
     "face_uncertain": "The face match is not certain enough.",
     "face_unchecked": "The face comparison could not be completed.",

@@ -41,7 +41,7 @@ const FLAG_MESSAGES: Record<string, string> = {
   back_unreadable: "We couldn't clearly read the back of your ID.",
   selfie_quality: 'The selfie was too dark or too small.',
   no_live_scan: 'The ID was not scanned live with the camera.',
-  liveness_failed: 'We could not confirm a live blink during the face scan.',
+  liveness_failed: 'The quick live check (blink or head turn) could not be completed, so the LYDO team will take a look.',
   face_mismatch: 'The face in your selfie does not sufficiently match the photo on your ID.',
   face_uncertain: 'The face match was not certain enough to approve automatically.',
   face_unchecked: 'The face comparison could not be completed on your device.',
