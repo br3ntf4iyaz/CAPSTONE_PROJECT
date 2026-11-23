@@ -73,6 +73,19 @@ class LmsFlowTests(APITestCase):
             'enrollment_id': enrollment.id, 'lesson_id': lesson.id,
             'answers': answers if answers is not None else answers_for(lesson, wrong)}, format='json')
 
+    def test_a_failed_attempt_never_reveals_the_answer_key_but_a_pass_does(self):
+        lesson = self.lessons[0]
+        r = self.submit(lesson, wrong=lesson.questions.count())
+        self.assertFalse(r.data['passed'])
+        self.assertTrue(r.data['answers'])
+        for a in r.data['answers']:
+            self.assertFalse(a['is_correct'])
+            self.assertIsNone(a['correct_choice_id'])
+            self.assertEqual(a['explanation'], '')
+        r = self.submit(lesson)
+        self.assertTrue(r.data['passed'])
+        self.assertTrue(all(a['correct_choice_id'] for a in r.data['answers']))
+
     def finish_course(self):
         for lesson in self.lessons:
             self.assertTrue(self.submit(lesson).data['passed'])

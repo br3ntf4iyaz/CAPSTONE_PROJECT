@@ -548,6 +548,11 @@ class LessonViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         max_score = len(questions)
         threshold = progress.passing_score_for(lesson)
         did_pass = progress.passed(score, max_score, threshold)
+        if not did_pass:
+            # closed-book: a failed attempt shows which answers were wrong, never the answer key
+            for a in result_answers:
+                a['correct_choice_id'] = None
+                a['explanation'] = ''
         with transaction.atomic():
             attempt = QuizAttempt.objects.create(
                 enrollment=enrollment, lesson=lesson, score=score, max_score=max_score, passed=did_pass)

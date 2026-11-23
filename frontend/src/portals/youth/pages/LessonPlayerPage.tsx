@@ -1,9 +1,9 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Award, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, HelpCircle, Lock, Menu, X, AlertCircle,
-  ArrowLeft, RotateCcw, ScrollText, FileText, Eye,
+  ArrowLeft, RotateCcw, ScrollText, FileText, Eye, PenLine, Check, Keyboard,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
@@ -89,6 +89,8 @@ export default function LessonPlayerPage() {
   const [showSidebar, setShowSidebar] = useState(false)
   const [videoPercent, setVideoPercent] = useState<number | null>(null)
   const [videoDone, setVideoDone] = useState(false)
+  // closed-book mode: while the learner answers, the notes, study links and video are not shown
+  const [quizOpen, setQuizOpen] = useState(false)
 
   const enrollmentsQ = useQuery({
     queryKey: ['my-enrollments'],
@@ -113,7 +115,7 @@ export default function LessonPlayerPage() {
   })
 
   // a different lesson starts with a clean video status
-  useEffect(() => { setVideoPercent(null); setVideoDone(false) }, [lessonId])
+  useEffect(() => { setVideoPercent(null); setVideoDone(false); setQuizOpen(false) }, [lessonId])
 
   const state = stateQ.data
   const flat: StateLesson[] = useMemo(
@@ -248,8 +250,10 @@ export default function LessonPlayerPage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wider text-primary-700 mb-1">Lesson {idx + 1} of {flat.length}</p>
               <h1 className="font-display font-bold text-2xl text-ink-900">{lesson.title}</h1>
-              {lesson.duration_minutes ? <p className="text-sm text-ink-500 mt-1">{lesson.duration_minutes} min</p> : null}
+              {lesson.duration_minutes && !quizOpen ? <p className="text-sm text-ink-500 mt-1">{lesson.duration_minutes} min</p> : null}
             </div>
+
+            {!quizOpen && (<>
 
             {lesson.video_title && hasVideo && (
               <p className="-mb-4 text-sm font-semibold text-ink-800">Watch: <span className="font-bold">{lesson.video_title}</span></p>
@@ -309,8 +313,13 @@ export default function LessonPlayerPage() {
               </section>
             )}
 
+            </>)}
+
             {/* ── Assessment ──────────────────────────────────────────── */}
-            {lesson.questions.length > 0 && (completed || requirementMet) && (
+            {lesson.questions.length > 0 && !completed && requirementMet && !quizOpen && (
+              <StartCard count={lesson.questions.length} passing={lesson.passing_score} onStart={() => setQuizOpen(true)} />
+            )}
+            {lesson.questions.length > 0 && quizOpen && (
               <Assessment
                 key={lesson.id}
                 lesson={lesson}
@@ -320,8 +329,10 @@ export default function LessonPlayerPage() {
                 courseId={courseId!}
                 certificateName={state.certificate_name}
                 onChanged={refresh}
+                onExit={() => setQuizOpen(false)}
               />
             )}
+            {lesson.questions.length > 0 && completed && !quizOpen && <CompletedBanner next={next} courseId={courseId!} />}
             {lesson.questions.length === 0 && !completed && requirementMet && (
               <NoQuizComplete enrollmentId={enrollment.id} lessonId={lesson.id} onDone={refresh} />
             )}
@@ -354,8 +365,37 @@ export default function LessonPlayerPage() {
 
 // ─── Assessment ───────────────────────────────────────────────────────────────
 
+function shuffled<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+const buildOrder = (qs: Question[]): Question[] => shuffled(qs).map(q => ({ ...q, choices: shuffled(q.choices) }))
+
+function StartCard({ count, passing, onStart }: { count: number; passing: number; onStart: () => void }) {
+  return (
+    <section className="rounded-3xl border-2 border-primary-200 bg-gradient-to-br from-primary-50 to-white p-6 sm:p-7">
+      <div className="flex items-start gap-4">
+        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary-600 text-white"><PenLine size={22} /></span>
+        <div className="min-w-0">
+          <h2 className="font-display text-xl font-bold text-ink-900">Ready for the assessment?</h2>
+          <ul className="mt-2 space-y-1 text-sm text-ink-700">
+            <li>{count} question{count > 1 ? 's' : ''}. You need <strong>{passing}%</strong> to pass and unlock the next lesson.</li>
+            <li><strong>Closed book:</strong> the notes, study links and video are hidden while you answer.</li>
+            <li>Questions and choices are shuffled every attempt. You can retake it if you do not pass.</li>
+          </ul>
+          <button type="button" className="btn-primary mt-4 gap-2" onClick={onStart}>Start Assessment <ChevronRight size={16} /></button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function Assessment({
-  lesson, enrollmentId, completed, next, courseId, certificateName, onChanged,
+  lesson, enrollmentId, completed, next, courseId, certificateName, onChanged, onExit,
 }: {
   lesson: LessonDetail
   enrollmentId: number
@@ -364,11 +404,14 @@ function Assessment({
   courseId: string
   certificateName: string
   onChanged: () => void
+  onExit: () => void
 }) {
-  const questions = useMemo(() => [...lesson.questions].sort((a, b) => a.order - b.order || a.id - b.id), [lesson.questions])
+  // fixed for the whole attempt (a background refetch must not reshuffle it); a retake builds a new order
+  const [questions, setQuestions] = useState<Question[]>(() => buildOrder(lesson.questions))
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [result, setResult] = useState<QuizResult | null>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
 
   const submit = useMutation({
     mutationFn: () => apiClient.post(`/courses/lessons/${lesson.id}/submit-quiz/`, {
@@ -385,37 +428,71 @@ function Assessment({
     onError: e => toast.error(apiMessage(e, 'Could not submit the assessment.')),
   })
 
-  const retry = () => { setAnswers({}); setStep(0); setResult(null) }
+  const retry = () => { setQuestions(buildOrder(lesson.questions)); setAnswers({}); setStep(0); setResult(null) }
+
+  const q = questions[step]
+  const chosen = q ? (answers[q.id] ?? null) : null
+  const last = step === questions.length - 1
+  const allAnswered = Object.keys(answers).length >= questions.length
+
+  // keep the card in view (nearest: no jump to the top of the page)
+  useEffect(() => { cardRef.current?.scrollIntoView({ block: result ? 'start' : 'nearest', behavior: 'smooth' }) }, [step, result])
+
+  // keyboard: A-D to choose, Enter for the next question
+  useEffect(() => {
+    if (result || !q) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const t = e.target as HTMLElement | null
+      if (t && t.tagName === 'BUTTON') return
+      const i = ['a', 'b', 'c', 'd', 'e', 'f'].indexOf(e.key.toLowerCase())
+      if (i >= 0 && i < q.choices.length) { setAnswers(p => ({ ...p, [q.id]: q.choices[i].id })); return }
+      if (e.key === 'Enter' && chosen !== null && !last) { e.preventDefault(); setStep(x => x + 1) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [q, result, chosen, last])
 
   if (completed && !result) return <CompletedBanner next={next} courseId={courseId} />
 
   if (result) {
+    const showKey = result.passed
     return (
-      <section className="space-y-5" aria-live="polite">
-        <Result result={result} next={next} courseId={courseId} onRetry={retry} certificateName={certificateName} />
+      <section ref={cardRef} className="space-y-5" aria-live="polite">
+        <Result result={result} next={next} courseId={courseId} onRetry={retry} onExit={onExit} certificateName={certificateName} />
         <div className="space-y-3">
-          <h3 className="font-semibold text-ink-900">Your answers</h3>
-          {questions.map((q, i) => {
-            const a = result.answers.find(x => x.question_id === q.id)
+          <h3 className="font-semibold text-ink-900">{showKey ? 'Your answers' : 'How you did'}</h3>
+          {!showKey && <p className="text-sm text-ink-500">Correct answers are shown once you pass. Go back to the lesson, study again, then retake the assessment.</p>}
+          {questions.map((qq, i) => {
+            const a = result.answers.find(x => x.question_id === qq.id)
+            const pickedChoice = qq.choices.find(c => c.id === a?.selected_choice_id)
             return (
-              <div key={q.id} className={cn('rounded-2xl border p-4', a?.is_correct ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40')}>
-                <p className="text-sm font-semibold text-ink-900 mb-2">{i + 1}. {q.text}</p>
-                <ul className="space-y-1.5">
-                  {q.choices.map((c, ci) => {
-                    const picked = a?.selected_choice_id === c.id
-                    const right = a?.correct_choice_id === c.id
-                    return (
-                      <li key={c.id} className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
-                        right ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : picked ? 'border-red-300 bg-red-50 text-red-800' : 'border-ink-100 bg-white text-ink-600')}>
-                        <span className="font-bold">{LETTERS[ci]}.</span><span className="flex-1">{c.text}</span>
-                        {right && <span className="text-[11px] font-bold">Correct answer</span>}
-                        {picked && !right && <span className="text-[11px] font-bold">Your answer</span>}
-                        {picked && right && <span className="text-[11px] font-bold">Your answer</span>}
-                      </li>
-                    )
-                  })}
-                </ul>
-                {a?.explanation && <p className="mt-2 text-xs text-ink-600"><strong>Explanation:</strong> {a.explanation}</p>}
+              <div key={qq.id} className={cn('rounded-2xl border p-4', a?.is_correct ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40')}>
+                <div className="mb-2 flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-ink-900">{i + 1}. {qq.text}</p>
+                  <span className={cn('inline-flex shrink-0 items-center gap-1 text-xs font-bold', a?.is_correct ? 'text-emerald-700' : 'text-red-700')}>
+                    {a?.is_correct ? <CheckCircle2 size={14} /> : <X size={14} />} {a?.is_correct ? 'Correct' : 'Incorrect'}
+                  </span>
+                </div>
+                {showKey ? (
+                  <ul className="space-y-1.5">
+                    {qq.choices.map((c, ci) => {
+                      const picked = a?.selected_choice_id === c.id
+                      const right = a?.correct_choice_id === c.id
+                      return (
+                        <li key={c.id} className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                          right ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : picked ? 'border-red-300 bg-red-50 text-red-800' : 'border-ink-100 bg-white text-ink-600')}>
+                          <span className="font-bold">{LETTERS[ci]}.</span><span className="flex-1">{c.text}</span>
+                          {right && <span className="text-[11px] font-bold">Correct answer</span>}
+                          {picked && <span className="text-[11px] font-bold">Your answer</span>}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-ink-600">Your answer: <span className="font-semibold">{pickedChoice?.text ?? 'none'}</span></p>
+                )}
+                {showKey && a?.explanation && <p className="mt-2 text-xs text-ink-600"><strong>Explanation:</strong> {a.explanation}</p>}
               </div>
             )
           })}
@@ -424,46 +501,55 @@ function Assessment({
     )
   }
 
-  const q = questions[step]
-  const chosen = answers[q.id] ?? null
-  const last = step === questions.length - 1
+  if (!q) return null
   return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-2">
-        <HelpCircle size={20} className="text-primary-600" />
-        <h2 className="font-display font-bold text-lg text-ink-900">Lesson Assessment</h2>
-      </div>
-      <p className="text-sm text-ink-500 bg-ink-50 rounded-xl px-4 py-3">
-        Answer every question. You need <strong>{lesson.passing_score}%</strong> to pass and unlock the next lesson. You can retake it if you do not pass.
-      </p>
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-ink-500 uppercase tracking-wider">Question {step + 1} of {questions.length}</span>
-        <div className="flex gap-1" aria-hidden>
-          {questions.map((x, i) => (
-            <span key={x.id} className={cn('h-1.5 w-6 rounded-full', i === step ? 'bg-primary-600' : answers[x.id] ? 'bg-primary-300' : 'bg-ink-200')} />
-          ))}
+    <section ref={cardRef} className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-white"><HelpCircle size={18} /></span>
+          <div>
+            <h2 className="font-display text-lg font-bold leading-tight text-ink-900">Lesson Assessment</h2>
+            <p className="text-xs text-ink-500">Closed book · pass with {lesson.passing_score}%</p>
+          </div>
         </div>
+        <span className="rounded-full bg-primary-50 px-3 py-1 text-xs font-bold text-primary-700">{Object.keys(answers).length}/{questions.length} answered</span>
       </div>
-      <fieldset className="rounded-2xl border border-ink-200 overflow-hidden">
+
+      <div className="h-1.5 overflow-hidden rounded-full bg-ink-100" role="progressbar" aria-valuemin={0} aria-valuemax={questions.length} aria-valuenow={step + 1}>
+        <div className="h-full rounded-full bg-primary-600 transition-all" style={{ width: `${((step + 1) / questions.length) * 100}%` }} />
+      </div>
+
+      <fieldset className="overflow-hidden rounded-3xl border border-ink-200 bg-white shadow-sm">
         <legend className="sr-only">Question {step + 1}</legend>
-        <div className="p-4 bg-ink-50 border-b border-ink-100"><p className="font-semibold text-ink-900 text-sm leading-snug">{q.text}</p></div>
-        <ul className="p-3 space-y-2">
-          {q.choices.map((c, ci) => (
-            <li key={c.id}>
-              <label className={cn('flex w-full cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors',
-                chosen === c.id ? 'bg-primary-50 border-primary-500' : 'bg-white border-ink-200 hover:border-primary-300 hover:bg-primary-50')}>
-                <input type="radio" className="sr-only" name={`q-${q.id}`} checked={chosen === c.id} onChange={() => setAnswers(p => ({ ...p, [q.id]: c.id }))} />
-                <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold', chosen === c.id ? 'bg-primary-600 text-white' : 'bg-ink-100 text-ink-600')}>{LETTERS[ci]}</span>
-                <span>{c.text}</span>
-              </label>
-            </li>
-          ))}
+        <div className="border-b border-ink-100 bg-ink-50 p-5">
+          <p className="mb-1 text-[11px] font-bold uppercase tracking-wider text-primary-700">Question {step + 1} of {questions.length}</p>
+          <p className="text-base font-semibold leading-snug text-ink-900">{q.text}</p>
+        </div>
+        <ul className="space-y-2.5 p-4">
+          {q.choices.map((c, ci) => {
+            const on = chosen === c.id
+            return (
+              <li key={c.id}>
+                <label className={cn('relative flex w-full cursor-pointer items-center gap-3 rounded-2xl border-2 px-4 py-3.5 text-sm font-medium transition-colors focus-within:ring-2 focus-within:ring-primary-300',
+                  on ? 'border-primary-500 bg-primary-50 text-ink-900' : 'border-ink-200 bg-white text-ink-800 hover:border-primary-300 hover:bg-primary-50/60')}>
+                  <input type="radio" className="sr-only" name={`q-${q.id}`} checked={on}
+                    onChange={() => setAnswers(p => ({ ...p, [q.id]: c.id }))} />
+                  <span className={cn('flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold', on ? 'bg-primary-600 text-white' : 'bg-ink-100 text-ink-600')}>
+                    {on ? <Check size={14} /> : LETTERS[ci]}
+                  </span>
+                  <span className="flex-1 leading-snug">{c.text}</span>
+                </label>
+              </li>
+            )
+          })}
         </ul>
       </fieldset>
+
       <div className="flex items-center justify-between gap-3">
         <button type="button" className="btn-secondary btn-sm" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</button>
+        <div className="hidden items-center gap-1.5 text-[11px] text-ink-400 sm:flex"><Keyboard size={13} /> Press A–D to answer, Enter for next</div>
         {last ? (
-          <button type="button" className="btn-primary" disabled={chosen === null || submit.isPending || Object.keys(answers).length < questions.length} onClick={() => submit.mutate()}>
+          <button type="button" className="btn-primary" disabled={chosen === null || submit.isPending || !allAnswered} onClick={() => submit.mutate()}>
             {submit.isPending ? 'Submitting...' : 'Submit Assessment'}
           </button>
         ) : (
@@ -475,8 +561,8 @@ function Assessment({
 }
 
 function Result({
-  result, next, courseId, onRetry, certificateName,
-}: { result: QuizResult; next: StateLesson | null; courseId: string; onRetry: () => void; certificateName: string }) {
+  result, next, courseId, onRetry, onExit, certificateName,
+}: { result: QuizResult; next: StateLesson | null; courseId: string; onRetry: () => void; onExit: () => void; certificateName: string }) {
   if (result.course_completed) {
     return (
       <div className="rounded-3xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-white p-6 text-center space-y-3">
@@ -502,7 +588,10 @@ function Result({
             <p className="text-sm text-emerald-700">{result.score}/{result.max_score} correct ({result.percent}%). Passing score: {result.passing_score}%.</p>
           </div>
         </div>
-        {next && <Link to={`/lms/${courseId}/lesson/${next.id}`} className="btn-primary btn-sm inline-flex gap-1">Next Lesson <ChevronRight size={14} /></Link>}
+        <div className="flex flex-wrap gap-2">
+          {next && <Link to={`/lms/${courseId}/lesson/${next.id}`} className="btn-primary btn-sm inline-flex gap-1">Next Lesson <ChevronRight size={14} /></Link>}
+          <button type="button" onClick={onExit} className="btn-secondary btn-sm gap-1"><BookOpen size={13} /> Back to the lesson</button>
+        </div>
       </div>
     )
   }
@@ -515,8 +604,11 @@ function Result({
           <p className="text-sm text-red-700">{result.score}/{result.max_score} correct ({result.percent}%). You need {result.passing_score}% to unlock the next lesson.</p>
         </div>
       </div>
-      <p className="text-sm text-red-800 mb-3">Check the correct answers below, review the lesson notes, then try again. Your earlier attempts are kept.</p>
-      <button type="button" onClick={onRetry} className="btn-secondary btn-sm gap-1"><RotateCcw size={13} /> Retake Assessment</button>
+      <p className="text-sm text-red-800 mb-3">Study the lesson again, then retake the assessment. Your earlier attempts are kept.</p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" onClick={onExit} className="btn-primary btn-sm gap-1"><BookOpen size={13} /> Review the lesson</button>
+        <button type="button" onClick={onRetry} className="btn-secondary btn-sm gap-1"><RotateCcw size={13} /> Retake Assessment</button>
+      </div>
     </div>
   )
 }
