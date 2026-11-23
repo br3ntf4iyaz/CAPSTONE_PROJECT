@@ -10,7 +10,7 @@ import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import CameraCapture from '../components/CameraCapture'
 import { compareFaces, preloadFaceModels, type FaceMatchResult } from '@/utils/faceMatch'
-import { shrinkImage } from '@/utils/shrinkImage'
+import { flipHorizontal, shrinkImage } from '@/utils/shrinkImage'
 import { readIdFront, type OcrSummary } from '@/utils/idOcr'
 import { useAuthStore } from '@/store/authStore'
 import type { CaptureMeta } from '../components/CameraCapture'
@@ -115,10 +115,15 @@ export default function VerifyIdentityPage() {
     if (!front || !selfie) return
     let cancelled = false
     setChecking(true)
-    compareFaces(front, selfie).then(r => {
-      if (!cancelled) { setMatch(r); setChecking(false) }
-    })
+    // The stored selfie is mirrored like the preview was; match it the natural way round, as on the ID.
+    const prepare = metas.selfie?.mirrored ? flipHorizontal(selfie) : Promise.resolve(selfie)
+    prepare
+      .then(natural => compareFaces(front, natural))
+      .then(r => {
+        if (!cancelled) { setMatch(r); setChecking(false) }
+      })
     return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [front, selfie])
 
   // Read the text on the ID front (on this device) as soon as it is captured

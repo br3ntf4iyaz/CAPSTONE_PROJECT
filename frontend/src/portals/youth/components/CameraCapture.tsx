@@ -20,6 +20,8 @@ export interface CaptureMeta {
   liveness?: boolean
   /** face: how much of the frame the face fills (0..1) */
   faceFill?: number
+  /** face: the saved selfie is mirrored, exactly like the preview the person saw */
+  mirrored?: boolean
 }
 
 interface Props {
@@ -401,6 +403,12 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
     canvas.height = Math.round(crop.h * scale)
     const ctx = canvas.getContext('2d', { willReadFrequently: true })
     if (!ctx) return
+    if (kind === 'face') {
+      // The live preview is shown like a mirror, so save the picture the same way round:
+      // what the person sees is exactly what is stored.
+      ctx.translate(canvas.width, 0)
+      ctx.scale(-1, 1)
+    }
     if (kind === 'card') {
       // gentle auto-brightness / contrast so the text is easier to read
       const m = lastExposure.current.mean || 150
@@ -409,6 +417,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
     }
     ctx.drawImage(v, crop.x, crop.y, crop.w, crop.h, 0, 0, canvas.width, canvas.height)
     ctx.filter = 'none'
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
 
     // metrics of what is actually being saved
     const small = document.createElement('canvas')
@@ -433,7 +442,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
       brightness: Math.round(bright),
       glare: Math.round(glare * 1000) / 1000,
       ...(kind === 'card' ? { cardDetected: !fallback && !!lastCard.current } : {}),
-      ...(kind === 'face' ? { liveness: liveRef.current, faceFill: Math.round((lastFace.current?.fill ?? 0) * 100) / 100 } : {}),
+      ...(kind === 'face' ? { liveness: liveRef.current, faceFill: Math.round((lastFace.current?.fill ?? 0) * 100) / 100, mirrored: true } : {}),
     }
 
     canvas.toBlob(
@@ -472,6 +481,7 @@ export default function CameraCapture({ facing, label, guide: kind, allowUpload 
           playsInline
           muted
           className="w-full h-full object-cover"
+          style={facing === 'user' ? { transform: 'scaleX(-1)' } : undefined}
         />
 
         {camReady && frame && (
