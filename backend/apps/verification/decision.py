@@ -21,6 +21,8 @@ from PIL import Image, ImageChops, ImageFilter, ImageStat
 
 # strictest face distance we accept for AUTOMATIC approval (the browser's "same person" limit is 0.6)
 FACE_DISTANCE_AUTO_MAX = 0.5
+# when the blink/head-turn was not captured, the face match must be at least this good
+FACE_DISTANCE_BALANCED_MAX = 0.45
 NAME_SCORE_MIN = 0.75
 
 ID_MIN_SHORT_SIDE = 380
@@ -32,6 +34,17 @@ SELFIE_MIN_SHARPNESS = 0.8
 
 def auto_approve_enabled() -> bool:
     return str(os.getenv("VERIFICATION_AUTO_APPROVE", "True")).lower() in ("1", "true", "yes")
+
+
+def verification_mode() -> str:
+    """
+    'balanced' (default): a missing blink/head-turn is not a reason to wait for an admin when every other
+        check is strong (clear photos, ID scanned live, face match 0.45 or better, name and ID type read
+        correctly). The result is recorded as "approved without the live check" so admins can audit it.
+    'strict': the live check is always required; anything without it goes to an admin.
+    """
+    mode = str(os.getenv("VERIFICATION_MODE", "balanced")).lower()
+    return mode if mode in ("balanced", "strict") else "balanced"
 
 
 def confidence_threshold() -> float:
@@ -178,9 +191,26 @@ def evaluate(v, face_distance, face_matched) -> dict:
         if not ocr.get("keyword_found") and not ocr.get("id_number_found"):
             flags.append("unrecognized_id")
 
+    # Balanced mode: a quick/unsuccessful blink alone should not send a clearly legitimate user to an admin.
+    quality_all_good = all(
+        images[k] is not None and _quality_ok(images[k], "id" if k != "selfie" else "selfie") for k in images
+    )
+    live_skipped = False
+    if (
+        "liveness_failed" in flags
+        and verification_mode() == "balanced"
+        and face_ok
+        and face_distance is not None and face_distance <= FACE_DISTANCE_BALANCED_MAX
+        and ocr.get("ran") and name_score >= 0.9 and ocr.get("keyword_found")
+        and "no_live_scan" not in flags
+        and quality_all_good
+    ):
+        flags.remove("liveness_failed")
+        live_skipped = True
+
     # combined confidence (0..1)
     face_score = 0.0 if face_distance is None else max(0.0, min(1.0, (0.6 - face_distance) / 0.25))
-    live_score = 1.0 if cc.get("selfie", {}).get("liveness") else 0.0
+    live_score = 1.0 if cc.get("selfie", {}).get("liveness") else (0.6 if live_skipped else 0.0)
     good = [images[k] is not None and _quality_ok(images[k], "id" if k != "selfie" else "selfie") for k in images]
     quality_score = sum(good) / len(good)
     ocr_score = 0.0
@@ -200,5 +230,6 @@ def evaluate(v, face_distance, face_matched) -> dict:
         "flags": sorted(set(flags)),
         "image_checks": images,
         "auto": auto,
+        "live_skipped": live_skipped and auto,
     }
 

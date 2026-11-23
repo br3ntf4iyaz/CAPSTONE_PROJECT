@@ -182,7 +182,13 @@ class VerificationSubmitView(APIView):
                 v.reviewed_at = timezone.now()
                 v.ai_verdict = "approved"
                 v.admin_notes = "Verified automatically: all checks passed."
-                v.ai_notes = "Automatic verification passed (confidence %d%%)." % round(decision["confidence"] * 100)
+                if decision.get("live_skipped"):
+                    v.ai_notes = (
+                        "Verified automatically WITHOUT the blink/head-turn check, because the face, name and ID all matched "
+                        "strongly and the photos were clear (confidence %d%%)." % round(decision["confidence"] * 100)
+                    )
+                else:
+                    v.ai_notes = "Automatic verification passed (confidence %d%%)." % round(decision["confidence"] * 100)
             else:
                 v.ai_verdict = "needs review"
                 reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"]) or "Needs a manual check."
@@ -203,7 +209,7 @@ def _notify_and_audit(request, v):
             AuditLog.objects.create(
                 user=request.user, action="verification_auto_approved", model_name="IDVerification", object_id=v.pk,
                 ip_address=get_client_ip(request),
-                details={"confidence": v.ai_confidence, "flags": v.decision_flags},
+                details={"confidence": v.ai_confidence, "flags": v.decision_flags, "live_check_skipped": "WITHOUT the blink" in (v.ai_notes or "")},
             )
             Notification.objects.create(
                 user=request.user, title="Identity verified",

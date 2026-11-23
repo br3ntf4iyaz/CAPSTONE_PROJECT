@@ -1,8 +1,10 @@
 import io
 import json
+import os
 import random
 import shutil
 import tempfile
+from unittest import mock
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -94,7 +96,8 @@ class AutomaticDecisionTests(TestCase):
 
     def test_each_weak_signal_goes_to_a_human_and_nothing_is_rejected(self):
         cases = {
-            "liveness_failed": dict(checks={**GOOD_CHECKS, "selfie": {"liveness": False}}),
+            # no blink AND only an average face match: balanced mode still wants a person to look
+            "liveness_failed": dict(checks={**GOOD_CHECKS, "selfie": {"liveness": False}}, dist="0.48"),
             "face_mismatch": dict(dist="0.78", matched="false"),
             "face_uncertain": dict(dist="0.57"),
             "front_unreadable": dict(front=_busy_image(blur=7)),
@@ -111,6 +114,21 @@ class AutomaticDecisionTests(TestCase):
                 self.assertEqual(r.data["status"], "reviewing")
                 self.assertFalse(r.data["auto_approved"])
                 self.assertIn(flag, r.data["decision_flags"])
+
+    def test_missing_blink_is_fine_in_balanced_mode_when_everything_else_is_strong(self):
+        _, client = self._client()
+        r = self._submit(client, checks={**GOOD_CHECKS, "selfie": {"liveness": False}})
+        self.assertEqual(r.data["status"], "approved")
+        self.assertTrue(r.data["auto_approved"])
+        record = IDVerification.objects.get(pk=r.data["id"])
+        self.assertIn("WITHOUT the blink", record.ai_notes)  # admins can see (and audit) that the live check was skipped
+
+    def test_strict_mode_always_requires_the_live_check(self):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "strict"}):
+            _, client = self._client()
+            r = self._submit(client, checks={**GOOD_CHECKS, "selfie": {"liveness": False}})
+        self.assertEqual(r.data["status"], "reviewing")
+        self.assertIn("liveness_failed", r.data["decision_flags"])
 
     def test_forged_or_missing_device_results_never_auto_approve(self):
         _, client = self._client()
