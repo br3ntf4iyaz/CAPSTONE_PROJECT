@@ -7,15 +7,21 @@ Every signal below is measured from the real submission:
     sent with the submission
   * ID text: read on the device with OCR and sent with the submission
 
-A submission is approved automatically ONLY when every hard check passes and the combined
-confidence reaches the configured threshold. Anything uncertain goes to a LYDO admin; nothing is
-ever rejected automatically.
+Modes (VERIFICATION_MODE):
+  fast      (default) approve right away unless there is a HARD red flag (the face clearly does not match,
+            the ID is expired or unsupported, the name on it clearly belongs to someone else, or a photo is
+            unreadable). Smaller doubts (no blink, ID text could not be read, face match only fair, ...) do
+            not make the user wait: they are approved and listed for an admin "spot check", who can revoke.
+  balanced  every check must pass; only a missing blink is forgiven when everything else is strong.
+  strict    every check must pass, including the blink / head turn.
+Nothing is ever rejected automatically in any mode.
 
 Note on trust: the device-side signals come from the user's browser. A user who talks to the API
 directly could forge them, so auto-approvals are always recorded (auto_approved=True, audit log,
 shown to admins) and an admin can revoke them.
 """
 import os
+import re
 
 from PIL import Image, ImageChops, ImageFilter, ImageStat
 
@@ -23,7 +29,16 @@ from PIL import Image, ImageChops, ImageFilter, ImageStat
 FACE_DISTANCE_AUTO_MAX = 0.5
 # when the blink/head-turn was not captured, the face match must be at least this good
 FACE_DISTANCE_BALANCED_MAX = 0.45
+# fast mode: ID photos are small and soft, so a genuine person is often 0.5-0.58 away from their own ID photo
+FACE_DISTANCE_FAST_MAX = 0.58
 NAME_SCORE_MIN = 0.75
+NAME_SCORE_HARD_MIN = 0.5
+
+# In fast mode only these send a person to the admin queue; every other flag is a note for a spot check.
+HARD_FLAGS = {
+    "unsupported_id", "front_unreadable", "back_unreadable", "selfie_quality",
+    "face_mismatch", "face_unchecked", "face_uncertain", "expired_id", "name_mismatch", "duplicate_id",
+}
 
 ID_MIN_SHORT_SIDE = 380
 ID_MIN_SHARPNESS = 3.0     # fine-detail strength at 640 px wide: a sharp ID is >10, a soft one is <3
@@ -38,13 +53,10 @@ def auto_approve_enabled() -> bool:
 
 def verification_mode() -> str:
     """
-    'balanced' (default): a missing blink/head-turn is not a reason to wait for an admin when every other
-        check is strong (clear photos, ID scanned live, face match 0.45 or better, name and ID type read
-        correctly). The result is recorded as "approved without the live check" so admins can audit it.
-    'strict': the live check is always required; anything without it goes to an admin.
+    'fast' (default), 'balanced' or 'strict'. See the module description above.
     """
-    mode = str(os.getenv("VERIFICATION_MODE", "balanced")).lower()
-    return mode if mode in ("balanced", "strict") else "balanced"
+    mode = str(os.getenv("VERIFICATION_MODE", "fast")).lower()
+    return mode if mode in ("fast", "balanced", "strict") else "fast"
 
 
 def confidence_threshold() -> float:
@@ -124,6 +136,10 @@ def clean_ocr(raw) -> dict:
     for key in ("id_number", "expiry_date"):
         if isinstance(raw.get(key), str):
             out[key] = raw[key][:40]
+    # the same ID number must not unlock several accounts: keep a comparable form computed on the server
+    norm = re.sub(r"[^A-Z0-9]", "", str(out.get("id_number", "")).upper())
+    if len(norm) >= 8:
+        out["id_number_norm"] = norm
     if isinstance(raw.get("text"), str):
         out["text"] = raw["text"][:1500]
     return out
@@ -168,15 +184,33 @@ def evaluate(v, face_distance, face_matched) -> dict:
         flags.append("liveness_failed")
 
     # face match
+    mode = verification_mode()
+    face_max = FACE_DISTANCE_FAST_MAX if mode == "fast" else FACE_DISTANCE_AUTO_MAX
     face_ok = False
     if face_distance is None:
         flags.append("face_unchecked")
     elif not face_matched:
         flags.append("face_mismatch")
-    elif face_distance > FACE_DISTANCE_AUTO_MAX:
+    elif face_distance > face_max:
         flags.append("face_uncertain")
     else:
         face_ok = True
+        if mode == "fast" and face_distance > FACE_DISTANCE_AUTO_MAX:
+            flags.append("face_fair")  # approved, but noted for a spot check
+
+    # one ID, one account
+    norm = ocr.get("id_number_norm")
+    if norm:
+        from .models import IDVerification
+
+        clash = (
+            IDVerification.objects.filter(ocr_result__id_number_norm=norm)
+            .exclude(user_id=v.user_id)
+            .exclude(status=IDVerification.Status.REJECTED)
+            .exists()
+        )
+        if clash:
+            flags.append("duplicate_id")
 
     # text on the ID
     name_score = 0.0
@@ -184,7 +218,12 @@ def evaluate(v, face_distance, face_matched) -> dict:
         flags.append("ocr_unavailable")
     else:
         name_score = float(ocr.get("name_score", 0))
-        if name_score < NAME_SCORE_MIN:
+        if mode == "fast":
+            if name_score < NAME_SCORE_HARD_MIN:
+                flags.append("name_mismatch")
+            elif name_score < NAME_SCORE_MIN:
+                flags.append("name_unclear")
+        elif name_score < NAME_SCORE_MIN:
             flags.append("name_mismatch")
         if ocr.get("expired") is True:
             flags.append("expired_id")
@@ -198,7 +237,7 @@ def evaluate(v, face_distance, face_matched) -> dict:
     live_skipped = False
     if (
         "liveness_failed" in flags
-        and verification_mode() == "balanced"
+        and mode == "balanced"
         and face_ok
         and face_distance is not None and face_distance <= FACE_DISTANCE_BALANCED_MAX
         and ocr.get("ran") and name_score >= 0.9 and ocr.get("keyword_found")
@@ -220,10 +259,14 @@ def evaluate(v, face_distance, face_matched) -> dict:
     confidence = round(0.30 * face_score + 0.15 * live_score + 0.20 * quality_score + 0.25 * ocr_score + 0.10 * detect_score, 3)
 
     threshold = confidence_threshold()
-    if confidence < threshold and not flags:
-        flags.append("low_confidence")
-
-    auto = auto_approve_enabled() and face_ok and not flags and confidence >= threshold
+    if mode == "fast":
+        hard = HARD_FLAGS & set(flags)
+        auto = auto_approve_enabled() and face_ok and not hard
+        live_skipped = auto and "liveness_failed" in flags
+    else:
+        if confidence < threshold and not flags:
+            flags.append("low_confidence")
+        auto = auto_approve_enabled() and face_ok and not flags and confidence >= threshold
     return {
         "status": "approved" if auto else "reviewing",
         "confidence": confidence,
@@ -231,5 +274,6 @@ def evaluate(v, face_distance, face_matched) -> dict:
         "image_checks": images,
         "auto": auto,
         "live_skipped": live_skipped and auto,
+        "mode": mode,
     }
 

@@ -197,7 +197,7 @@ function ReviewModal({ record, onClose, onAction }: {
 
           {(record.flag_texts?.length ?? 0) > 0 ? (
             <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
-              <p className="font-semibold mb-1">Why this needs a person:</p>
+              <p className="font-semibold mb-1">{record.status === 'approved' ? 'Verified automatically, but worth a second look:' : 'Why this needs a person:'}</p>
               <ul className="list-disc pl-5 space-y-0.5">{record.flag_texts!.map(t => <li key={t}>{t}</li>)}</ul>
             </div>
           ) : record.auto_approved ? (
@@ -365,13 +365,17 @@ function AcceptedIdTypes() {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type TabKey = 'all' | 'pending' | 'reviewing' | 'approved' | 'rejected'
+type TabKey = 'all' | 'pending' | 'reviewing' | 'spot' | 'approved' | 'rejected'
+
+/** Approved automatically, but with small doubts an admin may want to look at (and can revoke). */
+const isSpotCheck = (r: VerificationRecord) => r.status === 'approved' && !!r.auto_approved && (r.decision_flags?.length ?? 0) > 0
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'all',       label: 'All' },
   { key: 'pending',   label: 'Pending' },
   { key: 'reviewing', label: 'Under review' },
-  { key: 'approved',  label: 'Approved' },
+  { key: 'spot',      label: 'Spot check' },
+  { key: 'approved',  label: 'Verified' },
   { key: 'rejected',  label: 'Rejected' },
 ]
 
@@ -383,7 +387,7 @@ export default function AdminVerificationPage() {
   const [bulkNotes, setBulkNotes] = useState('')
   const [bulkPendingAction, setBulkPendingAction] = useState<'approved' | 'rejected' | null>(null)
 
-  const params = tab !== 'all' ? { status: tab } : undefined
+  const params = tab === 'all' ? undefined : { status: tab === 'spot' ? 'approved' : tab }
   const { data: integrity } = useIDDecisionIntegrity()
 
   const { data: records = [], isLoading } = useQuery<VerificationRecord[]>({
@@ -391,7 +395,8 @@ export default function AdminVerificationPage() {
     queryFn: () =>
       apiClient.get('/verification/admin/', { params }).then(r => {
         const d = r.data
-        return Array.isArray(d) ? d : (d.results ?? [])
+        const list: VerificationRecord[] = Array.isArray(d) ? d : (d.results ?? [])
+        return tab === 'spot' ? list.filter(isSpotCheck) : list
       }),
   })
 
@@ -410,6 +415,7 @@ export default function AdminVerificationPage() {
   const tabBadge: Partial<Record<TabKey, number>> = {
     pending:   pendingCount,
     reviewing: reviewingCount,
+    spot:      allRecords.filter(isSpotCheck).length,
   }
 
   // ── Bulk action ────────────────────────────────────────────────────────────

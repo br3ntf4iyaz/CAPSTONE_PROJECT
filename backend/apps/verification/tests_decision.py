@@ -61,6 +61,10 @@ class AutomaticDecisionTests(TestCase):
     def setUp(self):
         cache.clear()
         self.n = 0
+        # most tests below describe the careful modes; the fast mode has its own tests further down
+        patcher = mock.patch.dict(os.environ, {"VERIFICATION_MODE": "strict"})
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def _client(self):
         self.n += 1
@@ -116,19 +120,61 @@ class AutomaticDecisionTests(TestCase):
                 self.assertIn(flag, r.data["decision_flags"])
 
     def test_missing_blink_is_fine_in_balanced_mode_when_everything_else_is_strong(self):
-        _, client = self._client()
-        r = self._submit(client, checks={**GOOD_CHECKS, "selfie": {"liveness": False}})
-        self.assertEqual(r.data["status"], "approved")
-        self.assertTrue(r.data["auto_approved"])
-        record = IDVerification.objects.get(pk=r.data["id"])
-        self.assertIn("WITHOUT the blink", record.ai_notes)  # admins can see (and audit) that the live check was skipped
-
-    def test_strict_mode_always_requires_the_live_check(self):
-        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "strict"}):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "balanced"}):
             _, client = self._client()
             r = self._submit(client, checks={**GOOD_CHECKS, "selfie": {"liveness": False}})
+        self.assertEqual(r.data["status"], "approved")
+        self.assertTrue(r.data["auto_approved"])
+
+    def test_strict_mode_always_requires_the_live_check(self):
+        _, client = self._client()
+        r = self._submit(client, checks={**GOOD_CHECKS, "selfie": {"liveness": False}})
         self.assertEqual(r.data["status"], "reviewing")
         self.assertIn("liveness_failed", r.data["decision_flags"])
+
+    # ── fast mode (the default): approve unless something is clearly wrong ──────────────────────
+
+    def _fast(self, **over):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "fast"}):
+            user, client = self._client()
+            return user, self._submit(client, **over)
+
+    def test_fast_mode_small_doubts_do_not_make_the_user_wait(self):
+        soft = {
+            "no blink": dict(checks={**GOOD_CHECKS, "selfie": {"liveness": False}}),
+            "ID text unreadable": dict(ocr={"ran": False}),
+            "gallery photo": dict(checks={**GOOD_CHECKS, "front": {"uploaded": True}}),
+            "fair face match (ID photos are soft)": dict(dist="0.55"),
+            "name only partly matches": dict(ocr={**GOOD_OCR, "name_score": 0.6}),
+        }
+        for name, over in soft.items():
+            with self.subTest(case=name):
+                _, r = self._fast(**over)
+                self.assertEqual(r.data["status"], "approved")
+                self.assertTrue(r.data["auto_approved"])
+                self.assertTrue(r.data["decision_flags"], "the doubt must still be recorded for a spot check")
+
+    def test_fast_mode_clear_problems_still_go_to_an_admin(self):
+        hard = {
+            "face_mismatch": dict(dist="0.78", matched="false"),
+            "face_uncertain": dict(dist="0.59"),
+            "expired_id": dict(ocr={**GOOD_OCR, "expired": True}),
+            "name_mismatch": dict(ocr={**GOOD_OCR, "name_score": 0.2}),
+            "front_unreadable": dict(front=_busy_image(blur=7)),
+        }
+        for flag, over in hard.items():
+            with self.subTest(flag=flag):
+                _, r = self._fast(**over)
+                self.assertEqual(r.data["status"], "reviewing")
+                self.assertIn(flag, r.data["decision_flags"])
+
+    def test_fast_mode_one_id_number_cannot_verify_two_accounts(self):
+        ocr = {**GOOD_OCR, "id_number": "CRN-0028-1234567-8"}
+        _, first = self._fast(ocr=ocr)
+        self.assertEqual(first.data["status"], "approved")
+        _, second = self._fast(ocr=ocr)
+        self.assertEqual(second.data["status"], "reviewing")
+        self.assertIn("duplicate_id", second.data["decision_flags"])
 
     def test_forged_or_missing_device_results_never_auto_approve(self):
         _, client = self._client()

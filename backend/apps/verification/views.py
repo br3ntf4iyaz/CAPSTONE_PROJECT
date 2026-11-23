@@ -97,6 +97,9 @@ FLAG_TEXT = {
     "expired_id": "The ID appears to be expired.",
     "unrecognized_id": "The document was not recognised as the selected ID type.",
     "low_confidence": "The overall confidence was below the approval level.",
+    "face_fair": "The face match was fair rather than strong (ID photos are often small and soft).",
+    "name_unclear": "The name on the ID only partly matches the account name.",
+    "duplicate_id": "This ID number is already used by another account.",
 }
 
 
@@ -170,6 +173,8 @@ class VerificationSubmitView(APIView):
             )
 
             distance = _record_client_face_check(v, request.data)
+            if distance is not None:
+                v.client_checks = {**(v.client_checks or {}), "face_distance": round(distance, 3)}
             matched = bool(v.ai_face_match)
             decision = evaluate(v, distance, matched)
 
@@ -182,10 +187,11 @@ class VerificationSubmitView(APIView):
                 v.reviewed_at = timezone.now()
                 v.ai_verdict = "approved"
                 v.admin_notes = "Verified automatically: all checks passed."
-                if decision.get("live_skipped"):
+                if decision["flags"]:
+                    reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"])
                     v.ai_notes = (
-                        "Verified automatically WITHOUT the blink/head-turn check, because the face, name and ID all matched "
-                        "strongly and the photos were clear (confidence %d%%)." % round(decision["confidence"] * 100)
+                        "Verified automatically (confidence %d%%). Worth a quick second look: %s"
+                        % (round(decision["confidence"] * 100), reasons)
                     )
                 else:
                     v.ai_notes = "Automatic verification passed (confidence %d%%)." % round(decision["confidence"] * 100)
@@ -209,7 +215,7 @@ def _notify_and_audit(request, v):
             AuditLog.objects.create(
                 user=request.user, action="verification_auto_approved", model_name="IDVerification", object_id=v.pk,
                 ip_address=get_client_ip(request),
-                details={"confidence": v.ai_confidence, "flags": v.decision_flags, "live_check_skipped": "WITHOUT the blink" in (v.ai_notes or "")},
+                details={"confidence": v.ai_confidence, "flags": v.decision_flags},
             )
             Notification.objects.create(
                 user=request.user, title="Identity verified",

@@ -50,6 +50,9 @@ const FLAG_MESSAGES: Record<string, string> = {
   expired_id: 'The submitted ID appears to be expired.',
   unrecognized_id: 'The document was not recognised as the ID type you selected.',
   low_confidence: 'The automatic checks were not confident enough to approve.',
+  name_unclear: 'The name on the ID only partly matches the name on your account.',
+  duplicate_id: 'This ID number is already used by another account.',
+  face_fair: 'The face match was fair rather than strong.',
 }
 
 // Used only until the list the LYDO admin controls has been loaded from the server.
@@ -202,7 +205,6 @@ export default function VerifyIdentityPage() {
         {verification?.ai_face_match != null && (
           <p className={cn('inline-block rounded-lg border px-3 py-1.5 text-sm', verification.ai_face_match ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-800')}>
             Face check: {verification.ai_face_match ? 'matches the ID photo' : 'no clear match, an admin will review it manually'}
-            {verification.ai_confidence != null ? ` (${Math.round(verification.ai_confidence * 100)}% similarity)` : ''}
           </p>
         )}
         <button
