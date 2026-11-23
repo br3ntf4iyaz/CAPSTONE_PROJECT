@@ -59,7 +59,10 @@ YORP_ANNUAL = drive('1Yk64vMm13pCN2W0PFhfwqjsi2GKVpWZa')
 YORP_SGLG = drive('1ZuoBT646hyWbfg7z1_B59fD15P7wl3lW')
 YORP_FAQ = drive('1DwlXEjPRdCIP0-wOuoMT5BzLoTvlstBJ')
 
-DBM = 'https://www.dbm.gov.ph/wp-content/uploads/Issuances/'
+JMC_2025 = ('https://www.dbm.gov.ph/wp-content/uploads/Issuances/2025/Joint-Memorandum-Circular/'
+            'DBM-DILG-NYC-JOINT-MEMORANDUM-CIRCULAR-(JMC)-NO.-1-DATED-MAY-23,-2025.pdf')
+JMC_2019 = ('http://dbm.gov.ph/wp-content/uploads/Issuances/2019/Joint-Memorandum-Circular/'
+            'DBM-DILG-NYC-JOINT-MEMORANDUM-CIRCULAR-NO-2019-1.pdf')
 TESDA_CS = ('https://tesda.gov.ph/Downloadables/CS/CS%20-%20Bookkeeping%20for%20Sangguniang%20Kabataan%20'
             '(SK)%20Financial%20Transactions%20Level%20II%20v2.pdf')
 NYC_NOTE = 'Listed on the National Youth Commission Downloadables page.'
@@ -109,13 +112,12 @@ RESOURCES = [
     pdf('DBM-DILG-NYC Joint Memorandum Circular No. 1, s. 2025',
         'Prescribes the updated guidelines on the appropriation and release of the SK fund, in view of RA 11768. It also covers the '
         'planning and budgeting process, the Comprehensive Barangay Youth Development Plan (CBYDP) and posting requirements.',
-        'governance', 'DBM, DILG and NYC', DBM, DBM + '2025/Joint-Memorandum-Circular/DBM-DILG-NYC-JOINT-MEMORANDUM-CIRCULAR-(JMC)-NO.-1-DATED-MAY-23,-2025.pdf',
+        'governance', 'DBM, DILG and NYC', JMC_2025, JMC_2025,
         year=2025, tags='SK fund,budget,CBYDP,JMC,planning', law='JMC No. 1, s. 2025', featured=True,
         note='Dated May 23, 2025.'),
     pdf('DBM-DILG-NYC Joint Memorandum Circular No. 1, s. 2019',
         'Guidelines on the appropriation, release, planning and budgeting process for the SK funds.',
-        'governance', 'DBM, DILG and NYC', DBM,
-        'http://dbm.gov.ph/wp-content/uploads/Issuances/2019/Joint-Memorandum-Circular/DBM-DILG-NYC-JOINT-MEMORANDUM-CIRCULAR-NO-2019-1.pdf',
+        'governance', 'DBM, DILG and NYC', JMC_2019, JMC_2019,
         year=2019, tags='SK fund,budget,JMC,planning', law='JMC No. 1, s. 2019',
         note='Dated January 23, 2019. See JMC No. 1, s. 2025 for the updated guidelines.'),
     pdf('TESDA Competency Standards: Bookkeeping for Sangguniang Kabataan (SK) Financial Transactions, Level II',

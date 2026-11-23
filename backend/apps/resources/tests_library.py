@@ -25,6 +25,13 @@ class VerifiedLibraryTests(APITestCase):
             self.assertTrue(r['source_kind'], r['title'])
             self.assertTrue(r['title'].strip() and r['description'].strip(), r['title'])
 
+    def test_no_link_points_to_a_folder(self):
+        # a folder URL such as .../wp-content/uploads/Issuances/ answers "403 Forbidden"
+        for r in RESOURCES:
+            for key in ('external_url', 'source_url', 'download_url'):
+                if 'wp-content/uploads' in r[key]:
+                    self.assertFalse(r[key].endswith('/'), (r['title'], r[key]))
+
     def test_education_leadership_and_other_are_no_longer_empty(self):
         for cat in ('education', 'leadership', 'other'):
             self.assertGreater(Resource.objects.filter(category=cat, is_published=True).count(), 0, cat)
