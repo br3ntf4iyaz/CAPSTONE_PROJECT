@@ -149,14 +149,6 @@ export default function CommunityHubPage() {
     onSettled: () => setPostToDelete(null),
   })
 
-  // Esc closes the confirmation (same as Cancel)
-  useEffect(() => {
-    if (postToDelete === null) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !deletePostMutation.isPending) setPostToDelete(null) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [postToDelete, deletePostMutation.isPending])
-
   const likeMutation = useMutation({
     mutationFn: (id: number) => communityApi.react(id),
     onMutate: async (id: number) => {
@@ -664,48 +656,15 @@ export default function CommunityHubPage() {
       </section>
 
       {postToDelete !== null && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
-          onClick={() => { if (!deletePostMutation.isPending) setPostToDelete(null) }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="delete-post-title"
-            aria-describedby="delete-post-desc"
-            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
-              <Trash2 size={22} />
-            </div>
-            <h2 id="delete-post-title" className="text-center text-base font-bold text-ink-900">
-              Are you sure you want to delete this post?
-            </h2>
-            <p id="delete-post-desc" className="mt-2 text-center text-sm text-ink-500">
-              This action cannot be undone. Once deleted, this post will be permanently removed.
-            </p>
-            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
-              <button
-                type="button"
-                autoFocus
-                onClick={() => setPostToDelete(null)}
-                disabled={deletePostMutation.isPending}
-                className="btn-secondary sm:min-w-[110px]"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => deletePostMutation.mutate(postToDelete)}
-                disabled={deletePostMutation.isPending}
-                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-60 sm:min-w-[110px]"
-              >
-                {deletePostMutation.isPending ? 'Deleting...' : 'Delete Post'}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteDialog
+          id="delete-post"
+          title="Are you sure you want to delete this post?"
+          description="This action cannot be undone. Once deleted, this post will be permanently removed."
+          confirmLabel="Delete Post"
+          pending={deletePostMutation.isPending}
+          onCancel={() => setPostToDelete(null)}
+          onConfirm={() => deletePostMutation.mutate(postToDelete)}
+        />
       )}
 
     </div>
@@ -713,6 +672,60 @@ export default function CommunityHubPage() {
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
+
+/** Centered confirmation for destructive actions. Cancel (also Esc or a click outside) changes nothing. */
+function ConfirmDeleteDialog({
+  id, title, description, confirmLabel, pending, onCancel, onConfirm,
+}: {
+  id: string
+  title: string
+  description: string
+  confirmLabel: string
+  pending: boolean
+  onCancel: () => void
+  onConfirm: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !pending) onCancel() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [pending, onCancel])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={() => { if (!pending) onCancel() }}
+    >
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={`${id}-title`}
+        aria-describedby={`${id}-desc`}
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+          <Trash2 size={22} />
+        </div>
+        <h2 id={`${id}-title`} className="text-center text-base font-bold text-ink-900">{title}</h2>
+        <p id={`${id}-desc`} className="mt-2 text-center text-sm text-ink-500">{description}</p>
+        <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+          <button type="button" autoFocus onClick={onCancel} disabled={pending} className="btn-secondary sm:min-w-[110px]">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-60 sm:min-w-[110px]"
+          >
+            {pending ? 'Deleting...' : confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function PostContent({ content }: { content: string }) {
   const [expanded, setExpanded] = useState(false)
@@ -890,6 +903,7 @@ function HubCard({
 function CommentsSection({ postId, currentUser, showList }: { postId: number; currentUser: any; showList: boolean }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
+  const [commentToDelete, setCommentToDelete] = useState<number | null>(null)
 
   const { data: comments = [], isLoading } = useQuery<CommunityComment[]>({
     queryKey: ['comments', postId],
@@ -915,6 +929,7 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
       toast.success('Comment deleted.')
     },
     onError: () => toast.error('Could not delete comment.'),
+    onSettled: () => setCommentToDelete(null),
   })
 
   if (!currentUser && !showList) return null
@@ -949,7 +964,7 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
                     <span className="text-[10px] text-ink-400">{timeAgo(c.created_at)}</span>
                     {c.is_own && (
                       <button
-                        onClick={() => deleteComment.mutate(c.id)}
+                        onClick={() => setCommentToDelete(c.id)}
                         disabled={deleteComment.isPending}
                         className="text-[10px] text-ink-400 hover:text-red-500 disabled:opacity-50"
                       >
@@ -962,6 +977,18 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
             ))}
           </div>
         )
+      )}
+
+      {commentToDelete !== null && (
+        <ConfirmDeleteDialog
+          id={`delete-comment-${postId}`}
+          title="Are you sure you want to delete this comment?"
+          description="This action cannot be undone. Once deleted, this comment will be permanently removed."
+          confirmLabel="Delete Comment"
+          pending={deleteComment.isPending}
+          onCancel={() => setCommentToDelete(null)}
+          onConfirm={() => deleteComment.mutate(commentToDelete)}
+        />
       )}
 
       {/* Input — always visible for logged-in users */}
