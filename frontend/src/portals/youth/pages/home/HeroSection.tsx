@@ -109,10 +109,10 @@ export function HeroSection({ isAuthenticated, stats }: { isAuthenticated: boole
               style={{ ['--delay' as any]: '480ms' }}
             >
               {[
-                { value: stats?.registered_youth != null ? `${stats.registered_youth.toLocaleString()}+` : '2,000+', label: 'Registered youth' },
-                { value: stats?.barangay_sk_councils != null ? `${stats.barangay_sk_councils}` : '40+',                  label: 'Barangay SK councils' },
-                { value: stats?.youth_organizations != null ? `${stats.youth_organizations}+` : '50+',                  label: 'Youth organizations' },
-                { value: stats?.active_jobs != null ? `${stats.active_jobs}` : '30+',                           label: 'Open jobs' },
+                { value: stats?.registered_youth != null ? stats.registered_youth.toLocaleString() : '—', label: 'Registered youth' },
+                { value: stats?.barangay_sk_councils != null ? `${stats.barangay_sk_councils}` : '—',                  label: 'Barangay SK councils' },
+                { value: stats?.youth_organizations != null ? `${stats.youth_organizations}` : '—',                  label: 'Youth organizations' },
+                { value: stats?.active_jobs != null ? `${stats.active_jobs}` : '—',                           label: 'Open jobs' },
               ].map(({ value, label }) => (
                 <div key={label} className="text-center">
                   <p className="font-display font-extrabold text-2xl text-accent-300 leading-none">{value}</p>
