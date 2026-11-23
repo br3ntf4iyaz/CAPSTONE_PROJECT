@@ -87,6 +87,11 @@ function isClosed(s: Scholarship): boolean {
 function isSoon(s: Scholarship): boolean {
   return s.application_status === 'closing_soon' || isDeadlineSoon(s.deadline)
 }
+/** Government (national and city) / NGO / Private, used by the boxes at the top. */
+function groupOf(s: Scholarship): 'government' | 'ngo' | 'private' {
+  if (s.provider_type === 'government' || s.provider_type === 'local_government') return 'government'
+  return s.provider_type === 'ngo' ? 'ngo' : 'private'
+}
 function fmtDate(d?: string | null): string {
   return d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : ''
 }
@@ -406,6 +411,7 @@ function ScholarshipCard({
 export default function ScholarshipsPage() {
   const [search, setSearch]         = useState('')
   const [category, setCategory]     = useState('')
+  const [provider, setProvider]     = useState<'' | 'government' | 'ngo' | 'private'>('')
   const [showSaved, setShowSaved]   = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [selected, setSelected]     = useState<Scholarship | null>(null)
@@ -433,7 +439,8 @@ export default function ScholarshipsPage() {
       s.provider.toLowerCase().includes(search.toLowerCase()) ||
       s.description.toLowerCase().includes(search.toLowerCase())
     const matchesCategory = !category || s.category === category
-    return matchesSearch && matchesCategory
+    const matchesProvider = !provider || groupOf(s) === provider
+    return matchesSearch && matchesCategory && matchesProvider
   })
 
   const featuredOpen = filtered.filter(s => s.is_featured && !isClosed(s))
@@ -442,7 +449,7 @@ export default function ScholarshipsPage() {
   const datedOpen    = open.filter(s => !ROLLING_DEADLINES.has(s.deadline))
   const closed       = filtered.filter(s => isClosed(s))
 
-  const hasFilters = !!(category || search || showSaved)
+  const hasFilters = !!(category || search || showSaved || provider)
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
@@ -469,17 +476,26 @@ export default function ScholarshipsPage() {
         </div>
       )}
 
-      {/* Stat bar */}
+      {/* Provider boxes: click one to show only those scholarships, click again to show all */}
       <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Available',   value: scholarships.filter(s => !isClosed(s)).length, color: 'text-green-700' },
-          { label: 'Government',  value: scholarships.filter(s => s.provider_type === 'government' || s.provider_type === 'local_government').length, color: 'text-primary-700' },
-          { label: 'Always Open', value: scholarships.filter(s => ROLLING_DEADLINES.has(s.deadline)).length, color: 'text-blue-700' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-xl border border-gray-200 p-4 text-center">
-            <p className={cn('text-2xl font-bold', stat.color)}>{stat.value}</p>
+        {([
+          { key: 'government', label: 'Government', color: 'text-primary-700', ring: 'border-primary-500 bg-primary-50' },
+          { key: 'ngo',        label: 'NGO',        color: 'text-emerald-700', ring: 'border-emerald-500 bg-emerald-50' },
+          { key: 'private',    label: 'Private',    color: 'text-purple-700',  ring: 'border-purple-500 bg-purple-50' },
+        ] as const).map(stat => (
+          <button
+            key={stat.key}
+            type="button"
+            onClick={() => setProvider(provider === stat.key ? '' : stat.key)}
+            aria-pressed={provider === stat.key}
+            className={cn(
+              'rounded-xl border p-4 text-center transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+              provider === stat.key ? stat.ring : 'bg-white border-gray-200 hover:border-primary-300 hover:shadow-sm',
+            )}
+          >
+            <p className={cn('text-2xl font-bold', stat.color)}>{scholarships.filter(s => groupOf(s) === stat.key && !isClosed(s)).length}</p>
             <p className="text-xs text-gray-500 mt-0.5">{stat.label}</p>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -551,7 +567,7 @@ export default function ScholarshipsPage() {
             {hasFilters && (
               <div className="flex items-end">
                 <button
-                  onClick={() => { setCategory(''); setSearch(''); setShowSaved(false) }}
+                  onClick={() => { setCategory(''); setSearch(''); setShowSaved(false); setProvider('') }}
                   className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1 py-1.5"
                 >
                   <X size={12} /> Clear all
