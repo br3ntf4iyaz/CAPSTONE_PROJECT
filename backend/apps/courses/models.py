@@ -104,6 +104,11 @@ class Lesson(models.Model):
     content = models.TextField()
     video_url = models.URLField(blank=True)
     video_file = models.FileField(upload_to='courses/videos/', blank=True)  # an uploaded video (alternative to a link)
+    video_title = models.CharField(max_length=255, blank=True, help_text='The topic of the video the learner should watch')
+    video_manual_confirm = models.BooleanField(
+        default=False, help_text='Use for a link that cannot play inside the page: the learner watches it on the other site and confirms')
+    study_resources = models.JSONField(
+        default=list, blank=True, help_text='Reading or study links for this lesson: [{"title": "...", "url": "https://...", "source": "..."}]')
     video_required_percent = models.PositiveSmallIntegerField(
         default=80, validators=[MinValueValidator(1), MaxValueValidator(100)],
         help_text='Share of the video that must be played before the assessment opens')

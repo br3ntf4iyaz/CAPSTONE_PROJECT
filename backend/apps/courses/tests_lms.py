@@ -504,3 +504,69 @@ class SeedLmsContentTests(APITestCase):
         course.refresh_from_db()
         self.assertEqual((mine.title, mine.content), ('My own lesson title', 'my notes'))
         self.assertEqual((course.audience, course.learning_outcomes), ('youth_org_leaders', ['my outcome']))
+
+
+class LessonMediaTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(email='ad2@x.com', password='p', role='lgu_admin', is_active=True)
+        self.user = User.objects.create_user(email='u2@x.com', password='p', role='youth', is_active=True)
+
+    def test_every_media_entry_points_to_a_real_seed_lesson_with_clean_links(self):
+        from .lms_content import CONTENT
+        from .lms_content_extra import merge
+        from .lms_content_org import MODULES, TITLE
+        from .lms_content_sk import COURSES
+        from .lms_media import MEDIA
+        content = merge({k: dict(v) for k, v in CONTENT.items()})
+        for c in COURSES:
+            content[c['title']] = {'modules': c['modules']}
+        content[TITLE] = {'modules': MODULES}
+        lessons = {(t, l['title']) for t, d in content.items() for m in d['modules'] for l in m['lessons']}
+        urls = set()
+        for key, media in MEDIA.items():
+            self.assertIn(key, lessons)
+            for r in media.get('resources', []):
+                self.assertTrue(r['url'].startswith('https://'), r)
+                self.assertTrue(r['title'].strip())
+            v = media.get('video')
+            if v:
+                self.assertRegex(v['url'], r'^https://www\.youtube\.com/watch\?v=[A-Za-z0-9_-]{11}$')
+                self.assertTrue(v['title'].strip().endswith(')'), 'the channel must be named')
+                urls.add(v['url'])
+        self.assertGreater(len(urls), 5)
+
+    def test_seed_attaches_videos_and_study_materials_but_never_overwrites_an_admin_choice(self):
+        call_command('seed_lms_content', verbosity=0)
+        goal = Lesson.objects.get(title='Goal Setting and Planning')
+        self.assertIn('youtube.com/watch?v=', goal.video_url)
+        self.assertIn('SMART Goals', goal.video_title)
+        decision = Lesson.objects.get(title='Effective Decision-Making')
+        self.assertEqual(decision.video_url, '')  # no good video found: reading materials instead
+        self.assertTrue(decision.study_resources)
+        # the administrator changes one lesson, then the seed runs again
+        goal.video_url, goal.video_title, goal.study_resources = 'https://www.youtube.com/watch?v=aaaaaaaaaaa', 'My own video', [{'title': 'Mine', 'url': 'https://example.org/x', 'source': ''}]
+        goal.save()
+        call_command('seed_lms_content', verbosity=0)
+        goal.refresh_from_db()
+        self.assertEqual((goal.video_title, len(goal.study_resources)), ('My own video', 1))
+
+    def test_admin_can_set_video_topic_link_and_study_links_and_learner_sees_them(self):
+        course, lessons = make_course('Media Course', (1,))
+        self.client.force_authenticate(self.admin)
+        url = f'/api/courses/admin/courses/{course.id}/modules/{lessons[0].module_id}/lessons/{lessons[0].id}/'
+        bad = self.client.patch(url, {'study_resources': [{'title': 'x', 'url': 'javascript:alert(1)'}]}, format='json')
+        self.assertEqual(bad.status_code, 400)
+        r = self.client.patch(url, {
+            'video_url': YOUTUBE, 'video_title': 'The <b>topic</b> to watch', 'video_manual_confirm': True,
+            'study_resources': [{'title': 'Read <i>this</i>', 'url': 'https://example.org/read', 'source': 'Example'}]}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data['video_title'], 'The topic to watch')
+        self.assertEqual(r.data['study_resources'][0]['title'], 'Read this')
+        # the learner sees the topic and the links, and a link marked manual is confirmed by hand
+        self.client.force_authenticate(self.user)
+        enr = self.client.post('/api/courses/enrollments/', {'course_id': course.id, 'certificate_name': 'Some Learner'}, format='json')
+        self.assertEqual(enr.status_code, 201)
+        data = self.client.get(f'/api/courses/lessons/{lessons[0].id}/').data
+        self.assertEqual((data['video_title'], data['video_kind']), ('The topic to watch', 'other'))
+        self.assertEqual(data['study_resources'][0]['url'], 'https://example.org/read')
+        self.assertEqual(self.client.post(f'/api/courses/lessons/{lessons[0].id}/watched/').status_code, 200)

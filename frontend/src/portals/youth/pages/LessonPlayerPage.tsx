@@ -10,6 +10,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import LessonVideo, { type VideoKind } from '../components/LessonVideo'
+import StudyResources, { type StudyResource } from '../components/StudyResources'
 import { apiMessage, toArray, type CourseState, type Enrollment, type StateLesson } from '../lms'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,6 +23,8 @@ interface LessonDetail {
   title: string
   content: string
   video_url: string
+  video_title: string
+  study_resources: StudyResource[]
   video_source: string
   video_kind: VideoKind
   video_required_percent: number
@@ -248,6 +251,9 @@ export default function LessonPlayerPage() {
               {lesson.duration_minutes ? <p className="text-sm text-ink-500 mt-1">{lesson.duration_minutes} min</p> : null}
             </div>
 
+            {lesson.video_title && hasVideo && (
+              <p className="-mb-4 text-sm font-semibold text-ink-800">Watch: <span className="font-bold">{lesson.video_title}</span></p>
+            )}
             <LessonVideo
               lessonId={lesson.id}
               title={lesson.title}
@@ -267,6 +273,8 @@ export default function LessonPlayerPage() {
                 </a>
               )}
             </section>
+
+            <StudyResources items={lesson.study_resources ?? []} heading={hasVideo ? 'More to read' : 'Study materials for this lesson'} />
 
             {/* ── Requirement before the assessment ───────────────────── */}
             {!completed && !requirementMet && (
@@ -290,9 +298,11 @@ export default function LessonPlayerPage() {
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-sm text-amber-900">This lesson has no video yet, so it is not marked as watched. Confirm that you read the notes above.</p>
+                    <p className="text-sm text-amber-900">
+                      This lesson has no video yet, so it is not marked as watched. Read the notes{(lesson.study_resources ?? []).length ? ' and the study materials' : ''} above, then confirm.
+                    </p>
                     <button type="button" className="btn-primary btn-sm" disabled={confirmNotes.isPending} onClick={() => confirmNotes.mutate()}>
-                      <BookOpen size={14} /> I have read the lesson notes
+                      <BookOpen size={14} /> I have read the lesson notes{(lesson.study_resources ?? []).length ? ' and study materials' : ''}
                     </button>
                   </div>
                 )}

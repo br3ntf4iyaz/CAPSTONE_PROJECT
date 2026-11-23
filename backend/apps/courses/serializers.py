@@ -73,6 +73,26 @@ def _validate_video_file(value):
     return value
 
 
+def clean_resources(value):
+    """Study links for a lesson: a short list of {title, url, source}. Only http(s) links, no HTML."""
+    if not isinstance(value, list):
+        raise serializers.ValidationError('Study resources must be a list.')
+    out = []
+    for item in value[:10]:
+        if not isinstance(item, dict):
+            raise serializers.ValidationError('Each study resource needs a title and a link.')
+        url = str(item.get('url', '')).strip()
+        title = bleach.clean(str(item.get('title', '')), tags=[], strip=True).strip()[:150]
+        if not url and not title:
+            continue
+        if not url.lower().startswith(('https://', 'http://')) or len(url) > 500:
+            raise serializers.ValidationError(f'"{title or url}" needs a full link starting with https://')
+        if not title:
+            raise serializers.ValidationError('Every study resource needs a title.')
+        out.append({'title': title, 'url': url, 'source': bleach.clean(str(item.get('source', '')), tags=[], strip=True).strip()[:100]})
+    return out
+
+
 def _clean_outcomes(value):
     if not isinstance(value, list):
         raise serializers.ValidationError('Learning outcomes must be a list.')
@@ -533,7 +553,7 @@ class LessonDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Lesson
-        fields = ['id', 'title', 'order', 'content', 'video_url', 'video_source', 'video_kind',
+        fields = ['id', 'title', 'order', 'content', 'video_url', 'video_title', 'study_resources', 'video_source', 'video_kind',
                   'video_required_percent', 'video_percent', 'video_watched', 'notes_read', 'requirement_met',
                   'passing_score', 'resource_file_url', 'duration_minutes', 'questions', 'completed']
 
@@ -684,8 +704,8 @@ class LessonAdminSerializer(serializers.ModelSerializer):
     class Meta:
         model = Lesson
         fields = [
-            'id', 'title', 'order', 'content', 'video_url', 'video_file', 'video_file_url', 'video_required_percent',
-            'passing_score', 'duration_minutes', 'resource_file_url', 'resource_file', 'questions',
+            'id', 'title', 'order', 'content', 'video_url', 'video_title', 'video_manual_confirm', 'study_resources',
+            'video_file', 'video_file_url', 'video_required_percent', 'passing_score', 'duration_minutes', 'resource_file_url', 'resource_file', 'questions',
         ]
         read_only_fields = ['id', 'resource_file_url', 'video_file_url', 'questions']
         extra_kwargs = {'resource_file': {'write_only': True, 'required': False},
@@ -698,6 +718,12 @@ class LessonAdminSerializer(serializers.ModelSerializer):
 
     def validate_video_file(self, value):
         return _validate_video_file(value)
+
+    def validate_video_title(self, value):
+        return bleach.clean(value or '', tags=[], strip=True).strip()[:255]
+
+    def validate_study_resources(self, value):
+        return clean_resources(value)
 
     def validate_video_url(self, value):
         value = (value or '').strip()

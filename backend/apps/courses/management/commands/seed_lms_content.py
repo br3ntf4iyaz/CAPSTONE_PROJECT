@@ -18,6 +18,7 @@ from django.db import transaction
 
 from apps.courses.lms_content import CONTENT
 from apps.courses import lms_content_org, lms_content_sk
+from apps.courses.lms_media import MEDIA
 from apps.courses.lms_content_extra import merge
 from apps.courses.models import Course, CourseModule, Lesson, Question, QuestionChoice, QuizAttempt
 
@@ -63,7 +64,7 @@ class Command(BaseCommand):
         content[lms_content_org.TITLE] = {'category': lms_content_org.CATEGORY, 'modules': lms_content_org.MODULES}
         for sk in lms_content_sk.COURSES:  # verified SK content replaces the older text for these two courses
             content[sk['title']] = {'category': content.get(sk['title'], {}).get('category', ''), 'modules': sk['modules']}
-        stats = dict(courses=0, modules=0, lessons=0, titled=0, questions=0, created_course=0, labelled=0, replaced=0, kept=0)
+        stats = dict(courses=0, modules=0, lessons=0, titled=0, questions=0, created_course=0, labelled=0, replaced=0, kept=0, videos=0, resources=0)
         with transaction.atomic():
             cleared = Lesson.objects.filter(video_url__icontains=UNRELATED_TEST_VIDEO).update(video_url='')
             if not Course.objects.filter(title=lms_content_org.TITLE, is_active=True).exists():
@@ -121,6 +122,17 @@ class Command(BaseCommand):
                             lesson.save()
                             lesson.questions.all().delete()
                             stats['replaced'] += 1
+                        media = MEDIA.get((title, l['title']))
+                        if media and lesson.title == l['title']:
+                            vid = media.get('video')
+                            if vid and not lesson.video_url and not lesson.video_file:  # never replace a video an admin added
+                                lesson.video_url, lesson.video_title = vid['url'], vid['title']
+                                lesson.save(update_fields=['video_url', 'video_title'])
+                                stats['videos'] += 1
+                            if media.get('resources') and not lesson.study_resources:
+                                lesson.study_resources = media['resources']
+                                lesson.save(update_fields=['study_resources'])
+                                stats['resources'] += 1
                         if lesson.questions.exists():
                             continue
                         for qi, q in enumerate(l['questions'], start=1):
@@ -134,5 +146,5 @@ class Command(BaseCommand):
                             stats['questions'] += 1
         self.stdout.write(self.style.SUCCESS(
             f"{stats['courses']} courses checked ({stats['created_course']} created, {stats['labelled']} labelled with audience and outcomes) | {stats['modules']} modules, {stats['lessons']} lessons added | "
-            f"{stats['titled']} lessons given real titles and notes, {stats['replaced']} replaced with verified text, {stats['kept']} kept (already answered) | {stats['questions']} questions added | "
+            f"{stats['titled']} lessons given real titles and notes, {stats['replaced']} replaced with verified text, {stats['kept']} kept (already answered) | {stats['questions']} questions added | {stats['videos']} videos and {stats['resources']} study-material lists attached | "
             f"{cleared} unrelated test video link(s) removed"))

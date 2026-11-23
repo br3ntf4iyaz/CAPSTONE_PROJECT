@@ -6,6 +6,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import LessonVideo, { type VideoKind } from '../components/LessonVideo'
+import StudyResources, { type StudyResource } from '../components/StudyResources'
 import { toArray, type Enrollment } from '../lms'
 
 interface ReviewChoice { id: number; text: string; is_correct: boolean }
@@ -34,6 +35,8 @@ interface ReviewLesson {
   content: string
   video_source: string
   video_kind: VideoKind
+  video_title?: string
+  study_resources?: StudyResource[]
   duration_minutes: number | null
   passing_score: number
   original_score: number | null
@@ -166,10 +169,12 @@ function LessonReview({ lesson }: { lesson: ReviewLesson }) {
         <LessonVideo lessonId={lesson.id} title={lesson.title} durationMinutes={lesson.duration_minutes} kind={lesson.video_kind}
           source={lesson.video_source} requiredPercent={0} track={false} onReport={() => undefined} />
 
+        {lesson.video_title && lesson.video_kind !== 'none' && <p className="-mt-3 text-sm font-semibold text-ink-800">Video: {lesson.video_title}</p>}
         <div>
           <h3 className="mb-2 font-display text-base font-bold text-ink-900">Lesson notes</h3>
           <Notes text={lesson.content} />
         </div>
+        <StudyResources items={lesson.study_resources ?? []} />
 
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

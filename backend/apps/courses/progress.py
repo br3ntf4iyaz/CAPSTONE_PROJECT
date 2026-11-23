@@ -63,6 +63,8 @@ def video_kind(lesson):
     url = (lesson.video_url or '').strip()
     if not url:
         return 'none'
+    if lesson.video_manual_confirm:  # the admin marked this link as one that cannot play inside the page
+        return 'other'
     if YOUTUBE_RE.search(url):
         return 'youtube'
     if url.lower().split('?')[0].endswith(DIRECT_VIDEO_EXTS):

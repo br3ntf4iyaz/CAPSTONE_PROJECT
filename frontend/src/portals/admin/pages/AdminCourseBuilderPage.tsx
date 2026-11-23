@@ -18,6 +18,7 @@ interface Question { id: number; text: string; order: number; explanation: strin
 interface Lesson {
   id: number; title: string; order: number; content: string; video_url: string; video_file_url?: string | null
   video_required_percent?: number; passing_score?: number | null; duration_minutes: number | null; questions: Question[]
+  video_title?: string; video_manual_confirm?: boolean; study_resources?: { title: string; url: string; source?: string }[]
 }
 interface Module { id: number; title: string; order: number; description: string; lessons: Lesson[] }
 interface CourseDetail { id: number; title: string; category: string; description: string }
@@ -165,6 +166,8 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
     title: lesson.title, order: lesson.order, content: lesson.content,
     video_url: lesson.video_url, duration_minutes: lesson.duration_minutes,
     video_required_percent: lesson.video_required_percent ?? 80, passing_score: lesson.passing_score ?? null,
+    video_title: lesson.video_title ?? '', video_manual_confirm: lesson.video_manual_confirm ?? false,
+    study_resources: (lesson.study_resources ?? []) as { title: string; url: string; source?: string }[],
   })
 
   const uploadVideo = useMutation({
@@ -183,7 +186,7 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); toast.success('Lesson saved') },
     onError: (e: any) => {
       const d = e?.response?.data
-      toast.error(d?.video_url?.[0] ?? d?.video_required_percent?.[0] ?? d?.passing_score?.[0] ?? 'Failed to save lesson')
+      toast.error(d?.video_url?.[0] ?? d?.study_resources?.[0] ?? d?.video_required_percent?.[0] ?? d?.passing_score?.[0] ?? 'Failed to save lesson')
     },
   })
 
@@ -244,6 +247,12 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
           <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-3">
             <p className="text-xs font-semibold text-gray-700 flex items-center gap-1"><Video size={12} /> Lesson video</p>
             <div>
+              <label className="label text-xs">Topic of the video <span className="text-gray-400 font-normal">(what learners should watch)</span></label>
+              <input className="input text-sm" value={draft.video_title ?? ''} maxLength={255}
+                onChange={e => setDraft(d => ({ ...d, video_title: e.target.value }))}
+                placeholder="e.g. How the SK budget cycle works" />
+            </div>
+            <div>
               <label className="label text-xs">Video link</label>
               <input className="input text-sm" value={draft.video_url}
                 onChange={e => setDraft(d => ({ ...d, video_url: e.target.value }))}
@@ -253,6 +262,11 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
                 (for example Vimeo or Facebook) cannot be tracked, so the learner confirms by hand. Only add a link you have checked.
               </p>
             </div>
+            <label className="flex items-start gap-2 text-xs text-gray-700">
+              <input type="checkbox" className="mt-0.5" checked={!!draft.video_manual_confirm}
+                onChange={e => setDraft(d => ({ ...d, video_manual_confirm: e.target.checked }))} />
+              <span>The video opens on another site (it cannot play inside the page). Learners watch it there and confirm by hand.</span>
+            </label>
             <div>
               <label className="label text-xs">Or upload a video file <span className="text-gray-400 font-normal">(MP4, WebM, OGG or MOV, up to 150 MB)</span></label>
               <div className="flex flex-wrap items-center gap-2">
@@ -280,6 +294,26 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
                   placeholder="Course default" />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-xl border border-primary-100 bg-primary-50/40 p-3 space-y-2">
+            <p className="text-xs font-semibold text-gray-700">Study materials <span className="font-normal text-gray-500">(reading links learners can open for this lesson, useful when there is no video)</span></p>
+            {(draft.study_resources ?? []).map((r, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1.3fr_0.8fr_auto]">
+                <input className="input text-sm" placeholder="Title" value={r.title}
+                  onChange={e => setDraft(d => ({ ...d, study_resources: (d.study_resources ?? []).map((x, j) => j === i ? { ...x, title: e.target.value } : x) }))} />
+                <input className="input text-sm" placeholder="https://…" value={r.url}
+                  onChange={e => setDraft(d => ({ ...d, study_resources: (d.study_resources ?? []).map((x, j) => j === i ? { ...x, url: e.target.value } : x) }))} />
+                <input className="input text-sm" placeholder="Source (optional)" value={r.source ?? ''}
+                  onChange={e => setDraft(d => ({ ...d, study_resources: (d.study_resources ?? []).map((x, j) => j === i ? { ...x, source: e.target.value } : x) }))} />
+                <button type="button" className="text-red-500 hover:text-red-700 text-xs px-2"
+                  onClick={() => setDraft(d => ({ ...d, study_resources: (d.study_resources ?? []).filter((_, j) => j !== i) }))}>Remove</button>
+              </div>
+            ))}
+            <button type="button" className="btn-secondary btn-sm text-xs"
+              onClick={() => setDraft(d => ({ ...d, study_resources: [...(d.study_resources ?? []), { title: '', url: '', source: '' }] }))}>
+              <Plus size={11} /> Add a study link
+            </button>
           </div>
 
           <div>

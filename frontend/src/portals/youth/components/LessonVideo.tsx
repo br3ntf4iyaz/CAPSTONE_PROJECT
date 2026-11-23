@@ -161,7 +161,10 @@ export default function LessonVideo({
             {' '}and come back. Progress is only counted while it plays on this page.
           </p>
         )}
-        <p className="mt-2 text-xs text-ink-500">Play at least {requiredPercent}% of the video to unlock the assessment.</p>
+        <p className="mt-2 text-xs text-ink-500">
+          Play at least {requiredPercent}% of the video to unlock the assessment.{' '}
+          <a href={source} target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-700 underline">Open it on YouTube</a>
+        </p>
       </div>
     )
   }
