@@ -112,3 +112,30 @@ class SKOfficialsTests(TestCase):
         self.assertTrue(listed["officials"][0]["photo_url"])
         self.assertEqual(self.ac.post(url + "chairperson-photo/", {"remove": "true"}, format="multipart").status_code, 200)
         self.assertEqual(self.ac.post(url + "chairperson-photo/", {"photo": SimpleUploadedFile("c.html", b"x", content_type="image/png")}, format="multipart").status_code, 400)
+
+    # ── sample faces ──────────────────────────────────────────────────────────────────────────
+
+    def test_sample_faces_are_given_to_all_ten_officials_of_every_barangay(self):
+        call_command("ensure_sk_officials", stdout=io.StringIO())
+        call_command("seed_sample_photos", stdout=io.StringIO())
+        data = APIClient().get("/api/sk-requirements/barangays/").data
+        for brgy in data:
+            self.assertEqual(len(brgy["officials"]), 10)
+            self.assertTrue(all(o["photo_url"] for o in brgy["officials"]), brgy["barangay_name"])
+        self.assertIn("/sample_", data[0]["officials"][0]["photo_url"])
+
+    def test_sample_faces_never_replace_a_real_picture_and_can_be_cleared(self):
+        call_command("ensure_sk_officials", stdout=io.StringIO())
+        member = SKMember.objects.filter(barangay=self.a, position="treasurer").first()
+        self.ac.patch(f"/api/sk-requirements/members/{member.id}/", {"photo": SimpleUploadedFile("real.png", _png(), content_type="image/png")}, format="multipart")
+        member.refresh_from_db()
+        real_name = member.photo.name
+        call_command("seed_sample_photos", stdout=io.StringIO())
+        call_command("seed_sample_photos", "--refresh", stdout=io.StringIO())
+        member.refresh_from_db()
+        self.assertEqual(member.photo.name, real_name)
+        call_command("seed_sample_photos", "--clear", stdout=io.StringIO())
+        member.refresh_from_db()
+        self.assertEqual(member.photo.name, real_name)  # the real picture survived the clean-up
+        others = SKMember.objects.filter(barangay=self.a).exclude(pk=member.pk)
+        self.assertTrue(all(not m.photo for m in others))

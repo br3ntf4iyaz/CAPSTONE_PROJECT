@@ -107,6 +107,7 @@ function SeatCard({
   })
 
   const placeholder = !!official && PLACEHOLDER_RE.test(official.name.trim())
+  const samplePicture = !!official?.photo_url && /\/sample_[^/]*$/.test(official.photo_url)
   const dirty = name.trim() !== (official?.name ?? '').trim() && name.trim().length > 1
   const busy = saveName.isPending || uploadPhoto.isPending || removePhoto.isPending || remove.isPending
 
@@ -125,6 +126,7 @@ function SeatCard({
         {official?.photo_url
           ? <img src={official.photo_url} alt={official.name} className="h-full w-full object-cover object-top" />
           : <UserIcon size={46} strokeWidth={1.5} className="text-primary-300" />}
+        {samplePicture && <span className="absolute left-1 top-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">sample</span>}
         {uploadPhoto.isPending && <div className="absolute inset-0 bg-white/70 flex items-center justify-center text-xs font-semibold text-gray-600">Uploading...</div>}
       </div>
 

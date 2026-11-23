@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
+import ImageLightbox from '@/components/ui/ImageLightbox'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, cn } from '@/utils'
 
@@ -252,7 +253,7 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
 }
 
 /** One official: square picture (face-first crop), full name, then the position. */
-function OfficialCard({ o, featured = false }: { o: SKOfficial; featured?: boolean }) {
+function OfficialCard({ o, featured = false, onZoom }: { o: SKOfficial; featured?: boolean; onZoom?: () => void }) {
   const [broken, setBroken] = useState(false)
   const showPhoto = !!o.photo_url && !broken
   return (
@@ -265,13 +266,23 @@ function OfficialCard({ o, featured = false }: { o: SKOfficial; featured?: boole
     >
       <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
         {showPhoto ? (
-          <img
-            src={o.photo_url!}
-            alt={`${o.name}, ${o.position_display}`}
-            loading="lazy"
-            onError={() => setBroken(true)}
-            className="h-full w-full object-cover object-top"
-          />
+          <button
+            type="button"
+            onClick={onZoom}
+            aria-label={`View a larger picture of ${o.name}`}
+            className="group relative h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
+          >
+            <img
+              src={o.photo_url!}
+              alt={`${o.name}, ${o.position_display}`}
+              loading="lazy"
+              onError={() => setBroken(true)}
+              className="h-full w-full object-cover object-top transition-transform duration-200 group-hover:scale-105"
+            />
+            <span className="absolute bottom-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100 transition-opacity">
+              <ZoomIn size={14} />
+            </span>
+          </button>
         ) : (
           <UserIcon className="text-primary-300" size={featured ? 64 : 52} strokeWidth={1.5} aria-label="No picture yet" />
         )}
@@ -301,6 +312,11 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
     },
     ...(barangay.members ?? []).map(m => ({ key: `m-${m.id}`, id: m.id, name: m.name, position: m.position, position_display: m.position_display, photo_url: m.photo_url, order: 0 })),
   ]
+  const [zoomKey, setZoomKey] = useState<string | null>(null)
+  const withPhotos = officials.filter(o => !!o.photo_url)
+  const zoomIndex = withPhotos.findIndex(o => o.key === zoomKey)
+  const zoomed = zoomIndex >= 0 ? withPhotos[zoomIndex] : null
+  const step = (d: number) => setZoomKey(withPhotos[(zoomIndex + d + withPhotos.length) % withPhotos.length].key)
   const chair = officials.find(o => o.position === 'chairperson')
   const kagawads = officials.filter(o => o.position === 'kagawad')
   const secretary = officials.filter(o => o.position === 'secretary')
@@ -401,7 +417,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
 
           {chair && (
             <div className="flex justify-center">
-              <OfficialCard o={chair} featured />
+              <OfficialCard o={chair} featured onZoom={() => setZoomKey(chair.key)} />
             </div>
           )}
 
@@ -409,7 +425,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Kagawads ({kagawads.length})</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {kagawads.map(o => <OfficialCard key={o.key} o={o} />)}
+                {kagawads.map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} />)}
               </div>
             </div>
           )}
@@ -418,12 +434,24 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Secretary and Treasurer</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-                {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} />)}
+                {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} />)}
               </div>
             </div>
           )}
         </section>
       </div>
+
+      {zoomed && (
+        <ImageLightbox
+          src={zoomed.photo_url!}
+          alt={`${zoomed.name}, ${zoomed.position_display}`}
+          caption={zoomed.name}
+          subcaption={`${zoomed.position_display} · ${barangay.barangay_name}`}
+          onClose={() => setZoomKey(null)}
+          onPrev={withPhotos.length > 1 ? () => step(-1) : undefined}
+          onNext={withPhotos.length > 1 ? () => step(1) : undefined}
+        />
+      )}
     </div>
   )
 }
