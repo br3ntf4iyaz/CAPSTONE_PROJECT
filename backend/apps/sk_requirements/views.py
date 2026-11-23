@@ -105,7 +105,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo'):
+        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -215,6 +215,34 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
             member.photo.storage.delete(old)
         _audit_picture(request, barangay, f'{member.position}:{member.name}', 'sk_photo_changed')
         return Response({'id': member.id, 'photo_url': request.build_absolute_uri(member.photo.url)})
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='official-name',
+        permission_classes=[IsAuthenticated],
+        throttle_classes=[SKPhotoThrottle],
+    )
+    def official_name(self, request, pk=None):
+        """Change the name of the Chairperson (member omitted) or of one council member. Verified SK of this barangay (or admin)."""
+        import bleach
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        name = bleach.clean(str(request.data.get('name', '')), tags=[], strip=True).strip()
+        if not name or len(name) > 200:
+            return Response({'detail': 'Please enter a name (up to 200 characters).'}, status=status.HTTP_400_BAD_REQUEST)
+        member_id = request.data.get('member')
+        if member_id:
+            member = get_object_or_404(SKMember, pk=member_id, barangay=barangay)
+            member.name = name
+            member.save(update_fields=['name'])
+            _audit_picture(request, barangay, f'{member.position}:{name}', 'sk_name_changed')
+            return Response({'id': member.id, 'name': name})
+        barangay.sk_chairperson = name
+        barangay.save(update_fields=['sk_chairperson'])
+        _audit_picture(request, barangay, f'chairperson:{name}', 'sk_name_changed')
+        return Response({'sk_chairperson': name})
 
     @action(
         detail=False,

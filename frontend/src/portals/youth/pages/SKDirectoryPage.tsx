@@ -256,8 +256,9 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
 
 /** One official: square picture (face-first crop), full name, then the position. */
 function OfficialCard({
-  o, featured = false, onZoom, canEdit = false, busy = false, onPick, onRemove,
+  o, featured = false, onZoom, canEdit = false, busy = false, onPick, onRemove, onRename,
 }: {
+  onRename?: (name: string) => void
   o: SKOfficial
   featured?: boolean
   onZoom?: () => void
@@ -332,6 +333,17 @@ function OfficialCard({
               <Trash2 size={12} />
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => {
+              const n = window.prompt('Official name', o.name)?.trim()
+              if (n && n !== o.name) onRename?.(n)
+            }}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-full border border-primary-200 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+          >
+            Edit name
+          </button>
           <input
             ref={fileRef}
             type="file"
@@ -402,8 +414,20 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
       toast.error(d?.detail ?? 'Could not save the picture. Use a JPG or PNG under 5 MB.')
     },
   })
+  const rename = useMutation({
+    mutationFn: ({ o, name }: { o: SKOfficial; name: string }) =>
+      apiClient.post(`/sk-requirements/barangays/${barangay.id}/official-name/`, o.id !== null ? { name, member: o.id } : { name }),
+    onMutate: ({ o }) => setBusyKey(o.key),
+    onSettled: () => setBusyKey(null),
+    onSuccess: () => {
+      toast.success('Name updated')
+      qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not save the name.'),
+  })
   const editProps = (o: SKOfficial) => ({
     canEdit,
+    onRename: (name: string) => rename.mutate({ o, name }),
     busy: busyKey === o.key,
     onPick: (file: File) => picture.mutate({ o, file }),
     onRemove: () => picture.mutate({ o, file: null }),
