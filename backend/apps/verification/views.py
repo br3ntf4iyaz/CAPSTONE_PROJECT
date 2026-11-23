@@ -111,6 +111,37 @@ def ensure_id_types():
             IDTypeSetting.objects.create(code=code, label=label, sort_order=order)
 
 
+def _apply_decision(v, data):
+    """Record the on-device face check, run the automatic decision and store the outcome on `v` (not saved)."""
+    distance = _record_client_face_check(v, data)
+    if distance is not None:
+        v.client_checks = {**(v.client_checks or {}), "face_distance": round(distance, 3)}
+    decision = evaluate(v, distance, bool(v.ai_face_match))
+
+    v.status = decision["status"]
+    v.ai_confidence = decision["confidence"]
+    v.decision_flags = decision["flags"]
+    v.image_checks = decision["image_checks"]
+    v.auto_approved = decision["auto"]
+    if decision["auto"]:
+        v.reviewed_at = timezone.now()
+        v.ai_verdict = "approved"
+        v.admin_notes = "Verified automatically: all checks passed."
+        if decision["flags"]:
+            reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"])
+            v.ai_notes = (
+                "Verified automatically (confidence %d%%). Worth a quick second look: %s"
+                % (round(decision["confidence"] * 100), reasons)
+            )
+        else:
+            v.ai_notes = "Automatic verification passed (confidence %d%%)." % round(decision["confidence"] * 100)
+    else:
+        v.ai_verdict = "needs review"
+        reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"]) or "Needs a manual check."
+        v.ai_notes = "Sent for review (%d%% confidence): %s" % (round(decision["confidence"] * 100), reasons)
+    return decision
+
+
 class VerificationSubmitView(APIView):
     """
     POST /api/verification/submit/
@@ -139,9 +170,9 @@ class VerificationSubmitView(APIView):
 
         with transaction.atomic():
             existing = IDVerification.objects.select_for_update().filter(user=request.user).first()
-            if existing and existing.status in (IDVerification.Status.APPROVED, IDVerification.Status.REVIEWING):
+            if existing and existing.status == IDVerification.Status.APPROVED:
                 return Response(
-                    {"detail": "Verification already in progress or approved."},
+                    {"detail": "Your identity is already verified."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             if existing:
@@ -156,6 +187,7 @@ class VerificationSubmitView(APIView):
             except (TypeError, ValueError):
                 checks, ocr = {}, {}
 
+            replaced = [f.name for f in (existing.id_image, existing.id_back_image, existing.selfie_image) if f] if existing else []
             v = serializer.save(
                 user=request.user,
                 status=IDVerification.Status.REVIEWING,
@@ -172,34 +204,12 @@ class VerificationSubmitView(APIView):
                 reviewed_at=None,
             )
 
-            distance = _record_client_face_check(v, request.data)
-            if distance is not None:
-                v.client_checks = {**(v.client_checks or {}), "face_distance": round(distance, 3)}
-            matched = bool(v.ai_face_match)
-            decision = evaluate(v, distance, matched)
-
-            v.status = decision["status"]
-            v.ai_confidence = decision["confidence"]
-            v.decision_flags = decision["flags"]
-            v.image_checks = decision["image_checks"]
-            v.auto_approved = decision["auto"]
-            if decision["auto"]:
-                v.reviewed_at = timezone.now()
-                v.ai_verdict = "approved"
-                v.admin_notes = "Verified automatically: all checks passed."
-                if decision["flags"]:
-                    reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"])
-                    v.ai_notes = (
-                        "Verified automatically (confidence %d%%). Worth a quick second look: %s"
-                        % (round(decision["confidence"] * 100), reasons)
-                    )
-                else:
-                    v.ai_notes = "Automatic verification passed (confidence %d%%)." % round(decision["confidence"] * 100)
-            else:
-                v.ai_verdict = "needs review"
-                reasons = "; ".join(FLAG_TEXT.get(f, f) for f in decision["flags"]) or "Needs a manual check."
-                v.ai_notes = "Sent for review (%d%% confidence): %s" % (round(decision["confidence"] * 100), reasons)
+            _apply_decision(v, request.data)
             v.save()
+            kept = {v.id_image.name, v.id_back_image.name, v.selfie_image.name}
+            for old_name in replaced:
+                if old_name not in kept:
+                    v.id_image.storage.delete(old_name)  # do not keep replaced ID photos
 
         _notify_and_audit(request, v)
         return Response(IDVerificationSerializer(v).data, status=status.HTTP_201_CREATED)
@@ -418,3 +428,66 @@ class AdminIDTypeDetailView(APIView):
         except Exception:
             pass
         return Response({"code": row.code, "label": row.label, "is_enabled": row.is_enabled})
+
+
+class MyIdFrontView(APIView):
+    """GET /api/verification/mine/id-front/ : the person's OWN ID photo, so the browser can re-check a new selfie."""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.accounts.uploads import private_file_response
+        from django.http import Http404
+        v = IDVerification.objects.filter(user=request.user).first()
+        if v is None or not v.id_image:
+            raise Http404()
+        return private_file_response(v.id_image)
+
+
+class VerificationRetakeSelfieView(APIView):
+    """
+    POST /api/verification/retake-selfie/
+    Replace only the selfie of a verification that is waiting for review (or was rejected) and run the
+    automatic checks again, so the person does not have to wait for an admin or scan the ID again.
+    """
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [VerificationSubmitThrottle]
+
+    def post(self, request):
+        import json
+        from rest_framework import serializers as drf
+
+        with transaction.atomic():
+            v = IDVerification.objects.select_for_update().filter(user=request.user).first()
+            if v is None or not v.id_image or not v.id_back_image:
+                return Response({"detail": "Start a verification first."}, status=status.HTTP_400_BAD_REQUEST)
+            if v.status == IDVerification.Status.APPROVED:
+                return Response({"detail": "Your identity is already verified."}, status=status.HTTP_400_BAD_REQUEST)
+
+            class _S(drf.Serializer):
+                selfie_image = drf.ImageField()
+
+            ser = _S(data=request.data)
+            ser.is_valid(raise_exception=True)
+            selfie = ser.validated_data["selfie_image"]
+            if selfie.size > 10 * 1024 * 1024:
+                return Response({"detail": "Image must not exceed 10 MB."}, status=status.HTTP_400_BAD_REQUEST)
+
+            try:
+                checks = clean_client_checks(json.loads(request.data.get("client_checks") or "{}"))
+            except (TypeError, ValueError):
+                checks = {}
+
+            old_name = v.selfie_image.name
+            v.selfie_image = selfie
+            v.client_checks = {**(v.client_checks or {}), "selfie": checks.get("selfie", {})}
+            v.admin_notes = ""
+            v.reviewed_by = None
+            v.reviewed_at = None
+            v.save()
+            _apply_decision(v, request.data)
+            v.save()
+            if old_name and old_name != v.selfie_image.name:
+                v.selfie_image.storage.delete(old_name)  # do not keep the replaced photo around
+
+        _notify_and_audit(request, v)
+        return Response(IDVerificationSerializer(v).data, status=status.HTTP_200_OK)

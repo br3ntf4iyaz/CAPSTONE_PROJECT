@@ -94,6 +94,9 @@ export default function VerifyIdentityPage() {
   const [checking, setChecking] = useState(false)
   const [engine, setEngine] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [consent, setConsent] = useState(false)
+  const [retake, setRetake] = useState(false)       // only the selfie is being redone
+  const [restart, setRestart] = useState(false)      // start over with new ID photos
+  const [retakeBusy, setRetakeBusy] = useState(false)
   const [result, setResult] = useState<Verification | null>(null)
   const [ocr, setOcr] = useState<{ status: 'idle' | 'running' | 'done'; progress: number; result: OcrSummary | null }>({ status: 'idle', progress: 0, result: null })
   const me = useAuthStore().user as { first_name?: string; last_name?: string } | null
@@ -132,7 +135,7 @@ export default function VerifyIdentityPage() {
   // Read the text on the ID front (on this device) as soon as it is captured
   useEffect(() => {
     setOcr({ status: 'idle', progress: 0, result: null })
-    if (!front || !idType) return
+    if (!front || !idType || retake) return
     let cancelled = false
     setOcr({ status: 'running', progress: 0, result: null })
     readIdFront(
@@ -142,7 +145,7 @@ export default function VerifyIdentityPage() {
     ).then(r => { if (!cancelled) setOcr({ status: 'done', progress: 100, result: r }) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [front, idType])
+  }, [front, idType, retake])
 
   const verificationQ = useQuery<Verification>({
     queryKey: ['verification-status'],
@@ -150,19 +153,76 @@ export default function VerifyIdentityPage() {
   })
 
   const submitMutation = useMutation({
-    mutationFn: (formData: FormData) =>
-      apiClient.post('/verification/submit/', formData, {
+    mutationFn: ({ fd, onlySelfie }: { fd: FormData; onlySelfie: boolean }) =>
+      apiClient.post(onlySelfie ? '/verification/retake-selfie/' : '/verification/submit/', fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       }).then(r => r.data),
     onSuccess: (data: Verification) => {
       qc.invalidateQueries({ queryKey: ['verification-status'] })
       qc.invalidateQueries({ queryKey: ['me'] })
       setResult(data)
+      setRetake(false)
+      setRestart(false)
       setStep(5)
     },
   })
 
   const verification = verificationQ.data
+
+  /** Redo only the selfie: the ID photo that is already saved is used for the face comparison. */
+  const startRetake = async () => {
+    setRetakeBusy(true)
+    try {
+      const res = await apiClient.get('/verification/mine/id-front/', { responseType: 'blob' })
+      const blob = res.data as Blob
+      setFront(new File([blob], 'id-front.jpg', { type: blob.type || 'image/jpeg' }))
+      setBack(null)
+      setSelfie(null)
+      setMetas({})
+      setIdType(verification?.id_type ?? '')
+      setConsent(true)
+      setResult(null)
+      setRetake(true)
+      setStep(4)
+    } catch {
+      toast.error('We could not open your saved ID photo. Please scan your ID again.')
+      startOver()
+    } finally {
+      setRetakeBusy(false)
+    }
+  }
+
+  /** Scan everything again. */
+  const startOver = () => {
+    setRetake(false)
+    setRestart(true)
+    setFront(null)
+    setBack(null)
+    setSelfie(null)
+    setMetas({})
+    setResult(null)
+    setCamera(false)
+    setStep(1)
+  }
+
+  const FACE_FLAGS = ['face_uncertain', 'face_mismatch', 'face_unchecked', 'liveness_failed', 'selfie_quality']
+  const selfieFlagged = (flags?: string[]) => (flags ?? []).some(f => FACE_FLAGS.includes(f))
+
+  const RetakeButtons = ({ flags }: { flags?: string[] }) => (
+    <div className="space-y-2 pt-2">
+      <p className="text-sm text-ink-600">
+        {selfieFlagged(flags)
+          ? 'You do not have to wait: take a new selfie in good light and our system will check it again right away.'
+          : 'Want to try again? Retaking your photos is checked right away.'}
+      </p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <button type="button" onClick={startRetake} disabled={retakeBusy} className="btn-primary inline-flex items-center gap-2 disabled:opacity-50">
+          <Camera size={16} /> {retakeBusy ? 'Opening...' : 'Retake my selfie'}
+        </button>
+        <button type="button" onClick={startOver} className="btn-secondary">Scan my ID again</button>
+      </div>
+    </div>
+  )
 
   if (verificationQ.isLoading) return <PageSpinner />
 
@@ -185,7 +245,7 @@ export default function VerifyIdentityPage() {
   }
 
   // ── Reviewing / pending ─────────────────────────────────────────────────────
-  if (verification?.status === 'reviewing' || verification?.status === 'pending') {
+  if ((verification?.status === 'reviewing' || verification?.status === 'pending') && !retake && !restart) {
     return (
       <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
         <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-100">
@@ -207,6 +267,7 @@ export default function VerifyIdentityPage() {
             Face check: {verification.ai_face_match ? 'matches the ID photo' : 'no clear match, an admin will review it manually'}
           </p>
         )}
+        <RetakeButtons flags={verification?.decision_flags} />
         <button
           type="button"
           onClick={() => qc.invalidateQueries({ queryKey: ['verification-status'] })}
@@ -244,11 +305,13 @@ export default function VerifyIdentityPage() {
             ))}
           </ul>
         )}
+        {!approved && <RetakeButtons flags={result?.decision_flags} />}
         <button
           type="button"
           onClick={() => {
             qc.invalidateQueries({ queryKey: ['verification-status'] })
             setStep(1)
+            setRestart(false)
           }}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800 px-4 py-2 rounded-lg bg-primary-50 hover:bg-primary-100 transition-colors"
         >
@@ -291,7 +354,12 @@ export default function VerifyIdentityPage() {
       )}
 
       {/* ── Step indicators ─────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
+      {retake && (
+        <div className="rounded-xl bg-primary-50 border border-primary-100 p-3 text-sm text-primary-800">
+          Retake your selfie. We will compare it with the ID photo you already sent, and check it again right away.
+        </div>
+      )}
+      <div className={cn('flex items-center gap-2', retake && 'hidden')}>
         {(['Select ID', 'ID front', 'ID back', 'Face scan'] as const).map((label, i) => {
           const n = (i + 1) as 1 | 2 | 3 | 4
           const active = step === n
@@ -364,7 +432,7 @@ export default function VerifyIdentityPage() {
         const setCurrent = (f: File | null) => (slots.key === 'front' ? setFront(f) : slots.key === 'back' ? setBack(f) : setSelfie(f))
         const idLabel = ID_TYPES.find(t => t.value === idType)?.label
         const noFace = match?.ok === false && (match.reason === 'no-id-face' || match.reason === 'no-selfie-face')
-        const allReady = !!(front && back && selfie) && !checking && !noFace
+        const allReady = !!(front && (retake || back) && selfie) && !checking && !noFace
         return (
           <div className="space-y-4">
             <div>
@@ -441,7 +509,7 @@ export default function VerifyIdentityPage() {
                       : match.ok && match.matched ? `Face matches the ID photo (${Math.round((match.similarity ?? 0) * 100)}% similarity).`
                       : match.ok ? 'The face in your selfie does not sufficiently match the photo on your submitted ID. Please retake your selfie in better light, or submit and an admin will review it.'
                       : match.reason === 'no-selfie-face' ? 'No face detected in the selfie. Retake it facing the camera in good light.'
-                      : match.reason === 'no-id-face' ? 'No face detected on the ID front. Go back and recapture the front so the photo is clear.'
+                      : match.reason === 'no-id-face' ? (retake ? 'We could not find a face on your saved ID photo. Please scan your ID again.' : 'No face detected on the ID front. Go back and recapture the front so the photo is clear.')
                       : 'Automatic face check is unavailable. You can still submit; an admin will review it.'}
                   </div>
                 )}
@@ -460,7 +528,16 @@ export default function VerifyIdentityPage() {
 
             {!camera && (
               <div className="flex gap-3">
-                <button type="button" onClick={() => setStep((step - 1) as 1 | 2 | 3)} className="btn-secondary">← Back</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (retake) { setRetake(false); setSelfie(null); setFront(null); setMetas({}); return }
+                    setStep((step - 1) as 1 | 2 | 3)
+                  }}
+                  className="btn-secondary"
+                >
+                  {retake ? 'Cancel' : '← Back'}
+                </button>
                 {step < 4 ? (
                   <button type="button" disabled={!current} onClick={() => setStep((step + 1) as 3 | 4)} className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed">
                     Next →
@@ -470,20 +547,22 @@ export default function VerifyIdentityPage() {
                     type="button"
                     disabled={!allReady || submitMutation.isPending || ocr.status === 'running' || !consent}
                     onClick={() => {
-                      if (!front || !back || !selfie) return
+                      if (!front || !selfie || (!retake && !back)) return
                       const fd = new FormData()
-                      fd.append('id_type', idType)
-                      fd.append('id_image', front)
-                      fd.append('id_back_image', back)
                       fd.append('selfie_image', selfie)
-                      fd.append('client_checks', JSON.stringify(metas))
-                      fd.append('consent', 'true')
-                      fd.append('ocr_result', JSON.stringify(ocr.result ?? { ran: false }))
+                      fd.append('client_checks', JSON.stringify(retake ? { selfie: metas.selfie } : metas))
                       if (match?.ok) {
                         fd.append('face_distance', String(match.distance))
                         fd.append('face_matched', match.matched ? 'true' : 'false')
                       }
-                      submitMutation.mutate(fd)
+                      if (!retake && back) {
+                        fd.append('id_type', idType)
+                        fd.append('id_image', front)
+                        fd.append('id_back_image', back)
+                        fd.append('consent', 'true')
+                        fd.append('ocr_result', JSON.stringify(ocr.result ?? { ran: false }))
+                      }
+                      submitMutation.mutate({ fd, onlySelfie: retake })
                     }}
                     className="btn-primary flex-1 disabled:opacity-40 disabled:cursor-not-allowed"
                   >

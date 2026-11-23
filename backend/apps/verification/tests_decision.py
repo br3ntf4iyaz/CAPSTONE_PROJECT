@@ -227,3 +227,59 @@ class AutomaticDecisionTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r["X-Content-Type-Options"], "nosniff")
         self.assertEqual(self.client.get("/media/" + record.id_image.name).status_code, 404)
+
+    # ── retaking the selfie ────────────────────────────────────────────────────────────────────
+
+    def _retake(self, client, **over):
+        data = {
+            "selfie_image": SimpleUploadedFile("s2.jpg", _selfie(), content_type="image/jpeg"),
+            "face_distance": over.pop("dist", "0.30"),
+            "face_matched": over.pop("matched", "true"),
+            "client_checks": json.dumps(over.pop("checks", {"selfie": {"liveness": True}})),
+        }
+        data.update(over)
+        return client.post("/api/verification/retake-selfie/", data, format="multipart")
+
+    def test_a_better_selfie_is_approved_without_waiting_for_an_admin(self):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "fast"}):
+            user, client = self._client()
+            first = self._submit(client, dist="0.72", matched="false")
+            self.assertEqual(first.data["status"], "reviewing")
+            self.assertIn("face_mismatch", first.data["decision_flags"])
+            old_selfie = IDVerification.objects.get(user=user).selfie_image.name
+
+            second = self._retake(client)
+            self.assertEqual(second.status_code, 200)
+            self.assertEqual(second.data["status"], "approved", second.data)
+            self.assertTrue(second.data["auto_approved"])
+            record = IDVerification.objects.get(user=user)
+            self.assertNotEqual(record.selfie_image.name, old_selfie)
+
+    def test_a_bad_retake_stays_in_review_and_can_be_tried_again(self):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "fast"}):
+            _, client = self._client()
+            self._submit(client, dist="0.72", matched="false")
+            again = self._retake(client, dist="0.75", matched="false")
+            self.assertEqual(again.data["status"], "reviewing")
+            third = self._retake(client)
+            self.assertEqual(third.data["status"], "approved")
+
+    def test_cannot_retake_when_already_verified_or_never_started(self):
+        _, client = self._client()
+        self.assertEqual(self._retake(client).status_code, 400)  # nothing submitted yet
+        self._submit(client)
+        self.assertEqual(self._retake(client).status_code, 400)  # already verified
+
+    def test_people_can_only_download_their_own_id_photo(self):
+        user, client = self._client()
+        self._submit(client)
+        self.assertEqual(client.get("/api/verification/mine/id-front/").status_code, 200)
+        _, other = self._client()
+        self.assertEqual(other.get("/api/verification/mine/id-front/").status_code, 404)
+        self.assertEqual(APIClient().get("/api/verification/mine/id-front/").status_code, 401)
+
+    def test_a_person_waiting_for_review_can_submit_again(self):
+        with mock.patch.dict(os.environ, {"VERIFICATION_MODE": "fast"}):
+            _, client = self._client()
+            self.assertEqual(self._submit(client, dist="0.72", matched="false").data["status"], "reviewing")
+            self.assertEqual(self._submit(client).data["status"], "approved")
