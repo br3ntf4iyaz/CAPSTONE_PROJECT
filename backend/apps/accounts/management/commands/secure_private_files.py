@@ -48,8 +48,24 @@ class Command(BaseCommand):
                 dst.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(src), str(dst))
 
+        # Old copies no longer linked to any record (e.g. replaced uploads) are just as sensitive.
+        # Move them aside instead of deleting, so nothing is lost.
+        orphans = 0
+        for folder in ('verification', 'applications'):
+            root = public / folder
+            if not root.exists():
+                continue
+            for path in sorted(p for p in root.rglob('*') if p.is_file()):
+                rel = path.relative_to(public)
+                orphans += 1
+                self.stdout.write(f'  orphan (not linked to any record): {rel}')
+                if apply:
+                    dst = private / '_orphaned' / rel
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(path), str(dst))
+
         verb = 'Moved' if apply else 'Would move'
-        self.stdout.write(self.style.SUCCESS(f'\n{verb} {moved} file(s); {already} already private; {missing} missing.'))
+        self.stdout.write(self.style.SUCCESS(f'\n{verb} {moved} file(s); {already} already private; {missing} missing; {orphans} unlinked old file(s) set aside.'))
         if not apply:
             self.stdout.write(self.style.WARNING('Dry run only. Re-run with --apply.'))
         self.stdout.write(
