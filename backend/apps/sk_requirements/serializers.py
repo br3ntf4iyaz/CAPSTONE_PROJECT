@@ -107,6 +107,98 @@ class SKRequirementCompactSerializer(serializers.ModelSerializer):
 # SKMember
 # ---------------------------------------------------------------------------
 
+# A barangay SK council has 10 seats: the Chairperson (kept on the barangay) plus these.
+SEAT_LIMITS = {'kagawad': 7, 'secretary': 1, 'treasurer': 1}
+
+
+class SKOfficialsMixin(serializers.Serializer):
+    """Adds the full, ordered list of the 10 officials of one barangay (and only that barangay)."""
+
+    chairperson_photo_url = serializers.SerializerMethodField()
+    officials = serializers.SerializerMethodField()
+
+    def _abs(self, f):
+        if not f:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(f.url) if request else f.url
+
+    def get_chairperson_photo_url(self, obj):
+        return self._abs(obj.chairperson_photo)
+
+    def get_officials(self, obj):
+        rank = {'kagawad': 1, 'secretary': 2, 'treasurer': 3}
+        out = [{
+            'id': None,
+            'key': 'chairperson',
+            'name': obj.sk_chairperson or 'SK Chairperson',
+            'position': 'chairperson',
+            'position_display': 'SK Chairperson',
+            'photo_url': self._abs(obj.chairperson_photo),
+            'order': 0,
+        }]
+        for m in sorted(obj.members.all(), key=lambda m: (rank.get(m.position, 9), m.order, m.id)):
+            out.append({
+                'id': m.id,
+                'key': f'member-{m.id}',
+                'name': m.name,
+                'position': m.position,
+                'position_display': m.get_position_display(),
+                'photo_url': self._abs(m.photo),
+                'order': m.order,
+            })
+        return out
+
+
+class SKMemberAdminSerializer(serializers.ModelSerializer):
+    """Admin: add / edit one SK Kagawad, Secretary or Treasurer of a barangay (with picture)."""
+
+    photo = serializers.ImageField(write_only=True, required=False, allow_null=True)
+    photo_url = serializers.SerializerMethodField()
+    position_display = serializers.CharField(source='get_position_display', read_only=True)
+
+    class Meta:
+        model = SKMember
+        fields = ['id', 'barangay', 'name', 'position', 'position_display', 'order', 'photo', 'photo_url']
+
+    def get_photo_url(self, obj):
+        if not obj.photo:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.photo.url) if request else obj.photo.url
+
+    def validate_name(self, value):
+        value = bleach.clean(value or '', tags=[], strip=True).strip()
+        if len(value) < 2:
+            raise serializers.ValidationError('Enter the official\'s full name.')
+        return value[:200]
+
+    def validate_photo(self, value):
+        if value is not None:
+            check_upload(value, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+        return value
+
+    def validate(self, attrs):
+        barangay = attrs.get('barangay') or getattr(self.instance, 'barangay', None)
+        position = attrs.get('position') or getattr(self.instance, 'position', None)
+        if barangay is not None and position:
+            taken = SKMember.objects.filter(barangay=barangay, position=position)
+            if self.instance is not None:
+                taken = taken.exclude(pk=self.instance.pk)
+            limit = SEAT_LIMITS.get(position, 0)
+            if taken.count() >= limit:
+                label = dict(SKMember.POSITION_CHOICES).get(position, position)
+                raise serializers.ValidationError({
+                    'position': f'{barangay.barangay_name} already has its {limit} {label}{"s" if limit > 1 else ""}. '
+                                f'Edit or remove one first.'
+                })
+            if 'order' not in attrs and self.instance is None:
+                used = set(taken.values_list('order', flat=True))
+                attrs['order'] = next((n for n in range(1, limit + 1) if n not in used), limit)
+        return attrs
+
+
+
 class SKMemberSerializer(serializers.ModelSerializer):
     photo_url = serializers.SerializerMethodField()
     position_display = serializers.CharField(source='get_position_display', read_only=True)
@@ -126,7 +218,7 @@ class SKMemberSerializer(serializers.ModelSerializer):
 # SKBarangay — List
 # ---------------------------------------------------------------------------
 
-class SKBarangayListSerializer(serializers.ModelSerializer):
+class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
     # Aliases expected by the admin frontend
     name = serializers.CharField(source='barangay_name')
     chairperson = serializers.CharField(source='sk_chairperson', allow_blank=True)
@@ -151,6 +243,8 @@ class SKBarangayListSerializer(serializers.ModelSerializer):
             'contact_email',
             'contact_phone',
             'logo_url',
+            'chairperson_photo_url',
+            'officials',
             'members',
             'is_active',
             'created_at',
@@ -176,7 +270,7 @@ class SKBarangayListSerializer(serializers.ModelSerializer):
 # SKBarangay — Detail
 # ---------------------------------------------------------------------------
 
-class SKBarangayDetailSerializer(serializers.ModelSerializer):
+class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
     requirements = SKRequirementSerializer(many=True, read_only=True)
     logo_url = serializers.SerializerMethodField()
     members = SKMemberSerializer(many=True, read_only=True)
@@ -191,6 +285,8 @@ class SKBarangayDetailSerializer(serializers.ModelSerializer):
             'contact_phone',
             'description',
             'logo_url',
+            'chairperson_photo_url',
+            'officials',
             'members',
             'is_active',
             'created_at',

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
@@ -23,8 +23,20 @@ interface SKMember {
   photo_url: string | null
 }
 
+interface SKOfficial {
+  key: string
+  id: number | null
+  name: string
+  position: 'chairperson' | 'kagawad' | 'secretary' | 'treasurer'
+  position_display: string
+  photo_url: string | null
+  order: number
+}
+
 interface SKBarangay {
   members?: SKMember[]
+  officials?: SKOfficial[]
+  chairperson_photo_url?: string | null
   id: number
   barangay_name: string
   sk_chairperson: string
@@ -239,16 +251,41 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
   )
 }
 
-function MemberAvatar({ m }: { m: SKMember }) {
-  const initials = m.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+/** One official: square picture (face-first crop), full name, then the position. */
+function OfficialCard({ o, featured = false }: { o: SKOfficial; featured?: boolean }) {
+  const [broken, setBroken] = useState(false)
+  const showPhoto = !!o.photo_url && !broken
   return (
-    <div className="flex flex-col items-center text-center gap-1.5 min-w-0">
-      <div className="w-14 h-14 rounded-full overflow-hidden bg-primary-100 text-primary-700 flex items-center justify-center font-bold border-2 border-white shadow-sm">
-        {m.photo_url ? <img src={m.photo_url} alt={m.name} className="w-full h-full object-cover" /> : initials}
+    <article
+      className={cn(
+        // every card in a grid has the same width and height, whatever the name length
+        'flex flex-col items-center text-center rounded-2xl border bg-white p-3 sm:p-4 shadow-sm h-full w-full',
+        featured ? 'border-primary-200 ring-1 ring-primary-100 max-w-[14rem]' : 'border-ink-100',
+      )}
+    >
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
+        {showPhoto ? (
+          <img
+            src={o.photo_url!}
+            alt={`${o.name}, ${o.position_display}`}
+            loading="lazy"
+            onError={() => setBroken(true)}
+            className="h-full w-full object-cover object-top"
+          />
+        ) : (
+          <UserIcon className="text-primary-300" size={featured ? 64 : 52} strokeWidth={1.5} aria-label="No picture yet" />
+        )}
       </div>
-      <p className="text-xs font-semibold text-ink-900 leading-tight break-words w-full">{m.name}</p>
-      <p className="text-[10px] text-ink-500 leading-tight">{m.position_display}</p>
-    </div>
+      <h4 className={cn('mt-3 font-bold text-ink-900 leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
+      <p
+        className={cn(
+          'mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+          o.position === 'chairperson' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-700',
+        )}
+      >
+        {o.position_display}
+      </p>
+    </article>
   )
 }
 
@@ -256,111 +293,136 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
   const total = barangay.submitted_count + barangay.pending_count + barangay.overdue_count
   const pct = total > 0 ? Math.round((barangay.submitted_count / total) * 100) : 0
 
+  // Always the 10 seats of THIS barangay, in order: Chairperson, 7 Kagawads, Secretary, Treasurer
+  const officials: SKOfficial[] = barangay.officials ?? [
+    {
+      key: 'chairperson', id: null, name: barangay.sk_chairperson || 'SK Chairperson', position: 'chairperson',
+      position_display: 'SK Chairperson', photo_url: barangay.chairperson_photo_url ?? null, order: 0,
+    },
+    ...(barangay.members ?? []).map(m => ({ key: `m-${m.id}`, id: m.id, name: m.name, position: m.position, position_display: m.position_display, photo_url: m.photo_url, order: 0 })),
+  ]
+  const chair = officials.find(o => o.position === 'chairperson')
+  const kagawads = officials.filter(o => o.position === 'kagawad')
+  const secretary = officials.filter(o => o.position === 'secretary')
+  const treasurer = officials.filter(o => o.position === 'treasurer')
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-0 sm:p-4 bg-black/40 backdrop-blur-sm"
       onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`SK officials of ${barangay.barangay_name}`}
     >
       <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[92vh] overflow-y-auto"
+        className="bg-white sm:rounded-3xl shadow-2xl w-full max-w-4xl h-full sm:h-auto max-h-screen sm:max-h-[94vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-6 pt-8 pb-10 text-white">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-          >
-            <X size={16} />
-          </button>
-          {/* Avatar */}
-          <div className="w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center mb-4 overflow-hidden">
-            {barangay.logo_url
-              ? <img src={barangay.logo_url} alt={barangay.barangay_name} className="w-full h-full object-cover" />
-              : <Award size={34} className="text-white" />
-            }
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-5 sm:px-8 pt-6 pb-10 text-white">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-white/90 hover:text-white"
+            >
+              <ArrowLeft size={16} /> Back to directory
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <h2 className="font-display font-extrabold text-2xl leading-tight mb-1">
-            {barangay.sk_chairperson || 'SK Chairperson'}
-          </h2>
-          <p className="text-primary-100 text-base font-semibold">SK Chairperson · {barangay.barangay_name}</p>
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center overflow-hidden">
+              {barangay.logo_url
+                ? <img src={barangay.logo_url} alt={`${barangay.barangay_name} logo`} className="w-full h-full object-cover" />
+                : <Award size={32} className="text-white" />
+              }
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-primary-100">Sangguniang Kabataan</p>
+              <h2 className="font-display font-extrabold text-2xl sm:text-3xl leading-tight break-words">{barangay.barangay_name}</h2>
+              <p className="text-primary-100 text-sm sm:text-base font-medium break-words">SK Chairperson: {barangay.sk_chairperson || 'to be announced'}</p>
+            </div>
+          </div>
         </div>
 
-        {/* Info cards */}
-        <div className="-mt-5 mx-4 bg-white rounded-2xl border border-ink-100 shadow-sm p-4 space-y-3.5">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-              <MapPin size={16} className="text-primary-600" />
+        {/* Contact + compliance (unchanged information, laid out side by side on wide screens) */}
+        <div className="relative z-10 -mt-5 mx-4 sm:mx-8 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-4 space-y-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><MapPin size={16} className="text-primary-600" /></div>
+              <div><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
             </div>
+            {barangay.contact_email && (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><Mail size={16} className="text-primary-600" /></div>
+                <div className="min-w-0">
+                  <p className="text-xs text-ink-500 font-medium">Email</p>
+                  <a href={`mailto:${barangay.contact_email}`} className="font-semibold text-sm text-primary-700 hover:underline break-all">{barangay.contact_email}</a>
+                </div>
+              </div>
+            )}
+            {barangay.contact_phone && (
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><Phone size={16} className="text-primary-600" /></div>
+                <div>
+                  <p className="text-xs text-ink-500 font-medium">Phone</p>
+                  <a href={`tel:${barangay.contact_phone}`} className="font-semibold text-sm text-primary-700 hover:underline">{barangay.contact_phone}</a>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-4">
+            <p className="text-xs font-semibold text-ink-500 mb-2.5 uppercase tracking-wide">Compliance</p>
+            <div className="flex items-center gap-3 mb-2.5">
+              <div className="flex-1 h-2.5 bg-ink-100 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="text-base font-bold text-ink-900 w-12 text-right">{pct}%</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <span className="badge badge-green text-sm">{barangay.submitted_count} submitted</span>
+              <span className="badge badge-gray text-sm">{barangay.pending_count} pending</span>
+              {barangay.overdue_count > 0 && <span className="badge badge-red text-sm">{barangay.overdue_count} overdue</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* The council */}
+        <section className="px-4 sm:px-8 py-6 space-y-7" aria-label="SK officials">
+          <div>
+            <h3 className="font-display font-extrabold text-xl text-ink-900">SK Officials of {barangay.barangay_name}</h3>
+            <p className="text-sm text-ink-500">The elected and appointed members of the Sangguniang Kabataan council.</p>
+          </div>
+
+          {chair && (
+            <div className="flex justify-center">
+              <OfficialCard o={chair} featured />
+            </div>
+          )}
+
+          {kagawads.length > 0 && (
             <div>
-              <p className="text-xs text-ink-500 font-medium">Barangay</p>
-              <p className="font-semibold text-base text-ink-900">{barangay.barangay_name}</p>
-            </div>
-          </div>
-
-          {barangay.contact_email && (
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                <Mail size={16} className="text-primary-600" />
-              </div>
-              <div>
-                <p className="text-xs text-ink-500 font-medium">Email</p>
-                <a href={`mailto:${barangay.contact_email}`} className="font-semibold text-sm text-primary-700 hover:underline">
-                  {barangay.contact_email}
-                </a>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Kagawads ({kagawads.length})</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {kagawads.map(o => <OfficialCard key={o.key} o={o} />)}
               </div>
             </div>
           )}
 
-          {barangay.contact_phone && (
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                <Phone size={16} className="text-primary-600" />
-              </div>
-              <div>
-                <p className="text-xs text-ink-500 font-medium">Phone</p>
-                <a href={`tel:${barangay.contact_phone}`} className="font-semibold text-sm text-primary-700 hover:underline">
-                  {barangay.contact_phone}
-                </a>
+          {(secretary.length > 0 || treasurer.length > 0) && (
+            <div>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Secretary and Treasurer</h4>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} />)}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Compliance */}
-        <div className="px-4 py-4">
-          <p className="text-xs font-semibold text-ink-500 mb-2.5 uppercase tracking-wide">Compliance</p>
-          <div className="flex items-center gap-3 mb-2.5">
-            <div className="flex-1 h-2.5 bg-ink-100 rounded-full overflow-hidden">
-              <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-            </div>
-            <span className="text-base font-bold text-ink-900 w-12 text-right">{pct}%</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="badge badge-green text-sm">{barangay.submitted_count} submitted</span>
-            <span className="badge badge-gray text-sm">{barangay.pending_count} pending</span>
-            {barangay.overdue_count > 0 && <span className="badge badge-red text-sm">{barangay.overdue_count} overdue</span>}
-          </div>
-        </div>
-
-        {/* Council officials */}
-        {(barangay.members?.length ?? 0) > 0 && (
-          <div className="px-4 pb-5">
-            <p className="text-xs font-semibold text-ink-500 mb-3 uppercase tracking-wide">SK Council</p>
-            <div className="flex flex-col items-center mb-4">
-              <div className="w-16 h-16 rounded-full overflow-hidden bg-primary-600 text-white flex items-center justify-center font-bold border-2 border-white shadow">
-                {barangay.logo_url
-                  ? <img src={barangay.logo_url} alt={barangay.sk_chairperson} className="w-full h-full object-cover" />
-                  : (barangay.sk_chairperson || 'SK').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-              </div>
-              <p className="text-sm font-bold text-ink-900 mt-1.5 text-center">{barangay.sk_chairperson || 'SK Chairperson'}</p>
-              <p className="text-[11px] text-ink-500">SK Chairperson</p>
-            </div>
-            <div className="grid grid-cols-3 gap-x-2 gap-y-4">
-              {(barangay.members ?? []).map(m => <MemberAvatar key={m.id} m={m} />)}
-            </div>
-          </div>
-        )}
+        </section>
       </div>
     </div>
   )
@@ -472,6 +534,13 @@ function BarangayCard({
                 {b.sk_chairperson}
               </button>
             )}
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onViewProfile(b) }}
+              className="mt-1 ml-0 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-full px-2.5 py-1 transition-colors"
+            >
+              <Users size={12} /> View SK officials
+            </button>
             {/* Mobile compliance summary */}
             <div className="flex items-center gap-2 mt-1 sm:hidden">
               <div className="flex-1 h-1.5 bg-ink-200 rounded-full overflow-hidden max-w-[80px]">

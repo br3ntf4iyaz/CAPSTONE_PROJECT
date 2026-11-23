@@ -12,11 +12,12 @@ from apps.accounts.permissions import IsAdminRole
 from apps.accounts.uploads import IMAGE_EXTS, check_upload
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKRequirement
+from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKMember, SKRequirement
 from .serializers import (
     SKBarangayDetailSerializer,
     SKBarangayListSerializer,
     SKFeedbackSerializer,
+    SKMemberAdminSerializer,
     SKRequirementSerializer,
     validate_pdf,
 )
@@ -100,6 +101,36 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         barangay.save(update_fields=['logo'])
         logo_url = request.build_absolute_uri(barangay.logo.url) if barangay.logo else None
         return Response({'logo_url': logo_url}, status=status.HTTP_200_OK)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='chairperson-photo',
+        permission_classes=[IsAuthenticated, IsAdminRole],
+        parser_classes=[MultiPartParser, FormParser],
+    )
+    def chairperson_photo(self, request, pk=None):
+        """Admin: set (file in 'photo') or remove (no file, remove=true) the Chairperson's picture."""
+        barangay = self.get_object()
+        if str(request.data.get('remove', '')).lower() in ('1', 'true') and 'photo' not in request.FILES:
+            if barangay.chairperson_photo:
+                barangay.chairperson_photo.delete(save=False)
+                barangay.chairperson_photo = None
+                barangay.save(update_fields=['chairperson_photo'])
+            return Response({'chairperson_photo_url': None})
+        if 'photo' not in request.FILES:
+            return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        photo = request.FILES['photo']
+        try:
+            check_upload(photo, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+        except DRFValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
+        old = barangay.chairperson_photo.name if barangay.chairperson_photo else None
+        barangay.chairperson_photo = photo
+        barangay.save(update_fields=['chairperson_photo'])
+        if old and old != barangay.chairperson_photo.name:
+            barangay.chairperson_photo.storage.delete(old)
+        return Response({'chairperson_photo_url': request.build_absolute_uri(barangay.chairperson_photo.url)})
 
     @action(
         detail=False,
@@ -485,3 +516,55 @@ class SKFeedbackViewSet(viewsets.ModelViewSet):
         feedback.status = new_status
         feedback.save(update_fields=['status'])
         return Response(SKFeedbackSerializer(feedback, context={'request': request}).data)
+
+
+# ---------------------------------------------------------------------------
+# SKMemberViewSet: admin management of the council members (with pictures)
+# ---------------------------------------------------------------------------
+
+class SKMemberViewSet(viewsets.ModelViewSet):
+    """Admin only: add, edit and remove the Kagawads, Secretary and Treasurer of a barangay."""
+
+    serializer_class = SKMemberAdminSerializer
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = SKMember.objects.select_related('barangay').order_by('barangay__barangay_name', 'position', 'order', 'id')
+        barangay = self.request.query_params.get('barangay')
+        if barangay:
+            qs = qs.filter(barangay_id=barangay)
+        return qs
+
+    def _audit(self, action_name, member, extra=None):
+        from apps.accounts.models import AuditLog
+        from apps.accounts.views import get_client_ip
+        AuditLog.objects.create(
+            user=self.request.user, action=action_name, model_name='SKMember', object_id=member.pk,
+            ip_address=get_client_ip(self.request),
+            details={'barangay': member.barangay.barangay_name, 'name': member.name, 'position': member.position, **(extra or {})},
+        )
+
+    def perform_create(self, serializer):
+        member = serializer.save()
+        self._audit('sk_official_added', member)
+
+    def perform_update(self, serializer):
+        member = serializer.save()
+        self._audit('sk_official_updated', member)
+
+    def perform_destroy(self, instance):
+        self._audit('sk_official_removed', instance)
+        if instance.photo:
+            instance.photo.delete(save=False)
+        instance.delete()
+
+    @action(detail=True, methods=['post'], url_path='remove-photo')
+    def remove_photo(self, request, pk=None):
+        member = self.get_object()
+        if member.photo:
+            member.photo.delete(save=False)
+            member.photo = None
+            member.save(update_fields=['photo'])
+        return Response(SKMemberAdminSerializer(member, context={'request': request}).data)

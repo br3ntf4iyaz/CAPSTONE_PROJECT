@@ -159,6 +159,7 @@ const NAV_ITEMS = [
   { label: 'Project Monitoring', icon: CheckCheck,   to: '/admin/projects' },
   { label: 'Youth Orgs / YORP', icon: Users,          to: '/admin/yorp' },
   { label: 'SK Requirements',  icon: ClipboardCheck,  to: '/admin/sk-tracker' },
+  { label: 'SK Officials',     icon: Users,           to: '/admin/sk-officials' },
   { label: 'Analytics',        icon: BarChart3,       to: '/admin/analytics' },
   { label: 'Reports',          icon: FileText,        to: '/admin/reports' },
   { label: 'Calendar',         icon: CalendarDays,    to: '/admin/calendar' },

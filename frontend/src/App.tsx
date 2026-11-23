@@ -84,6 +84,7 @@ const AdminFeaturedPage    = lazy(() => import('@/portals/admin/pages/AdminFeatu
 const AdminReportsPage        = lazy(() => import('@/portals/admin/pages/AdminReportsPage'))
 const HelpCenterPage = lazy(() => import('@/portals/youth/pages/HelpCenterPage'))
 const AdminSupportPage = lazy(() => import('@/portals/admin/pages/AdminSupportPage'))
+const AdminSKOfficialsPage = lazy(() => import('@/portals/admin/pages/AdminSKOfficialsPage'))
 const MyApplicationsPage = lazy(() => import('@/portals/youth/pages/MyApplicationsPage'))
 const AdminApplicationsPage = lazy(() => import('@/portals/admin/pages/AdminApplicationsPage'))
 const AdminVerificationPage   = lazy(() => import('@/portals/admin/pages/AdminVerificationPage'))
@@ -225,6 +226,7 @@ export default function App() {
         <Route path="/admin/projects"        element={<Wrap><AdminProjectsPage /></Wrap>} />
         <Route path="/admin/yorp"            element={<Wrap><AdminYORPPage /></Wrap>} />
         <Route path="/admin/sk-tracker"      element={<Wrap><AdminSKTrackerPage /></Wrap>} />
+        <Route path="/admin/sk-officials"    element={<Wrap><AdminSKOfficialsPage /></Wrap>} />
         <Route path="/admin/analytics"       element={<Wrap><AdminAnalyticsPage /></Wrap>} />
         <Route path="/admin/calendar"        element={<Wrap><AdminCalendarPage /></Wrap>} />
         <Route path="/admin/lms"                          element={<Wrap><AdminLMSPage /></Wrap>} />

@@ -43,6 +43,7 @@ class SKBarangay(models.Model):
     contact_phone = models.CharField(max_length=20, blank=True)
     description = models.TextField(blank=True)
     logo = models.ImageField(upload_to='sk_logos/', null=True, blank=True)
+    chairperson_photo = models.ImageField(upload_to='sk_chairpersons/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
