@@ -61,6 +61,8 @@ const YouthBadgesPage       = lazy(() => import('@/portals/youth/pages/YouthBadg
 const YouthCertificatesPage = lazy(() => import('@/portals/youth/pages/YouthCertificatesPage'))
 const CoursePage            = lazy(() => import('@/portals/youth/pages/CoursePage'))
 const LessonPlayerPage      = lazy(() => import('@/portals/youth/pages/LessonPlayerPage'))
+const ReviewCoursePage      = lazy(() => import('@/portals/youth/pages/ReviewCoursePage'))
+const CertificateViewPage   = lazy(() => import('@/portals/youth/pages/CertificateViewPage'))
 const YouthIDCardPage       = lazy(() => import('@/portals/youth/pages/YouthIDCardPage'))
 
 // ─── Admin Portal ──────────────────────────────────────────────────────────────
@@ -192,8 +194,10 @@ export default function App() {
         <Route path="/lms"              element={<Wrap><YouthLMSPage /></Wrap>} />
         <Route path="/lms/:courseId"                   element={<Wrap><CoursePage /></Wrap>} />
         <Route path="/lms/:courseId/lesson/:lessonId"  element={<Wrap><LessonPlayerPage /></Wrap>} />
+        <Route path="/lms/:courseId/review"            element={<Wrap><ReviewCoursePage /></Wrap>} />
         <Route path="/badges"           element={<Wrap><YouthBadgesPage /></Wrap>} />
         <Route path="/certificates"     element={<Wrap><YouthCertificatesPage /></Wrap>} />
+        <Route path="/certificates/:certId" element={<Wrap><CertificateViewPage /></Wrap>} />
         <Route path="/help-center"      element={<Wrap><HelpCenterPage /></Wrap>} />
         <Route path="/my-applications"  element={<Wrap><MyApplicationsPage /></Wrap>} />
         <Route path="/chatbot"          element={<Wrap><ChatbotPage /></Wrap>} />

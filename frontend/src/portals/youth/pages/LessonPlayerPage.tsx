@@ -1,81 +1,42 @@
-﻿import { useState, useMemo, useEffect, useCallback } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  BookOpen, CheckCircle2, ChevronLeft, ChevronRight, HelpCircle,
-  Menu, PlayCircle, X, AlertCircle, ArrowLeft,
+  Award, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, HelpCircle, Lock, Menu, X, AlertCircle,
+  ArrowLeft, RotateCcw, ScrollText, FileText, Eye,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
-import { cn, toArray } from '@/utils'
+import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import LessonVideo, { type VideoKind } from '../components/LessonVideo'
+import { apiMessage, toArray, type CourseState, type Enrollment, type StateLesson } from '../lms'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Choice {
-  id: number
-  text: string
-  order: number
-}
-
-interface Question {
-  id: number
-  text: string
-  order: number
-  choices: Choice[]
-}
+interface Choice { id: number; text: string; order: number }
+interface Question { id: number; text: string; order: number; choices: Choice[] }
 
 interface LessonDetail {
   id: number
   title: string
-  order: number
   content: string
   video_url: string
+  video_source: string
+  video_kind: VideoKind
+  video_required_percent: number
+  video_percent: number
+  video_watched: boolean
+  notes_read: boolean
+  requirement_met: boolean
+  passing_score: number
+  duration_minutes: number | null
   resource_file_url: string | null
-  duration_minutes: number | null
   questions: Question[]
-}
-
-interface LessonItem {
-  id: number
-  title: string
-  order: number
-  duration_minutes: number | null
-  video_url: string
-}
-
-interface ModuleItem {
-  id: number
-  title: string
-  order: number
-  lessons: LessonItem[]
-}
-
-interface CourseDetail {
-  id: number
-  title: string
-  modules: ModuleItem[]
-}
-
-interface CourseMini {
-  id: number
-  title: string
-}
-
-interface Enrollment {
-  id: number
-  course: CourseMini
-  progress_percent: number
-  status: string
-}
-
-interface LessonProgressItem {
-  lesson_id: number
   completed: boolean
-  completed_at: string | null
 }
 
-interface QuizResultAnswer {
+interface ResultAnswer {
   question_id: number
   question_text: string
   selected_choice_id: number
@@ -90,58 +51,30 @@ interface QuizResult {
   max_score: number
   passed: boolean
   percent: number
-  answers: QuizResultAnswer[]
+  passing_score: number
+  answers: ResultAnswer[]
+  next_lesson_id: number | null
+  course_completed: boolean
+  certificate_id: number | null
+  progress_percent: number
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
-function getYouTubeId(url: string): string | null {
-  const regexps = [
-    /[?&]v=([^&#]+)/,
-    /youtu\.be\/([^?&#]+)/,
-    /youtube\.com\/embed\/([^?&#]+)/,
-  ]
-  for (const re of regexps) {
-    const match = url.match(re)
-    if (match) return match[1]
-  }
-  return null
-}
-
-/**
- * Minimal markdown renderer: bold (**text**) + paragraphs + line breaks.
- * NOTE: content is admin-entered, not user-generated. dangerouslySetInnerHTML
- * is intentional here. Do not use this pattern for user-submitted content.
- */
-function renderContent(text: string) {
-  return text.split('\n\n').map((para, i) => {
-    const html = para
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .split('\n').join('<br />')
-    return (
-      <p
-        key={i}
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: html }}
-        className="mb-3 text-sm text-ink-700 leading-relaxed"
-      />
-    )
-  })
-}
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-function allLessonsFlat(modules: ModuleItem[]): LessonItem[] {
-  return [...modules]
-    .sort((a, b) => a.order - b.order)
-    .flatMap(m => [...m.lessons].sort((a, b) => a.order - b.order))
+/** Notes are written by administrators: bold (**text**) and paragraphs only, and everything else is escaped. */
+function Notes({ text }: { text: string }) {
+  const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return (
+    <>
+      {text.split('\n\n').map((para, i) => (
+        <p
+          key={i}
+          className="mb-3 text-sm text-ink-700 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: esc(para).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>').split('\n').join('<br />') }}
+        />
+      ))}
+    </>
+  )
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -150,597 +83,258 @@ export default function LessonPlayerPage() {
   const { courseId, lessonId } = useParams<{ courseId: string; lessonId: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
-
   const [showSidebar, setShowSidebar] = useState(false)
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({})
-  const [quizResult, setQuizResult] = useState<QuizResult | null>(null)
-  const [quizSubmitted, setQuizSubmitted] = useState(false)
-  const [quizStep, setQuizStep] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(60)
-  const [shuffledQuestions, setShuffledQuestions] = useState<Question[]>([])
+  const [videoPercent, setVideoPercent] = useState<number | null>(null)
+  const [videoDone, setVideoDone] = useState(false)
 
-  // Pre-test state
-  const [preTestDone, setPreTestDone] = useState(false)
-  const [preTestStep, setPreTestStep] = useState(0)
-  const [preTestAnswers, setPreTestAnswers] = useState<Record<number, number>>({})
-  const [preTestSubmitted, setPreTestSubmitted] = useState(false)
-
-  // ── Fetch course structure (for sidebar) ──────────────────────────────────
-  const courseQ = useQuery({
-    queryKey: ['course-detail', courseId],
-    queryFn: () =>
-      apiClient.get(`/courses/${courseId}/`).then(r => r.data as CourseDetail),
-    enabled: !!courseId,
-  })
-
-  // ── Fetch lesson detail with questions ────────────────────────────────────
-  const lessonQ = useQuery({
-    queryKey: ['lesson-detail', lessonId],
-    queryFn: () =>
-      apiClient.get(`/courses/lessons/${lessonId}/`).then(r => r.data as LessonDetail),
-    enabled: !!lessonId,
-  })
-
-  // ── Fetch enrollments ─────────────────────────────────────────────────────
   const enrollmentsQ = useQuery({
     queryKey: ['my-enrollments'],
-    queryFn: () =>
-      apiClient.get('/courses/enrollments/').then(r => toArray<Enrollment>(r.data)).catch(() => []),
+    queryFn: () => apiClient.get('/courses/enrollments/').then(r => toArray<Enrollment>(r.data)).catch(() => []),
   })
-
   const enrollment = useMemo(
     () => enrollmentsQ.data?.find(e => String(e.course.id) === courseId) ?? null,
     [enrollmentsQ.data, courseId],
   )
 
-  // ── Fetch lesson progress ─────────────────────────────────────────────────
-  const lessonProgressQ = useQuery({
-    queryKey: ['lesson-progress', enrollment?.id],
-    queryFn: () =>
-      apiClient
-        .get(`/courses/enrollments/${enrollment!.id}/lesson-progress/`)
-        .then(r => toArray<LessonProgressItem>(r.data)),
+  const stateQ = useQuery({
+    queryKey: ['course-state', enrollment?.id],
+    queryFn: () => apiClient.get(`/courses/enrollments/${enrollment!.id}/state/`).then(r => r.data as CourseState),
     enabled: !!enrollment,
   })
 
-  const completedLessonIds = useMemo(
-    () => new Set((lessonProgressQ.data ?? []).map(p => p.lesson_id)),
-    [lessonProgressQ.data],
-  )
+  const lessonQ = useQuery({
+    queryKey: ['lesson-detail', lessonId, enrollment?.id],
+    queryFn: () => apiClient.get(`/courses/lessons/${lessonId}/`).then(r => r.data as LessonDetail),
+    enabled: !!lessonId && !!enrollment,
+    retry: false,
+  })
 
-  // ── Navigation helpers ────────────────────────────────────────────────────
-  const allLessons = useMemo(
-    () => (courseQ.data ? allLessonsFlat(courseQ.data.modules) : []),
-    [courseQ.data],
-  )
-  const currentIdx = allLessons.findIndex(l => String(l.id) === lessonId)
-  const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null
-  const nextLesson = currentIdx < allLessons.length - 1 ? allLessons[currentIdx + 1] : null
-  const isLastLesson = currentIdx === allLessons.length - 1
+  // a different lesson starts with a clean video status
+  useEffect(() => { setVideoPercent(null); setVideoDone(false) }, [lessonId])
 
+  const state = stateQ.data
+  const flat: StateLesson[] = useMemo(
+    () => (state ? [...state.modules].sort((a, b) => a.order - b.order).flatMap(m => [...m.lessons].sort((a, b) => a.order - b.order)) : []),
+    [state],
+  )
+  const idx = flat.findIndex(l => String(l.id) === lessonId)
+  const prev = idx > 0 ? flat[idx - 1] : null
+  const next = idx >= 0 && idx < flat.length - 1 ? flat[idx + 1] : null
+  const here = idx >= 0 ? flat[idx] : null
   const lesson = lessonQ.data
-  const course = courseQ.data
-  const isAlreadyPassed = !!lesson && completedLessonIds.has(lesson.id)
-  const hasQuestions = !!lesson?.questions?.length
 
-  // ── Quiz submit mutation ──────────────────────────────────────────────────
-  const submitMutation = useMutation({
-    mutationFn: (payload: { enrollment_id: number; lesson_id: number; answers: { question_id: number; choice_id: number }[] }) =>
-      apiClient.post(`/courses/lessons/${lessonId}/submit-quiz/`, payload).then(r => r.data as QuizResult),
-    onSuccess: (result) => {
-      setQuizResult(result)
-      setQuizSubmitted(true)
-      if (result.passed) {
-        toast.success(`Passed! ${result.score}/${result.max_score} correct`)
-        qc.invalidateQueries({ queryKey: ['lesson-progress', enrollment?.id] })
-        qc.invalidateQueries({ queryKey: ['my-enrollments'] })
-      } else {
-        toast.error(`${result.score}/${result.max_score} \u2014 need 70% to pass`)
-      }
-    },
-    onError: () => toast.error('Failed to submit quiz. Please try again.'),
-  })
-
-  // Initialise shuffledQuestions once lesson data arrives; reset pre-test for new lesson
-  useEffect(() => {
-    if (lesson?.questions?.length) {
-      setShuffledQuestions(shuffle(lesson.questions))
-    }
-    setPreTestDone(false)
-    setPreTestStep(0)
-    setPreTestAnswers({})
-    setPreTestSubmitted(false)
-  }, [lesson?.id])
-
-  const handleTimeUp = useCallback(() => {
-    if (!lesson) return
-    const questions = shuffledQuestions.length ? shuffledQuestions : (lesson.questions ?? [])
-    if (quizStep >= questions.length - 1) {
-      // Last question — auto-submit
-      setQuizSubmitted(true)
-      if (enrollment) {
-        const answers = questions.map(q => ({
-          question_id: q.id,
-          choice_id: selectedAnswers[q.id],
-        }))
-        submitMutation.mutate({ enrollment_id: enrollment.id, lesson_id: lesson.id, answers })
-      }
-    } else {
-      setQuizStep(prev => prev + 1)
-    }
-  }, [quizStep, shuffledQuestions, lesson, selectedAnswers, enrollment, submitMutation])
-
-  useEffect(() => {
-    if (!hasQuestions || quizSubmitted) return
-    setTimeLeft(60)
-    const timer = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          clearInterval(timer)
-          handleTimeUp()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [quizStep, quizSubmitted, hasQuestions])
-
-  // ── Mark complete (no-quiz lessons) ──────────────────────────────────────
-  const markCompleteMutation = useMutation({
-    mutationFn: () =>
-      apiClient
-        .post(`/courses/enrollments/${enrollment!.id}/mark_lesson_complete/`, { lesson_id: Number(lessonId) })
-        .then(r => r.data),
-    onSuccess: () => {
-      toast.success('Lesson marked complete!')
-      qc.invalidateQueries({ queryKey: ['lesson-progress', enrollment?.id] })
-      qc.invalidateQueries({ queryKey: ['my-enrollments'] })
-    },
-    onError: () => toast.error('Could not mark lesson complete.'),
-  })
-
-  function handleSubmitQuiz() {
-    if (!enrollment || !lesson) return
-    const questions = shuffledQuestions.length ? shuffledQuestions : lesson.questions
-    const answers = questions.map(q => ({
-      question_id: q.id,
-      choice_id: selectedAnswers[q.id],
-    }))
-    submitMutation.mutate({
-      enrollment_id: enrollment.id,
-      lesson_id: lesson.id,
-      answers,
-    })
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['course-state', enrollment?.id] })
+    qc.invalidateQueries({ queryKey: ['lesson-detail', lessonId, enrollment?.id] })
+    qc.invalidateQueries({ queryKey: ['my-enrollments'] })
+    qc.invalidateQueries({ queryKey: ['my-certificates'] })
   }
 
-  function handleRetryQuiz() {
-    setSelectedAnswers({})
-    setQuizResult(null)
-    setQuizSubmitted(false)
-    setQuizStep(0)
-    setShuffledQuestions(shuffle(lesson?.questions ?? []))
-  }
+  const confirmVideo = useMutation({
+    mutationFn: () => apiClient.post(`/courses/lessons/${lessonId}/watched/`),
+    onSuccess: () => { toast.success('Video confirmed.'); refresh() },
+    onError: e => toast.error(apiMessage(e)),
+  })
+  const confirmNotes = useMutation({
+    mutationFn: () => apiClient.post(`/courses/lessons/${lessonId}/notes-read/`),
+    onSuccess: () => { toast.success('Great. The assessment is open.'); refresh() },
+    onError: e => toast.error(apiMessage(e)),
+  })
 
-  // ─────────────────────────────────────────────────────────────────────────
-  if (lessonQ.isLoading || courseQ.isLoading) return <PageSpinner />
+  if (enrollmentsQ.isLoading || stateQ.isLoading) return <PageSpinner />
 
-  if (lessonQ.isError || !lesson || courseQ.isError || !course) {
+  if (!enrollment) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <AlertCircle size={40} className="text-alert-400" />
-        <p className="text-ink-600 font-semibold">Could not load lesson.</p>
-        <Link to={`/lms/${courseId}`} className="btn-secondary btn-sm">Back to course</Link>
-      </div>
+      <Notice icon={<Lock size={40} className="text-ink-300" />} title="Enroll to open this lesson"
+        text="Lessons are available after you enroll in the course." to={`/lms/${courseId}`} action="Go to the course" />
     )
   }
 
-  const videoId = lesson.video_url ? getYouTubeId(lesson.video_url) : null
+  const lockedByServer = (lessonQ.error as any)?.response?.data?.code === 'locked'
+  if (lessonQ.isError && lockedByServer) {
+    const current = state?.current_lesson_id
+    return (
+      <Notice icon={<Lock size={40} className="text-ink-300" />} title="This lesson is locked"
+        text="Finish the previous lesson and pass its assessment to unlock this one."
+        to={current ? `/lms/${courseId}/lesson/${current}` : `/lms/${courseId}`} action={current ? 'Go to my current lesson' : 'Back to the course'} />
+    )
+  }
+  if (here?.status === 'locked') {
+    return (
+      <Notice icon={<Lock size={40} className="text-ink-300" />} title="This lesson is locked"
+        text="Finish the previous lesson and pass its assessment to unlock this one."
+        to={state?.current_lesson_id ? `/lms/${courseId}/lesson/${state.current_lesson_id}` : `/lms/${courseId}`} action="Go to my current lesson" />
+    )
+  }
+  if (lessonQ.isLoading) return <PageSpinner />
+  if (lessonQ.isError || !lesson || !state) {
+    return <Notice icon={<AlertCircle size={40} className="text-alert-400" />} title="Could not load the lesson" text="Please try again."
+      to={`/lms/${courseId}`} action="Back to the course" />
+  }
+
+  const requirementMet = lesson.requirement_met || videoDone
+  const hasVideo = lesson.video_kind !== 'none'
+  const trackable = ['file', 'youtube', 'direct'].includes(lesson.video_kind)
+  const pct = videoPercent ?? lesson.video_percent
+  const completed = lesson.completed || here?.status === 'completed'
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden -mx-4 sm:-mx-6 lg:-mx-8 -mt-4 sm:-mt-6">
+      {showSidebar && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setShowSidebar(false)} />}
 
-      {/* ── Sidebar overlay on mobile ──────────────────────────────────────── */}
-      {showSidebar && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
-          onClick={() => setShowSidebar(false)}
-        />
-      )}
-
-      {/* ── Sidebar ───────────────────────────────────────────────────────── */}
-      <aside
-        className={cn(
-          'fixed lg:relative inset-y-0 left-0 z-40 flex flex-col w-72 bg-white border-r border-ink-100 transition-transform duration-200',
-          showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
-        )}
-      >
-        {/* Sidebar header */}
+      {/* ── Sidebar ───────────────────────────────────────────────────── */}
+      <aside className={cn(
+        'fixed lg:relative inset-y-0 left-0 z-40 flex flex-col w-72 bg-white border-r border-ink-100 transition-transform duration-200',
+        showSidebar ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+      )}>
         <div className="flex items-center justify-between gap-2 p-4 border-b border-ink-100 flex-shrink-0">
-          <Link
-            to={`/lms/${courseId}`}
-            className="flex items-center gap-2 text-xs font-semibold text-ink-500 hover:text-ink-800 transition-colors min-w-0"
-          >
-            <ArrowLeft size={14} className="flex-shrink-0" />
-            <span className="truncate">{course.title}</span>
+          <Link to={`/lms/${courseId}`} className="flex items-center gap-2 text-xs font-semibold text-ink-500 hover:text-ink-800 min-w-0">
+            <ArrowLeft size={14} className="flex-shrink-0" /><span className="truncate">{state.course_title}</span>
           </Link>
-          <button type="button" onClick={() => setShowSidebar(false)} className="lg:hidden p-1 rounded-lg hover:bg-ink-100">
-            <X size={16} />
-          </button>
+          <button type="button" onClick={() => setShowSidebar(false)} className="lg:hidden p-1 rounded-lg hover:bg-ink-100" aria-label="Close menu"><X size={16} /></button>
         </div>
-
-        {/* Module + lesson list */}
-        <nav className="flex-1 overflow-y-auto py-2">
-          {[...course.modules]
-            .sort((a, b) => a.order - b.order)
-            .map(mod => (
-              <div key={mod.id}>
-                <p className="px-4 py-2 text-[10px] font-bold text-ink-400 uppercase tracking-wider">
-                  {mod.title}
-                </p>
-                {[...mod.lessons]
-                  .sort((a, b) => a.order - b.order)
-                  .map((l, idx, arr) => {
-                    const isCurrentLesson = String(l.id) === lessonId
-                    const isCompleted = completedLessonIds.has(l.id)
-                    return (
-                      <Link
-                        key={l.id}
-                        to={`/lms/${courseId}/lesson/${l.id}`}
-                        onClick={() => setShowSidebar(false)}
-                        className={cn(
-                          'flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors',
-                          isCurrentLesson
-                            ? 'bg-primary-50 text-primary-700 font-semibold border-r-2 border-primary-600'
-                            : 'text-ink-700 hover:bg-ink-50',
-                        )}
-                      >
-                        {isCompleted ? (
-                          <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
-                        ) : (
-                          <span className={cn(
-                            'w-3.5 h-3.5 rounded-full border-2 flex-shrink-0',
-                            isCurrentLesson ? 'border-primary-600' : 'border-ink-300',
-                          )} />
-                        )}
-                        <span className="truncate leading-tight">{l.title}</span>
-                      </Link>
-                    )
-                  })}
-              </div>
-            ))}
+        <div className="px-4 py-3 border-b border-ink-50">
+          <div className="flex items-center justify-between text-[11px] font-semibold text-ink-500 mb-1">
+            <span>{state.completed_lessons} of {state.total_lessons} lessons</span><span>{state.progress_percent}%</span>
+          </div>
+          <div className="h-1.5 rounded-full bg-ink-100 overflow-hidden"><div className="h-full bg-primary-600 transition-all" style={{ width: `${state.progress_percent}%` }} /></div>
+        </div>
+        <nav className="flex-1 overflow-y-auto py-2" aria-label="Lessons">
+          {[...state.modules].sort((a, b) => a.order - b.order).map(mod => (
+            <div key={mod.id}>
+              <p className="px-4 py-2 text-[10px] font-bold text-ink-400 uppercase tracking-wider">{mod.title}</p>
+              {[...mod.lessons].sort((a, b) => a.order - b.order).map(l => {
+                const isHere = String(l.id) === lessonId
+                const inner = (
+                  <>
+                    {l.status === 'completed' ? <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0" />
+                      : l.status === 'locked' ? <Lock size={13} className="text-ink-300 flex-shrink-0" />
+                      : <span className={cn('w-3.5 h-3.5 rounded-full border-2 flex-shrink-0', isHere ? 'border-primary-600 bg-primary-100' : 'border-primary-400')} />}
+                    <span className="truncate leading-tight">{l.title}</span>
+                  </>
+                )
+                return l.status === 'locked' ? (
+                  <div key={l.id} aria-disabled="true" title="Locked: finish the previous lesson first"
+                    className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-ink-400 cursor-not-allowed">{inner}</div>
+                ) : (
+                  <Link key={l.id} to={`/lms/${courseId}/lesson/${l.id}`} onClick={() => setShowSidebar(false)} aria-current={isHere ? 'page' : undefined}
+                    className={cn('flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors',
+                      isHere ? 'bg-primary-50 text-primary-700 font-semibold border-r-2 border-primary-600' : 'text-ink-700 hover:bg-ink-50')}>
+                    {inner}
+                  </Link>
+                )
+              })}
+            </div>
+          ))}
         </nav>
-
-        {/* Back link at bottom */}
         <div className="p-4 border-t border-ink-100 flex-shrink-0">
-          <Link
-            to={`/lms/${courseId}`}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-500 hover:text-ink-800 transition-colors"
-          >
-            <ArrowLeft size={13} /> Back to Course
-          </Link>
+          <Link to={`/lms/${courseId}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-500 hover:text-ink-800"><ArrowLeft size={13} /> Back to Course</Link>
         </div>
       </aside>
 
-      {/* ── Main panel ────────────────────────────────────────────────────── */}
+      {/* ── Main ──────────────────────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile header bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-ink-100 bg-white lg:hidden flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => setShowSidebar(true)}
-            className="p-1.5 rounded-lg hover:bg-ink-100"
-          >
-            <Menu size={18} />
-          </button>
+          <button type="button" onClick={() => setShowSidebar(true)} className="p-1.5 rounded-lg hover:bg-ink-100" aria-label="Open lessons menu"><Menu size={18} /></button>
           <p className="font-semibold text-sm text-ink-900 truncate flex-1">{lesson.title}</p>
-          <span className="text-xs text-ink-400 flex-shrink-0">
-            {currentIdx + 1}/{allLessons.length}
-          </span>
+          <span className="text-xs text-ink-400 flex-shrink-0">{idx + 1}/{flat.length}</span>
         </div>
 
-        {/* Scrollable content area */}
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-8 pb-24">
-
-            {/* ── Pre-test ──────────────────────────────────────────────── */}
-            {hasQuestions && !preTestDone && (
-              <section className="space-y-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <HelpCircle size={20} className="text-amber-500" />
-                      <h2 className="font-display font-bold text-lg text-ink-900">Pre-Lesson Check</h2>
-                    </div>
-                    <p className="text-sm text-ink-500">
-                      Before watching this lesson, let's check what you already know.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPreTestDone(true)}
-                    className="btn-secondary btn-sm flex-shrink-0 text-xs"
-                  >
-                    Skip Pre-test
-                  </button>
-                </div>
-
-                {preTestSubmitted ? (
-                  <div className="rounded-2xl bg-amber-50 border border-amber-200 p-6 text-center space-y-4">
-                    <p className="font-semibold text-amber-800">Thank you! You can now watch the lesson.</p>
-                    <button
-                      type="button"
-                      onClick={() => setPreTestDone(true)}
-                      className="btn-primary"
-                    >
-                      Continue to Lesson
-                    </button>
-                  </div>
-                ) : (
-                  (() => {
-                    const questions = lesson.questions
-                    const total = questions.length
-                    const q = questions[preTestStep]
-                    if (!q) return null
-                    const isLastQuestion = preTestStep === total - 1
-                    const currentAnswer = preTestAnswers[q.id] ?? null
-
-                    return (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">
-                            Question {preTestStep + 1} of {total}
-                          </span>
-                        </div>
-
-                        <QuestionCard
-                          question={q}
-                          questionNumber={preTestStep + 1}
-                          selectedChoiceId={currentAnswer}
-                          submitted={false}
-                          resultAnswer={null}
-                          onSelect={(choiceId) => {
-                            setPreTestAnswers(prev => ({ ...prev, [q.id]: choiceId }))
-                          }}
-                        />
-
-                        <button
-                          type="button"
-                          disabled={currentAnswer === null}
-                          onClick={() => {
-                            if (isLastQuestion) {
-                              setPreTestSubmitted(true)
-                            } else {
-                              setPreTestStep(prev => prev + 1)
-                            }
-                          }}
-                          className={cn(
-                            'mt-2 w-full btn-primary justify-center',
-                            currentAnswer === null && 'opacity-50 cursor-not-allowed',
-                          )}
-                        >
-                          {isLastQuestion ? 'Finish Pre-test' : 'Next'}
-                        </button>
-                      </div>
-                    )
-                  })()
-                )}
-              </section>
-            )}
-
-            {/* Lesson content — shown after pre-test (or when no questions) */}
-            {(!hasQuestions || preTestDone) && (
-              <>
-
-            {/* Lesson title */}
             <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-primary-700 mb-1">Lesson {idx + 1} of {flat.length}</p>
               <h1 className="font-display font-bold text-2xl text-ink-900">{lesson.title}</h1>
-              {lesson.duration_minutes && (
-                <p className="text-sm text-ink-500 mt-1">{lesson.duration_minutes} min</p>
-              )}
+              {lesson.duration_minutes ? <p className="text-sm text-ink-500 mt-1">{lesson.duration_minutes} min</p> : null}
             </div>
 
-            {/* ── Video Player ──────────────────────────────────────────── */}
+            <LessonVideo
+              lessonId={lesson.id}
+              title={lesson.title}
+              durationMinutes={lesson.duration_minutes}
+              kind={lesson.video_kind}
+              source={lesson.video_source}
+              requiredPercent={lesson.video_required_percent}
+              onReport={r => { setVideoPercent(r.percent); if (r.watched) { setVideoDone(true); refresh() } }}
+            />
+
             <section>
-              {videoId ? (
-                <div className="relative w-full rounded-2xl overflow-hidden bg-black shadow-lg" style={{ paddingTop: '56.25%' }}>
-                  <iframe
-                    className="absolute inset-0 w-full h-full"
-                    src={`https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1`}
-                    title={lesson.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  />
-                </div>
-              ) : (
-                <div className="relative w-full rounded-2xl overflow-hidden bg-ink-100 flex flex-col items-center justify-center py-16 gap-3" style={{ aspectRatio: '16/9' }}>
-                  <PlayCircle size={48} className="text-ink-300" />
-                  <p className="text-sm text-ink-500 font-medium">No video for this lesson</p>
-                </div>
+              <h2 className="font-display font-bold text-lg text-ink-900 mb-3">Lesson Notes</h2>
+              <Notes text={lesson.content} />
+              {lesson.resource_file_url && (
+                <a href={lesson.resource_file_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary-700 hover:underline">
+                  <FileText size={14} /> Download the lesson handout
+                </a>
               )}
             </section>
 
-            {/* ── Lesson Notes ──────────────────────────────────────────── */}
-            <section>
-              <h2 className="font-display font-bold text-lg text-ink-900 mb-4">Lesson Notes</h2>
-              <div className="prose-sm">{renderContent(lesson.content)}</div>
-            </section>
-
-            {/* ── Quiz / Knowledge Check ────────────────────────────────── */}
-            {hasQuestions ? (
-              <section>
-                <div className="flex items-center gap-2 mb-4">
-                  <HelpCircle size={20} className="text-primary-600" />
-                  <h2 className="font-display font-bold text-lg text-ink-900">Knowledge Check</h2>
-                </div>
-
-                {/* Already passed banner */}
-                {isAlreadyPassed && !quizSubmitted ? (
-                  <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 flex items-center gap-4">
-                    <CheckCircle2 size={28} className="text-emerald-500 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="font-bold text-emerald-800">Lesson Complete!</p>
-                      <p className="text-sm text-emerald-700">You've already passed this lesson's quiz.</p>
+            {/* ── Requirement before the assessment ───────────────────── */}
+            {!completed && !requirementMet && (
+              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3">
+                <p className="font-semibold text-amber-900">
+                  {hasVideo ? 'Watch the video to unlock the assessment' : 'Read the lesson notes to unlock the assessment'}
+                </p>
+                {trackable ? (
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-semibold text-amber-900 mb-1">
+                      <span>Video progress</span><span>{pct}% of {lesson.video_required_percent}% needed</span>
                     </div>
-                    {nextLesson && (
-                      <Link
-                        to={`/lms/${courseId}/lesson/${nextLesson.id}`}
-                        className="btn-primary btn-sm flex-shrink-0"
-                      >
-                        Next lesson <ChevronRight size={14} />
-                      </Link>
-                    )}
-                  </div>
-                ) : quizSubmitted && quizResult ? (
-                  /* Results only — hide question UI entirely */
-                  <ResultBanner
-                    result={quizResult}
-                    isLastLesson={isLastLesson}
-                    nextLessonId={nextLesson?.id ?? null}
-                    courseId={courseId!}
-                    onRetry={handleRetryQuiz}
-                  />
-                ) : (
-                  <>
-                    {/* Instructions */}
-                    <p className="text-sm text-ink-500 mb-5 bg-ink-50 rounded-xl px-4 py-3">
-                      Answer each question to proceed. You need <strong>70%</strong> to pass and unlock the next lesson.
-                    </p>
-
-                    {/* Sequential question */}
-                    {(() => {
-                      const questions = shuffledQuestions.length ? shuffledQuestions : lesson.questions
-                      const total = questions.length
-                      const q = questions[quizStep]
-                      if (!q) return null
-                      const isLastQuestion = quizStep === total - 1
-                      const currentAnswer = selectedAnswers[q.id] ?? null
-
-                      return (
-                        <div className="space-y-4">
-                          {/* Progress + timer row */}
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">
-                              Question {quizStep + 1} of {total}
-                            </span>
-                            <span className={cn(
-                              'text-sm font-bold tabular-nums',
-                              timeLeft <= 10 ? 'text-red-500' : 'text-ink-500',
-                            )}>
-                              ⏱ {timeLeft}s remaining
-                            </span>
-                          </div>
-
-                          <QuestionCard
-                            question={q}
-                            questionNumber={quizStep + 1}
-                            selectedChoiceId={currentAnswer}
-                            submitted={false}
-                            resultAnswer={null}
-                            onSelect={(choiceId) => {
-                              setSelectedAnswers(prev => ({ ...prev, [q.id]: choiceId }))
-                            }}
-                          />
-
-                          {/* Next / Submit button */}
-                          <button
-                            type="button"
-                            disabled={currentAnswer === null || submitMutation.isPending}
-                            onClick={() => {
-                              if (isLastQuestion) {
-                                handleSubmitQuiz()
-                              } else {
-                                setQuizStep(prev => prev + 1)
-                              }
-                            }}
-                            className={cn(
-                              'mt-2 w-full btn-primary justify-center',
-                              (currentAnswer === null || submitMutation.isPending) && 'opacity-50 cursor-not-allowed',
-                            )}
-                          >
-                            {submitMutation.isPending
-                              ? 'Submitting…'
-                              : isLastQuestion
-                                ? 'Submit Quiz'
-                                : 'Next'}
-                          </button>
-                        </div>
-                      )
-                    })()}
-                  </>
-                )}
-              </section>
-            ) : (
-              /* No quiz \u2014 show Mark as Complete */
-              <section>
-                {isAlreadyPassed ? (
-                  <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 flex items-center gap-4">
-                    <CheckCircle2 size={24} className="text-emerald-500 flex-shrink-0" />
-                    <p className="font-semibold text-emerald-800 flex-1">Lesson Complete!</p>
-                    {nextLesson && (
-                      <Link
-                        to={`/lms/${courseId}/lesson/${nextLesson.id}`}
-                        className="btn-primary btn-sm flex-shrink-0"
-                      >
-                        Next lesson <ChevronRight size={14} />
-                      </Link>
-                    )}
-                  </div>
-                ) : (
-                  <div className="rounded-2xl border border-ink-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex-1">
-                      <p className="font-semibold text-ink-900">Done watching?</p>
-                      <p className="text-sm text-ink-500">Mark this lesson complete to unlock the next one.</p>
+                    <div className="h-2 rounded-full bg-white overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+                      <div className="h-full bg-amber-500 transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
                     </div>
-                    <button
-                      type="button"
-                      disabled={markCompleteMutation.isPending || !enrollment}
-                      onClick={() => markCompleteMutation.mutate()}
-                      className="btn-primary flex-shrink-0 justify-center"
-                    >
-                      {markCompleteMutation.isPending ? 'Saving…' : 'Mark as Complete'}
+                    <p className="mt-2 text-xs text-amber-800">Progress counts only while the video plays. Skipping ahead does not count.</p>
+                  </div>
+                ) : hasVideo ? (
+                  <button type="button" className="btn-primary btn-sm" disabled={confirmVideo.isPending} onClick={() => confirmVideo.mutate()}>
+                    <Eye size={14} /> I finished watching the video
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-sm text-amber-900">This lesson has no video yet, so it is not marked as watched. Confirm that you read the notes above.</p>
+                    <button type="button" className="btn-primary btn-sm" disabled={confirmNotes.isPending} onClick={() => confirmNotes.mutate()}>
+                      <BookOpen size={14} /> I have read the lesson notes
                     </button>
                   </div>
                 )}
               </section>
             )}
-              </>
-            )}
 
+            {/* ── Assessment ──────────────────────────────────────────── */}
+            {lesson.questions.length > 0 && (completed || requirementMet) && (
+              <Assessment
+                key={lesson.id}
+                lesson={lesson}
+                enrollmentId={enrollment.id}
+                completed={completed}
+                next={next}
+                courseId={courseId!}
+                certificateName={state.certificate_name}
+                onChanged={refresh}
+              />
+            )}
+            {lesson.questions.length === 0 && !completed && requirementMet && (
+              <NoQuizComplete enrollmentId={enrollment.id} lessonId={lesson.id} onDone={refresh} />
+            )}
+            {lesson.questions.length === 0 && completed && <CompletedBanner next={next} courseId={courseId!} />}
           </div>
         </div>
 
-        {/* ── Bottom navigation bar ─────────────────────────────────────── */}
+        {/* ── Bottom bar ──────────────────────────────────────────────── */}
         <nav className="flex-shrink-0 border-t border-ink-100 bg-white px-4 py-3 flex items-center justify-between gap-4">
-          {prevLesson ? (
-            <Link
-              to={`/lms/${courseId}/lesson/${prevLesson.id}`}
-              className="btn-secondary btn-sm"
-            >
-              <ChevronLeft size={15} /> Previous
-            </Link>
+          {prev ? (
+            <Link to={`/lms/${courseId}/lesson/${prev.id}`} className="btn-secondary btn-sm"><ChevronLeft size={15} /> Previous</Link>
+          ) : <div />}
+          <span className="text-xs font-semibold text-ink-400 tabular-nums">{idx + 1} / {flat.length}</span>
+          {next ? (
+            completed ? (
+              <Link to={`/lms/${courseId}/lesson/${next.id}`} className="btn-primary btn-sm">Next lesson <ChevronRight size={15} /></Link>
+            ) : (
+              <button type="button" disabled className="btn-primary btn-sm opacity-40 cursor-not-allowed" title="Pass this lesson's assessment to unlock the next lesson">
+                <Lock size={13} /> Next lesson
+              </button>
+            )
           ) : (
-            <div />
-          )}
-
-          <span className="text-xs font-semibold text-ink-400 tabular-nums">
-            {currentIdx + 1} / {allLessons.length}
-          </span>
-
-          {nextLesson ? (
-            <Link
-              to={`/lms/${courseId}/lesson/${nextLesson.id}`}
-              className={cn(
-                'btn-primary btn-sm',
-                hasQuestions && !isAlreadyPassed && !(quizResult?.passed) && 'opacity-40 pointer-events-none',
-              )}
-            >
-              Next <ChevronRight size={15} />
-            </Link>
-          ) : (
-            <Link to={`/lms/${courseId}`} className="btn-secondary btn-sm">
-              <BookOpen size={14} /> Course overview
-            </Link>
+            <button type="button" onClick={() => navigate(`/lms/${courseId}`)} className="btn-secondary btn-sm"><BookOpen size={14} /> Course overview</button>
           )}
         </nav>
       </main>
@@ -748,160 +342,212 @@ export default function LessonPlayerPage() {
   )
 }
 
-// ─── Question Card ────────────────────────────────────────────────────────────
+// ─── Assessment ───────────────────────────────────────────────────────────────
 
-function QuestionCard({
-  question, questionNumber, selectedChoiceId, submitted, resultAnswer, onSelect,
+function Assessment({
+  lesson, enrollmentId, completed, next, courseId, certificateName, onChanged,
 }: {
-  question: Question
-  questionNumber: number
-  selectedChoiceId: number | null
-  submitted: boolean
-  resultAnswer: QuizResultAnswer | null
-  onSelect: (choiceId: number) => void
+  lesson: LessonDetail
+  enrollmentId: number
+  completed: boolean
+  next: StateLesson | null
+  courseId: string
+  certificateName: string
+  onChanged: () => void
 }) {
-  return (
-    <div className="rounded-2xl border border-ink-200 overflow-hidden">
-      <div className="p-4 bg-ink-50 border-b border-ink-100">
-        <p className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-1">
-          Question {questionNumber}
-        </p>
-        <p className="font-semibold text-ink-900 text-sm leading-snug">{question.text}</p>
-      </div>
-      <ul className="p-3 space-y-2">
-        {question.choices.map(choice => {
-          const isSelected = selectedChoiceId === choice.id
-          const isCorrectChoice = resultAnswer?.correct_choice_id === choice.id
-          const isWrongSelection = submitted && isSelected && !resultAnswer?.is_correct
+  const questions = useMemo(() => [...lesson.questions].sort((a, b) => a.order - b.order || a.id - b.id), [lesson.questions])
+  const [step, setStep] = useState(0)
+  const [answers, setAnswers] = useState<Record<number, number>>({})
+  const [result, setResult] = useState<QuizResult | null>(null)
 
-          let choiceStyle = 'bg-white border-ink-200 hover:border-primary-300 hover:bg-primary-50'
-          if (!submitted && isSelected) {
-            choiceStyle = 'bg-primary-50 border-primary-500'
-          } else if (submitted) {
-            if (isCorrectChoice) {
-              choiceStyle = 'bg-emerald-50 border-emerald-400'
-            } else if (isWrongSelection) {
-              choiceStyle = 'bg-red-50 border-red-400'
-            } else {
-              choiceStyle = 'bg-white border-ink-100 opacity-60'
-            }
-          }
+  const submit = useMutation({
+    mutationFn: () => apiClient.post(`/courses/lessons/${lesson.id}/submit-quiz/`, {
+      enrollment_id: enrollmentId,
+      lesson_id: lesson.id,
+      answers: questions.map(q => ({ question_id: q.id, choice_id: answers[q.id] })),
+    }).then(r => r.data as QuizResult),
+    onSuccess: r => {
+      setResult(r)
+      if (r.passed) toast.success(`Passed! ${r.score}/${r.max_score} correct`)
+      else toast.error(`${r.percent}%. You need ${r.passing_score}% to pass.`)
+      onChanged()
+    },
+    onError: e => toast.error(apiMessage(e, 'Could not submit the assessment.')),
+  })
 
-          return (
-            <li key={choice.id}>
-              <button
-                type="button"
-                disabled={submitted}
-                onClick={() => onSelect(choice.id)}
-                className={cn(
-                  'w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-colors text-sm font-medium',
-                  choiceStyle,
-                  !submitted && 'cursor-pointer',
-                  submitted && 'cursor-default',
-                )}
-              >
-                {/* State indicator dot / icon */}
-                <span className={cn(
-                  'w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center',
-                  !submitted && isSelected ? 'border-primary-500 bg-primary-500' : '',
-                  !submitted && !isSelected ? 'border-ink-300' : '',
-                  submitted && isCorrectChoice ? 'border-emerald-500 bg-emerald-500' : '',
-                  submitted && isWrongSelection ? 'border-red-400 bg-red-400' : '',
-                  submitted && !isCorrectChoice && !isWrongSelection ? 'border-ink-200' : '',
-                )}>
-                  {submitted && isCorrectChoice && (
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  )}
-                  {submitted && isWrongSelection && (
-                    <X size={8} className="text-white" />
-                  )}
-                </span>
-                <span className={cn(
-                  submitted && isCorrectChoice ? 'text-emerald-800 font-semibold' : '',
-                  submitted && isWrongSelection ? 'text-red-700' : '',
-                )}>
-                  {choice.text}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      {/* Explanation (shown after submit) */}
-      {submitted && resultAnswer?.explanation && (
-        <div className="px-4 pb-4">
-          <div className={cn(
-            'rounded-xl px-4 py-3 text-sm',
-            resultAnswer.is_correct ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-800',
-          )}>
-            <span className="font-semibold">Explanation: </span>
-            {resultAnswer.explanation}
-          </div>
+  const retry = () => { setAnswers({}); setStep(0); setResult(null) }
+
+  if (completed && !result) return <CompletedBanner next={next} courseId={courseId} />
+
+  if (result) {
+    return (
+      <section className="space-y-5" aria-live="polite">
+        <Result result={result} next={next} courseId={courseId} onRetry={retry} certificateName={certificateName} />
+        <div className="space-y-3">
+          <h3 className="font-semibold text-ink-900">Your answers</h3>
+          {questions.map((q, i) => {
+            const a = result.answers.find(x => x.question_id === q.id)
+            return (
+              <div key={q.id} className={cn('rounded-2xl border p-4', a?.is_correct ? 'border-emerald-200 bg-emerald-50/40' : 'border-red-200 bg-red-50/40')}>
+                <p className="text-sm font-semibold text-ink-900 mb-2">{i + 1}. {q.text}</p>
+                <ul className="space-y-1.5">
+                  {q.choices.map((c, ci) => {
+                    const picked = a?.selected_choice_id === c.id
+                    const right = a?.correct_choice_id === c.id
+                    return (
+                      <li key={c.id} className={cn('flex items-start gap-2 rounded-lg border px-3 py-2 text-sm',
+                        right ? 'border-emerald-300 bg-emerald-50 text-emerald-900' : picked ? 'border-red-300 bg-red-50 text-red-800' : 'border-ink-100 bg-white text-ink-600')}>
+                        <span className="font-bold">{LETTERS[ci]}.</span><span className="flex-1">{c.text}</span>
+                        {right && <span className="text-[11px] font-bold">Correct answer</span>}
+                        {picked && !right && <span className="text-[11px] font-bold">Your answer</span>}
+                        {picked && right && <span className="text-[11px] font-bold">Your answer</span>}
+                      </li>
+                    )
+                  })}
+                </ul>
+                {a?.explanation && <p className="mt-2 text-xs text-ink-600"><strong>Explanation:</strong> {a.explanation}</p>}
+              </div>
+            )
+          })}
         </div>
-      )}
-    </div>
+      </section>
+    )
+  }
+
+  const q = questions[step]
+  const chosen = answers[q.id] ?? null
+  const last = step === questions.length - 1
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center gap-2">
+        <HelpCircle size={20} className="text-primary-600" />
+        <h2 className="font-display font-bold text-lg text-ink-900">Lesson Assessment</h2>
+      </div>
+      <p className="text-sm text-ink-500 bg-ink-50 rounded-xl px-4 py-3">
+        Answer every question. You need <strong>{lesson.passing_score}%</strong> to pass and unlock the next lesson. You can retake it if you do not pass.
+      </p>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-ink-500 uppercase tracking-wider">Question {step + 1} of {questions.length}</span>
+        <div className="flex gap-1" aria-hidden>
+          {questions.map((x, i) => (
+            <span key={x.id} className={cn('h-1.5 w-6 rounded-full', i === step ? 'bg-primary-600' : answers[x.id] ? 'bg-primary-300' : 'bg-ink-200')} />
+          ))}
+        </div>
+      </div>
+      <fieldset className="rounded-2xl border border-ink-200 overflow-hidden">
+        <legend className="sr-only">Question {step + 1}</legend>
+        <div className="p-4 bg-ink-50 border-b border-ink-100"><p className="font-semibold text-ink-900 text-sm leading-snug">{q.text}</p></div>
+        <ul className="p-3 space-y-2">
+          {q.choices.map((c, ci) => (
+            <li key={c.id}>
+              <label className={cn('flex w-full cursor-pointer items-center gap-3 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors',
+                chosen === c.id ? 'bg-primary-50 border-primary-500' : 'bg-white border-ink-200 hover:border-primary-300 hover:bg-primary-50')}>
+                <input type="radio" className="sr-only" name={`q-${q.id}`} checked={chosen === c.id} onChange={() => setAnswers(p => ({ ...p, [q.id]: c.id }))} />
+                <span className={cn('flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold', chosen === c.id ? 'bg-primary-600 text-white' : 'bg-ink-100 text-ink-600')}>{LETTERS[ci]}</span>
+                <span>{c.text}</span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </fieldset>
+      <div className="flex items-center justify-between gap-3">
+        <button type="button" className="btn-secondary btn-sm" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</button>
+        {last ? (
+          <button type="button" className="btn-primary" disabled={chosen === null || submit.isPending || Object.keys(answers).length < questions.length} onClick={() => submit.mutate()}>
+            {submit.isPending ? 'Submitting...' : 'Submit Assessment'}
+          </button>
+        ) : (
+          <button type="button" className="btn-primary" disabled={chosen === null} onClick={() => setStep(step + 1)}>Next Question</button>
+        )}
+      </div>
+    </section>
   )
 }
 
-// ─── Result Banner ────────────────────────────────────────────────────────────
-
-function ResultBanner({
-  result, isLastLesson, nextLessonId, courseId, onRetry,
-}: {
-  result: QuizResult
-  isLastLesson: boolean
-  nextLessonId: number | null
-  courseId: string
-  onRetry: () => void
-}) {
+function Result({
+  result, next, courseId, onRetry, certificateName,
+}: { result: QuizResult; next: StateLesson | null; courseId: string; onRetry: () => void; certificateName: string }) {
+  if (result.course_completed) {
+    return (
+      <div className="rounded-3xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-white p-6 text-center space-y-3">
+        <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white"><Award size={28} /></span>
+        <h2 className="font-display font-extrabold text-2xl text-emerald-900">Course completed!</h2>
+        <p className="text-sm text-emerald-800">You passed the last assessment ({result.score}/{result.max_score}) and finished every lesson.</p>
+        <p className="text-sm text-ink-600">Your certificate was issued to <strong>{certificateName}</strong>.</p>
+        <div className="flex flex-wrap justify-center gap-2 pt-1">
+          {result.certificate_id && <Link to={`/certificates/${result.certificate_id}`} className="btn-primary gap-1.5"><ScrollText size={15} /> View Certificate</Link>}
+          <Link to={`/lms/${courseId}/review`} className="btn-secondary gap-1.5"><RotateCcw size={15} /> Review Course</Link>
+          <Link to="/lms" className="btn-secondary">My Learning</Link>
+        </div>
+      </div>
+    )
+  }
   if (result.passed) {
     return (
       <div className="rounded-2xl bg-emerald-50 border-2 border-emerald-300 p-5">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
-            <CheckCircle2 size={22} className="text-white" />
-          </div>
+          <span className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center"><CheckCircle2 size={22} className="text-white" /></span>
           <div>
-            <p className="font-bold text-emerald-800 text-base">You passed!</p>
-            <p className="text-sm text-emerald-700">
-              {result.score}/{result.max_score} correct ({result.percent}%)
-            </p>
+            <p className="font-bold text-emerald-800">You passed!</p>
+            <p className="text-sm text-emerald-700">{result.score}/{result.max_score} correct ({result.percent}%). Passing score: {result.passing_score}%.</p>
           </div>
         </div>
-        {isLastLesson ? (
-          <Link to={`/lms/${courseId}`} className="inline-flex items-center gap-2 btn-primary btn-sm">
-            <BookOpen size={14} /> Course Complete &mdash; View Overview
-          </Link>
-        ) : nextLessonId ? (
-          <Link
-            to={`/lms/${courseId}/lesson/${nextLessonId}`}
-            className="inline-flex items-center gap-2 btn-primary btn-sm"
-          >
-            Next Lesson <ChevronRight size={14} />
-          </Link>
-        ) : null}
+        {next && <Link to={`/lms/${courseId}/lesson/${next.id}`} className="btn-primary btn-sm inline-flex gap-1">Next Lesson <ChevronRight size={14} /></Link>}
       </div>
     )
   }
-
   return (
     <div className="rounded-2xl bg-red-50 border-2 border-red-200 p-5">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-red-400 flex items-center justify-center flex-shrink-0">
-          <X size={22} className="text-white" />
-        </div>
+        <span className="w-10 h-10 rounded-full bg-red-400 flex items-center justify-center"><X size={22} className="text-white" /></span>
         <div>
-          <p className="font-bold text-red-800 text-base">Not quite!</p>
-          <p className="text-sm text-red-700">
-            {result.score}/{result.max_score} correct ({result.percent}%) &mdash; Need 70% to pass
-          </p>
+          <p className="font-bold text-red-800">Not quite yet</p>
+          <p className="text-sm text-red-700">{result.score}/{result.max_score} correct ({result.percent}%). You need {result.passing_score}% to unlock the next lesson.</p>
         </div>
       </div>
-      <button type="button" onClick={onRetry} className="btn-secondary btn-sm">
-        Try Again
-      </button>
+      <p className="text-sm text-red-800 mb-3">Check the correct answers below, review the lesson notes, then try again. Your earlier attempts are kept.</p>
+      <button type="button" onClick={onRetry} className="btn-secondary btn-sm gap-1"><RotateCcw size={13} /> Retake Assessment</button>
+    </div>
+  )
+}
+
+function CompletedBanner({ next, courseId }: { next: StateLesson | null; courseId: string }) {
+  return (
+    <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-5 flex items-center gap-4">
+      <CheckCircle2 size={26} className="text-emerald-500 flex-shrink-0" />
+      <div className="flex-1">
+        <p className="font-bold text-emerald-800">Lesson completed</p>
+        <p className="text-sm text-emerald-700">You already passed this lesson. Use Review Course after finishing the whole course to see your answers.</p>
+      </div>
+      {next && <Link to={`/lms/${courseId}/lesson/${next.id}`} className="btn-primary btn-sm flex-shrink-0">Next lesson <ChevronRight size={14} /></Link>}
+    </div>
+  )
+}
+
+function NoQuizComplete({ enrollmentId, lessonId, onDone }: { enrollmentId: number; lessonId: number; onDone: () => void }) {
+  const done = useMutation({
+    mutationFn: () => apiClient.post(`/courses/enrollments/${enrollmentId}/mark_lesson_complete/`, { lesson_id: lessonId }),
+    onSuccess: () => { toast.success('Lesson completed.'); onDone() },
+    onError: e => toast.error(apiMessage(e)),
+  })
+  return (
+    <section className="rounded-2xl border border-ink-200 p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex-1">
+        <p className="font-semibold text-ink-900">This lesson has no assessment</p>
+        <p className="text-sm text-ink-500">Complete the lesson to unlock the next one.</p>
+      </div>
+      <button type="button" className="btn-primary" disabled={done.isPending} onClick={() => done.mutate()}>Complete Lesson</button>
+    </section>
+  )
+}
+
+function Notice({ icon, title, text, to, action }: { icon: React.ReactNode; title: string; text: string; to: string; action: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3 text-center px-4">
+      {icon}
+      <p className="font-display font-bold text-lg text-ink-900">{title}</p>
+      <p className="text-sm text-ink-600 max-w-sm">{text}</p>
+      <Link to={to} className="btn-primary btn-sm">{action}</Link>
     </div>
   )
 }

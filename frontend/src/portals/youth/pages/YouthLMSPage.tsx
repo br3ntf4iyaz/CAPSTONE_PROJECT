@@ -1,53 +1,26 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
   BookOpen, Clock, Users, ArrowRight, CheckCircle2, PlayCircle,
-  Award, Sparkles, AlertCircle, RefreshCw, Search,
+  Award, Sparkles, AlertCircle, RefreshCw, Search, Layers, ScrollText, RotateCcw,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
+import EnrollModal from '../components/EnrollModal'
+import {
+  AUDIENCES, AUDIENCE_STYLE, CATEGORY_LABELS, LEARNING_STATUS, toArray,
+  type Audience, type CourseMini, type Enrollment,
+} from '../lms'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-interface CourseMini {
-  id: number
-  title: string
-  slug: string
-  category: string
-  thumbnail_url: string | null
-  duration_hours: number
-  instructor_name: string | null
-  enrollment_count: number
-  price: string | number | null
-}
-
-interface Enrollment {
-  id: number
-  course: CourseMini
-  enrolled_at: string
-  completed_at: string | null
-  progress_percent: number
-  status: 'enrolled' | 'in_progress' | 'completed'
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  leadership:    'Leadership',
-  governance:    'Governance',
-  life_skills:   'Life Skills',
-  tech:          'Technology',
-  finance:       'Finance',
-  communication: 'Communication',
-}
 const ALL_CATEGORIES = Object.keys(CATEGORY_LABELS)
-
-const toArray = <T,>(d: any): T[] =>
-  Array.isArray(d) ? d : Array.isArray(d?.results) ? d.results : []
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function YouthLMSPage() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState<string | null>(null)
-  const qc = useQueryClient()
+  const [audience, setAudience] = useState<Audience | null>(null)
+  const [enrollTarget, setEnrollTarget] = useState<CourseMini | null>(null)
 
   const enrollmentsQ = useQuery({
     queryKey: ['my-enrollments'],
@@ -56,20 +29,13 @@ export default function YouthLMSPage() {
   })
 
   const coursesQ = useQuery({
-    queryKey: ['courses-catalog', category, search],
+    queryKey: ['courses-catalog', category, audience, search],
     queryFn: () => {
       const params = new URLSearchParams()
       if (category) params.set('category', category)
+      if (audience) params.set('audience', audience)
       if (search.trim()) params.set('search', search.trim())
       return apiClient.get(`/courses/?${params.toString()}`).then(r => toArray<CourseMini>(r.data)).catch(() => [])
-    },
-  })
-
-  const enrollMutation = useMutation({
-    mutationFn: (courseId: number) =>
-      apiClient.post('/courses/enrollments/', { course_id: courseId }).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['my-enrollments'] })
     },
   })
 
@@ -168,6 +134,29 @@ export default function YouthLMSPage() {
           </div>
         </header>
 
+        {/* Audience filter: it only filters the list. Everyone can still enroll in any course. */}
+        <div className="mb-3" role="group" aria-label="Filter by audience">
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">Who is it for?</p>
+          <div className="flex flex-wrap gap-2">
+            {[{ value: null, label: 'All Courses' }, ...AUDIENCES.map(a => ({ value: a.value as Audience | null, label: a.label }))].map(a => (
+              <button
+                key={a.label}
+                type="button"
+                aria-pressed={audience === a.value}
+                onClick={() => setAudience(a.value)}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors border',
+                  audience === a.value
+                    ? 'bg-primary-700 text-white border-primary-700'
+                    : 'bg-white border-ink-200 text-ink-700 hover:border-primary-300 hover:text-primary-700',
+                )}
+              >
+                {a.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Category filter chips */}
         <div className="flex flex-wrap gap-2 mb-5">
           <button
@@ -208,11 +197,11 @@ export default function YouthLMSPage() {
         ) : courses.length === 0 ? (
           <div className="bg-white rounded-3xl border border-ink-100 p-8 text-center">
             <p className="font-display font-bold text-lg text-ink-900 mb-1">
-              {search.trim() || category ? 'No matches.' : 'Catalog empty.'}
+              {search.trim() || category || audience ? 'No matches.' : 'Catalog empty.'}
             </p>
             <p className="text-sm text-ink-600">
-              {search.trim() || category
-                ? 'Try a different keyword or category.'
+              {search.trim() || category || audience
+                ? 'Try a different keyword, category or audience.'
                 : 'New courses are published regularly. Check back soon.'}
             </p>
           </div>
@@ -223,13 +212,16 @@ export default function YouthLMSPage() {
                 key={course.id}
                 course={course}
                 isEnrolled={enrolledCourseIds.has(course.id)}
-                onEnroll={() => enrollMutation.mutate(course.id)}
-                isEnrolling={enrollMutation.isPending && enrollMutation.variables === course.id}
+                onEnroll={() => setEnrollTarget(course)}
               />
             ))}
           </div>
         )}
       </section>
+
+      {enrollTarget && (
+        <EnrollModal courseId={enrollTarget.id} courseTitle={enrollTarget.title} onClose={() => setEnrollTarget(null)} />
+      )}
     </div>
   )
 }
@@ -237,69 +229,73 @@ export default function YouthLMSPage() {
 // ─── Pieces ───────────────────────────────────────────────────────────────────
 
 function EnrollmentCard({ enrollment }: { enrollment: Enrollment }) {
-  const isComplete = enrollment.status === 'completed'
+  const isComplete = enrollment.learning_status === 'completed'
+  const st = LEARNING_STATUS[enrollment.learning_status]
+  const course = enrollment.course
+  const continueTo = enrollment.current_lesson_id
+    ? `/lms/${course.id}/lesson/${enrollment.current_lesson_id}`
+    : `/lms/${course.id}`
   return (
     <article className="bg-white rounded-2xl border border-ink-100 overflow-hidden hover:border-primary-300 hover:shadow-lg transition-all flex flex-col">
-      <Link to={`/lms/${enrollment.course.id}`} className="block relative aspect-[16/9] bg-primary-50">
-        {enrollment.course.thumbnail_url ? (
-          <img
-            src={enrollment.course.thumbnail_url}
-            alt={enrollment.course.title}
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
+      <Link to={`/lms/${course.id}`} className="block relative aspect-[16/9] bg-primary-50">
+        {course.thumbnail_url ? (
+          <img src={course.thumbnail_url} alt={course.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-50">
             <BookOpen size={36} className="text-primary-400" />
           </div>
         )}
-        {isComplete && (
-          <span className="absolute top-3 left-3 chip bg-emerald-500 text-white">
-            <CheckCircle2 size={11} className="mr-1" /> Completed
-          </span>
-        )}
+        <span className={cn('absolute top-3 left-3 chip text-[11px]', isComplete ? 'bg-emerald-500 text-white' : st.cls)}>
+          {isComplete && <CheckCircle2 size={11} className="mr-1" />} {st.label}
+        </span>
       </Link>
       <div className="p-4 flex-1 flex flex-col">
-        <span className="chip-primary text-[10px] mb-2 self-start">
-          {CATEGORY_LABELS[enrollment.course.category] ?? enrollment.course.category}
-        </span>
-        <h3 className="font-display font-bold text-base text-ink-900 leading-tight line-clamp-2 mb-3 flex-1">
-          {enrollment.course.title}
-        </h3>
-        <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span className="chip-primary text-[10px]">{CATEGORY_LABELS[course.category] ?? course.category}</span>
+          <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold', AUDIENCE_STYLE[course.audience])}>
+            {course.audience_display}
+          </span>
+        </div>
+        <h3 className="font-display font-bold text-base text-ink-900 leading-tight line-clamp-2 mb-1">{course.title}</h3>
+        {course.description && (
+          <p className="text-xs text-ink-500 leading-relaxed line-clamp-2 mb-3">{course.description.replace(/<[^>]+>/g, '')}</p>
+        )}
+        <div className="space-y-2 mt-auto">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-ink-500 font-semibold">Progress</span>
+            <span className="text-ink-500 font-semibold">{enrollment.completed_lessons} of {enrollment.total_lessons} lessons</span>
             <span className="text-ink-900 font-bold tabular-nums">{enrollment.progress_percent}%</span>
           </div>
-          <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden">
-            <div
-              className={cn(
-                'h-full rounded-full transition-all',
-                isComplete ? 'bg-emerald-500' : 'bg-primary-600',
-              )}
-              style={{ width: `${enrollment.progress_percent}%` }}
-            />
+          <div className="h-1.5 bg-ink-100 rounded-full overflow-hidden" role="progressbar" aria-valuenow={enrollment.progress_percent} aria-valuemin={0} aria-valuemax={100}>
+            <div className={cn('h-full rounded-full transition-all', isComplete ? 'bg-emerald-500' : 'bg-primary-600')} style={{ width: `${enrollment.progress_percent}%` }} />
           </div>
+          {!isComplete && enrollment.current_lesson_title && (
+            <p className="text-[11px] text-ink-500 truncate">Up next: <span className="font-semibold text-ink-700">{enrollment.current_lesson_title}</span></p>
+          )}
         </div>
-        <Link
-          to={`/lms/${enrollment.course.id}`}
-          className="mt-4 inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800 group"
-        >
-          <PlayCircle size={16} /> {isComplete ? 'Review' : 'Continue'}
-          <ArrowRight size={14} className="ml-auto group-hover:translate-x-0.5 transition-transform" />
-        </Link>
+        {isComplete ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link to={`/lms/${course.id}/review`} className="btn-secondary btn-sm gap-1.5"><RotateCcw size={13} /> Review Course</Link>
+            {enrollment.certificate_id && (
+              <Link to={`/certificates/${enrollment.certificate_id}`} className="btn-primary btn-sm gap-1.5"><ScrollText size={13} /> Certificate</Link>
+            )}
+          </div>
+        ) : (
+          <Link to={continueTo} className="mt-4 inline-flex items-center justify-center gap-1.5 text-sm font-semibold text-primary-700 hover:text-primary-800 group">
+            <PlayCircle size={16} /> {enrollment.learning_status === 'not_started' ? 'Start Learning' : 'Continue Learning'}
+            <ArrowRight size={14} className="ml-auto group-hover:translate-x-0.5 transition-transform" />
+          </Link>
+        )}
       </div>
     </article>
   )
 }
 
 function CourseCard({
-  course, isEnrolled, onEnroll, isEnrolling,
+  course, isEnrolled, onEnroll,
 }: {
   course: CourseMini
   isEnrolled: boolean
   onEnroll: () => void
-  isEnrolling: boolean
 }) {
   return (
     <article className="bg-white rounded-2xl border border-ink-100 overflow-hidden hover:border-primary-300 hover:shadow-lg hover:-translate-y-0.5 transition-all flex flex-col">
@@ -332,6 +328,12 @@ function CourseCard({
             {course.title}
           </h3>
         </Link>
+        <span className={cn('self-start inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold mb-2', AUDIENCE_STYLE[course.audience])}>
+          <Users size={11} /> {course.audience_display}
+        </span>
+        {course.description && (
+          <p className="text-xs text-ink-600 leading-relaxed line-clamp-2 mb-2">{course.description.replace(/<[^>]+>/g, '')}</p>
+        )}
         {course.instructor_name && (
           <p className="text-xs text-ink-500 mb-3">By {course.instructor_name}</p>
         )}
@@ -341,13 +343,18 @@ function CourseCard({
               <Clock size={12} /> {course.duration_hours}h
             </span>
           )}
+          {!!course.total_lessons && (
+            <span className="inline-flex items-center gap-1">
+              <Layers size={12} /> {course.total_lessons} lessons
+            </span>
+          )}
           <span className="inline-flex items-center gap-1">
             <Users size={12} /> {course.enrollment_count} enrolled
           </span>
         </div>
         <button
           type="button"
-          disabled={isEnrolled || isEnrolling}
+          disabled={isEnrolled}
           onClick={isEnrolled ? undefined : onEnroll}
           className={cn(
             'mt-4 w-full inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
@@ -358,8 +365,6 @@ function CourseCard({
         >
           {isEnrolled ? (
             <><CheckCircle2 size={14} /> Enrolled</>
-          ) : isEnrolling ? (
-            <>Enrolling…</>
           ) : (
             <>Enroll <ArrowRight size={14} /></>
           )}

@@ -14,10 +14,24 @@ class Course(models.Model):
         ('communication', 'Communication'),
     ]
 
+    AUDIENCE_CHOICES = [
+        ('general_youth', 'General Youth'),
+        ('youth_org_leaders', 'Youth Organization Leaders'),
+        ('sk_officials', 'SK Officials'),
+    ]
+
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     description = models.TextField()
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    # Who the course is mainly designed for. This only labels the course: it never restricts enrollment.
+    audience = models.CharField(max_length=20, choices=AUDIENCE_CHOICES, default='general_youth')
+    learning_outcomes = models.JSONField(default=list, blank=True, help_text='Short topics the learner has mastered after the course, for example: budget planning. Used on the certificate.')
+    passing_score = models.PositiveSmallIntegerField(
+        default=75, validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text='Percent of correct answers needed to pass a lesson assessment')
+    certificate_statement = models.TextField(
+        blank=True, help_text='Optional wording for the certificate. Use {name} and {course}. Leave empty to build it from the learning outcomes.')
     thumbnail = models.ImageField(upload_to='courses/thumbnails/', blank=True, null=True)
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -89,6 +103,13 @@ class Lesson(models.Model):
     order = models.PositiveIntegerField(default=0)
     content = models.TextField()
     video_url = models.URLField(blank=True)
+    video_file = models.FileField(upload_to='courses/videos/', blank=True)  # an uploaded video (alternative to a link)
+    video_required_percent = models.PositiveSmallIntegerField(
+        default=80, validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text='Share of the video that must be played before the assessment opens')
+    passing_score = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MinValueValidator(1), MaxValueValidator(100)],
+        help_text='Overrides the course passing score for this lesson only')
     resource_file = models.FileField(upload_to='courses/resources/', blank=True)
     duration_minutes = models.PositiveIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -127,6 +148,8 @@ class Enrollment(models.Model):
         validators=[MaxValueValidator(100)],
     )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='enrolled')
+    # The name the learner typed at enrollment. It is printed on the certificate, never the account username.
+    certificate_name = models.CharField(max_length=150, blank=True)
 
     class Meta:
         ordering = ['-enrolled_at']
@@ -153,6 +176,12 @@ class LessonProgress(models.Model):
     )
     completed = models.BooleanField(default=False)
     completed_at = models.DateTimeField(null=True, blank=True)
+    video_watched_at = models.DateTimeField(null=True, blank=True)  # set once the required share of the video was played
+    video_watched_seconds = models.FloatField(default=0)   # playback time the server has credited
+    video_duration = models.FloatField(default=0)
+    video_last_position = models.FloatField(default=0)
+    video_last_ping = models.DateTimeField(null=True, blank=True)
+    notes_read_at = models.DateTimeField(null=True, blank=True)  # for lessons without a video: the learner confirmed reading the notes
 
     class Meta:
         unique_together = ('enrollment', 'lesson')
@@ -205,6 +234,15 @@ class Certificate(models.Model):
     issued_at = models.DateTimeField(auto_now_add=True)
     certificate_number = models.CharField(max_length=100, unique=True)
     file = models.FileField(upload_to='courses/certificates/', null=True, blank=True)
+    # Snapshot at issuance, so the certificate never changes if the course or the account is edited later.
+    recipient_name = models.CharField(max_length=150, blank=True)
+    course_title = models.CharField(max_length=255, blank=True)
+    audience = models.CharField(max_length=20, blank=True)
+    statement = models.TextField(blank=True)
+    outcomes = models.JSONField(default=list, blank=True)
+    modules_summary = models.JSONField(default=list, blank=True)
+    signatories = models.JSONField(default=list, blank=True)
+    completed_on = models.DateField(null=True, blank=True)
 
     class Meta:
         ordering = ['-issued_at']
@@ -250,3 +288,31 @@ class QuizAttemptAnswer(models.Model):
 
     class Meta:
         unique_together = ('attempt', 'question')
+
+
+class CertificateSetting(models.Model):
+    """One row of certificate branding and signatories, managed by administrators."""
+    organization_name = models.CharField(max_length=200, default='Lucena City Youth Development Office')
+    platform_name = models.CharField(max_length=200, default='LYDOP | Lucena Youth Leadership Hub')
+    signatory_1_name = models.CharField(max_length=150, blank=True)
+    signatory_1_title = models.CharField(max_length=150, blank=True)
+    signatory_2_name = models.CharField(max_length=150, blank=True)
+    signatory_2_title = models.CharField(max_length=150, blank=True)
+    footer_note = models.CharField(max_length=255, default='Issued through the LYDOP learning platform of the Lucena City Youth Development Office.')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1  # a single settings row
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+    def signatories(self):
+        out = []
+        for n, t in ((self.signatory_1_name, self.signatory_1_title), (self.signatory_2_name, self.signatory_2_title)):
+            if n.strip():
+                out.append({'name': n.strip(), 'title': t.strip()})
+        return out

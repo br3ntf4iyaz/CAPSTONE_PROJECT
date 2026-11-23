@@ -15,7 +15,10 @@ import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Choice { id?: number; text: string; is_correct: boolean; order: number }
 interface Question { id: number; text: string; order: number; explanation: string; choices: Choice[] }
-interface Lesson { id: number; title: string; order: number; content: string; video_url: string; duration_minutes: number | null; questions: Question[] }
+interface Lesson {
+  id: number; title: string; order: number; content: string; video_url: string; video_file_url?: string | null
+  video_required_percent?: number; passing_score?: number | null; duration_minutes: number | null; questions: Question[]
+}
 interface Module { id: number; title: string; order: number; description: string; lessons: Lesson[] }
 interface CourseDetail { id: number; title: string; category: string; description: string }
 
@@ -66,7 +69,7 @@ function QuestionEditor({ question, courseId, moduleId, lessonId, onDelete }: {
       draft
     ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); toast.success('Question saved') },
-    onError: () => toast.error('Failed to save question'),
+    onError: (e: any) => toast.error(e?.response?.data?.choices?.[0] ?? 'Failed to save question'),
   })
 
   const del = useMutation({
@@ -74,7 +77,7 @@ function QuestionEditor({ question, courseId, moduleId, lessonId, onDelete }: {
       `${BASE(courseId)}/modules/${moduleId}/lessons/${lessonId}/questions/${question.id}/`
     ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); onDelete() },
-    onError: () => toast.error('Failed to delete question'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to delete question'),
   })
 
   const setCorrect = (idx: number) => {
@@ -161,28 +164,43 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
   const [draft, setDraft] = useState<Omit<Lesson, 'id' | 'questions'>>({
     title: lesson.title, order: lesson.order, content: lesson.content,
     video_url: lesson.video_url, duration_minutes: lesson.duration_minutes,
+    video_required_percent: lesson.video_required_percent ?? 80, passing_score: lesson.passing_score ?? null,
+  })
+
+  const uploadVideo = useMutation({
+    mutationFn: (file: File | null) => {
+      if (file === null) return apiClient.patch(`${BASE(courseId)}/modules/${moduleId}/lessons/${lesson.id}/`, { video_file: null })
+      const fd = new FormData()
+      fd.append('video_file', file)
+      return apiClient.patch(`${BASE(courseId)}/modules/${moduleId}/lessons/${lesson.id}/`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); toast.success('Video updated') },
+    onError: (e: any) => toast.error(e?.response?.data?.video_file?.[0] ?? 'Could not save the video'),
   })
 
   const saveLesson = useMutation({
     mutationFn: () => apiClient.patch(`${BASE(courseId)}/modules/${moduleId}/lessons/${lesson.id}/`, draft),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); toast.success('Lesson saved') },
-    onError: () => toast.error('Failed to save lesson'),
+    onError: (e: any) => {
+      const d = e?.response?.data
+      toast.error(d?.video_url?.[0] ?? d?.video_required_percent?.[0] ?? d?.passing_score?.[0] ?? 'Failed to save lesson')
+    },
   })
 
   const delLesson = useMutation({
     mutationFn: () => apiClient.delete(`${BASE(courseId)}/modules/${moduleId}/lessons/${lesson.id}/`),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); onDelete() },
-    onError: () => toast.error('Failed to delete lesson'),
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Failed to delete lesson'),
   })
 
   const addQuestion = useMutation({
     mutationFn: () => apiClient.post(
       `${BASE(courseId)}/modules/${moduleId}/lessons/${lesson.id}/questions/`,
-      { text: 'New question', order: lesson.questions.length, explanation: '', choices: [
-        { text: '', is_correct: true, order: 0 },
-        { text: '', is_correct: false, order: 1 },
-        { text: '', is_correct: false, order: 2 },
-        { text: '', is_correct: false, order: 3 },
+      { text: 'New question (edit me)', order: lesson.questions.length, explanation: '', choices: [
+        { text: 'Choice A (edit me)', is_correct: true, order: 0 },
+        { text: 'Choice B (edit me)', is_correct: false, order: 1 },
+        { text: 'Choice C (edit me)', is_correct: false, order: 2 },
+        { text: 'Choice D (edit me)', is_correct: false, order: 3 },
       ] }
     ),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['builder', courseId] }); setOpen(true) },
@@ -199,7 +217,7 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
         <FileText size={14} className="text-blue-500 flex-shrink-0" />
         {open ? <ChevronDown size={14} className="text-gray-400 flex-shrink-0" /> : <ChevronRight size={14} className="text-gray-400 flex-shrink-0" />}
         <span className="text-sm font-semibold flex-1">{lesson.title || 'Untitled Lesson'}</span>
-        {lesson.video_url && <Video size={13} className="text-indigo-400" />}
+        {(lesson.video_url || lesson.video_file_url) ? <Video size={13} className="text-indigo-400" /> : <span className="text-[10px] font-semibold text-amber-600">no video</span>}
         <span className="text-xs text-gray-400">{lesson.questions.length} Q</span>
         <button
           onClick={async e => { e.stopPropagation(); if (await confirmDeletion({ what: 'lesson', note: 'Its questions will be removed too.' })) delLesson.mutate() }}
@@ -223,11 +241,45 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
             </div>
           </div>
 
-          <div>
-            <label className="label text-xs flex items-center gap-1"><Video size={12} /> Video URL</label>
-            <input className="input text-sm" value={draft.video_url}
-              onChange={e => setDraft(d => ({ ...d, video_url: e.target.value }))}
-              placeholder="https://youtube.com/watch?v=… or embed URL" />
+          <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-3 space-y-3">
+            <p className="text-xs font-semibold text-gray-700 flex items-center gap-1"><Video size={12} /> Lesson video</p>
+            <div>
+              <label className="label text-xs">Video link</label>
+              <input className="input text-sm" value={draft.video_url}
+                onChange={e => setDraft(d => ({ ...d, video_url: e.target.value }))}
+                placeholder="https://www.youtube.com/watch?v=… (leave empty if there is no video yet)" />
+              <p className="mt-1 text-[11px] text-gray-500">
+                YouTube links and uploaded files are tracked automatically (the learner must play the required share). Other links
+                (for example Vimeo or Facebook) cannot be tracked, so the learner confirms by hand. Only add a link you have checked.
+              </p>
+            </div>
+            <div>
+              <label className="label text-xs">Or upload a video file <span className="text-gray-400 font-normal">(MP4, WebM, OGG or MOV, up to 150 MB)</span></label>
+              <div className="flex flex-wrap items-center gap-2">
+                <input type="file" accept="video/mp4,video/webm,video/ogg,video/quicktime" className="text-xs"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) uploadVideo.mutate(f); e.target.value = '' }} />
+                {lesson.video_file_url && (
+                  <>
+                    <a href={lesson.video_file_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary-700 hover:underline">Current file</a>
+                    <button type="button" className="text-xs text-red-600 hover:underline" onClick={() => uploadVideo.mutate(null)}>Remove file</button>
+                  </>
+                )}
+                {uploadVideo.isPending && <span className="text-xs text-gray-500">Uploading...</span>}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="label text-xs">Video completion required (%)</label>
+                <input type="number" min={1} max={100} className="input text-sm" value={draft.video_required_percent ?? 80}
+                  onChange={e => setDraft(d => ({ ...d, video_required_percent: Number(e.target.value) || 80 }))} />
+              </div>
+              <div>
+                <label className="label text-xs">Passing score for this lesson (%)</label>
+                <input type="number" min={1} max={100} className="input text-sm" value={draft.passing_score ?? ''}
+                  onChange={e => setDraft(d => ({ ...d, passing_score: e.target.value ? Number(e.target.value) : null }))}
+                  placeholder="Course default" />
+              </div>
+            </div>
           </div>
 
           <div>
@@ -248,7 +300,7 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
           {/* Quiz Questions */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Quiz Questions</span>
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide">Lesson assessment</span>
               <button
                 onClick={() => addQuestion.mutate()}
                 disabled={addQuestion.isPending}
@@ -258,7 +310,7 @@ function LessonEditor({ lesson, courseId, moduleId, onDelete }: {
               </button>
             </div>
             {lesson.questions.length === 0 ? (
-              <p className="text-xs text-gray-400 italic">No quiz questions yet. Add one above.</p>
+              <p className="text-xs text-gray-400 italic">No assessment yet. Each question needs four choices and one correct answer.</p>
             ) : (
               <div className="space-y-2">
                 {lesson.questions.map(q => (

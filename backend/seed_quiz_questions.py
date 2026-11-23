@@ -1,4 +1,9 @@
 """
+DEPRECATED: use `python manage.py seed_lms_content` instead.
+The SK lessons in this old script contain wrong figures (for example "10% of the IRA" and a 60/20/20 split of the SK fund).
+seed_lms_content has the corrected, source-checked text.
+"""
+"""
 seed_quiz_questions.py
 ======================
 Run from the /backend directory:

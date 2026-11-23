@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import type { Course } from '@/types'
 import { confirmDeletion } from '@/components/ui/ConfirmDialog'
+import AdminCertificatesPanel from './AdminCertificatesPanel'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Badge {
@@ -42,9 +43,16 @@ const BADGE_CATEGORIES = ['course', 'governance', 'internship', 'project', 'spec
 
 interface AdminUserOption { id: number; email: string; first_name: string; last_name: string }
 
+const AUDIENCES = [
+  { value: 'general_youth', label: 'General Youth' },
+  { value: 'youth_org_leaders', label: 'Youth Organization Leaders' },
+  { value: 'sk_officials', label: 'SK Officials' },
+]
+
 const initialCourseForm = {
   title: '', category: 'leadership', description: '', instructor_id: '' as string | number,
   duration_hours: '', is_published: false, is_featured: false,
+  audience: 'general_youth', outcomes_text: '', passing_score: '75', certificate_statement: '',
 }
 
 const initialBadgeForm = {
@@ -100,6 +108,10 @@ export default function AdminLMSPage() {
     fd.append('duration_hours', form.duration_hours ? String(Number(form.duration_hours)) : '0')
     fd.append('is_published', String(form.is_published))
     fd.append('is_featured', String(form.is_featured))
+    fd.append('audience', form.audience)
+    fd.append('passing_score', String(Number(form.passing_score) || 75))
+    fd.append('learning_outcomes', JSON.stringify(form.outcomes_text.split('\n').map(l => l.trim()).filter(Boolean)))
+    fd.append('certificate_statement', form.certificate_statement)
     if (form.instructor_id) fd.append('instructor_id', String(form.instructor_id))
     if (thumbnailFile) fd.append('thumbnail', thumbnailFile)
     return fd
@@ -138,6 +150,10 @@ export default function AdminLMSPage() {
       instructor_id: instructorData?.id ?? '',
       duration_hours: c.duration_hours?.toString() ?? '',
       is_published: c.is_published, is_featured: c.is_featured,
+      audience: (c as any).audience ?? 'general_youth',
+      outcomes_text: ((c as any).learning_outcomes ?? []).join('\n'),
+      passing_score: String((c as any).passing_score ?? 75),
+      certificate_statement: (c as any).certificate_statement ?? '',
     })
     setThumbnailFile(null)
     setThumbnailPreview(c.thumbnail_url ?? null)
@@ -207,16 +223,9 @@ export default function AdminLMSPage() {
   }
 
   // ─── Certificates queries ─────────────────────────────────────────────────
-  const { data: certificates = [], isLoading: certsLoading } = useQuery<Certificate[]>({
-    queryKey: ['admin-certificates'],
-    queryFn: () => apiClient.get('/courses/certificates/').then(r => toArray<Certificate>(r.data)),
-    enabled: activeTab === 'certificates',
-  })
-
   const isLoading =
     (activeTab === 'courses' && coursesLoading) ||
-    (activeTab === 'badges' && badgesLoading) ||
-    (activeTab === 'certificates' && certsLoading)
+    (activeTab === 'badges' && badgesLoading)
 
   const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: 'courses', label: 'Courses', icon: BookOpen },
@@ -251,9 +260,7 @@ export default function AdminLMSPage() {
             {key === 'badges' && badges.length > 0 && (
               <span className="ml-1 text-xs text-gray-400">({badges.length})</span>
             )}
-            {key === 'certificates' && certificates.length > 0 && (
-              <span className="ml-1 text-xs text-gray-400">({certificates.length})</span>
-            )}
+
           </button>
         ))}
       </div>
@@ -278,6 +285,7 @@ export default function AdminLMSPage() {
                       <tr>
                         <th>Title</th>
                         <th>Category</th>
+                        <th>Audience</th>
                         <th>Instructor</th>
                         <th>Duration</th>
                         <th>Enrollments</th>
@@ -292,6 +300,7 @@ export default function AdminLMSPage() {
                         <tr key={c.id}>
                           <td className="font-medium">{c.title}</td>
                           <td className="capitalize text-xs">{c.category.replace('_', ' ')}</td>
+                          <td className="text-xs">{(c as any).audience_display ?? AUDIENCES.find(a => a.value === (c as any).audience)?.label ?? '\u2014'}</td>
                           <td className="text-xs text-gray-500">{(c as any).instructor_name ?? (c.instructor as unknown as { full_name?: string } | null)?.full_name ?? '\u2014'}</td>
                           <td className="text-xs">{c.duration_hours ? `${c.duration_hours}h` : '\u2014'}</td>
                           <td>
@@ -426,54 +435,7 @@ export default function AdminLMSPage() {
           )}
 
           {/* ── Certificates Tab ─────────────────────────────────────────────── */}
-          {activeTab === 'certificates' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">All certificates issued to youth through the platform</p>
-                <div className="text-xs text-gray-400">Certificates are auto-generated upon course completion</div>
-              </div>
-
-              <div className="table-wrap">
-                {certificates.length === 0 ? (
-                  <EmptyState icon={ScrollText} title="No certificates issued" description="Certificates will appear here when youth complete courses." className="py-12" />
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Certificate Title</th>
-                        <th>Issued To</th>
-                        <th>Issued By</th>
-                        <th>Issue Date</th>
-                        <th>Expiry</th>
-                        <th>Certificate No.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {certificates.map(cert => (
-                        <tr key={cert.id}>
-                          <td className="font-medium text-sm">{cert.title}</td>
-                          <td>
-                            <div className="flex items-center gap-1.5">
-                              <User size={12} className="text-gray-400" />
-                              <span className="text-xs">{cert.user_full_name ?? `User #${cert.user}`}</span>
-                            </div>
-                          </td>
-                          <td className="text-xs text-gray-500">{cert.issued_by}</td>
-                          <td className="text-xs text-gray-500">{formatDate(cert.issued_at)}</td>
-                          <td className="text-xs text-gray-500">
-                            {cert.expiry_date ? formatDate(cert.expiry_date) : (
-                              <span className="text-green-600 font-medium">No expiry</span>
-                            )}
-                          </td>
-                          <td className="text-xs font-mono text-gray-500">{cert.certificate_number}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          )}
+          {activeTab === 'certificates' && <AdminCertificatesPanel />}
         </>
       )}
 
@@ -541,8 +503,32 @@ export default function AdminLMSPage() {
                 </select>
               </div>
               <div>
+                <label className="label">Intended audience</label>
+                <select className="input" value={courseForm.audience} onChange={e => setCourseForm(f => ({ ...f, audience: e.target.value }))}>
+                  {AUDIENCES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                </select>
+                <p className="mt-1 text-[11px] text-gray-500">Only a label to guide learners. Everyone can still enroll in any course.</p>
+              </div>
+              <div>
                 <label className="label">Description</label>
                 <textarea className="input min-h-[80px]" value={courseForm.description} onChange={e => setCourseForm(f => ({ ...f, description: e.target.value }))} placeholder="Course description…" />
+              </div>
+              <div>
+                <label className="label">Learning outcomes <span className="text-gray-400 font-normal">(one short topic per line)</span></label>
+                <textarea className="input min-h-[80px] text-sm" value={courseForm.outcomes_text} onChange={e => setCourseForm(f => ({ ...f, outcomes_text: e.target.value }))}
+                  placeholder={'budget planning\nfinancial documentation\npublic accountability'} />
+                <p className="mt-1 text-[11px] text-gray-500">The certificate says the learner demonstrated knowledge of these topics, so list only what the lessons really cover.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Passing score (%)</label>
+                  <input type="number" min={1} max={100} className="input" value={courseForm.passing_score} onChange={e => setCourseForm(f => ({ ...f, passing_score: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="label">Custom certificate wording <span className="text-gray-400 font-normal">(optional)</span></label>
+                <textarea className="input min-h-[60px] text-sm" value={courseForm.certificate_statement} onChange={e => setCourseForm(f => ({ ...f, certificate_statement: e.target.value }))}
+                  placeholder="Leave empty to build it from the learning outcomes. You can use {name} and {course}." />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

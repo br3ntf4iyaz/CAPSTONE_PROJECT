@@ -9,6 +9,8 @@ import apiClient from '@/api/client'
 import { formatDate, cn } from '@/utils'
 import { useCertificateIntegrity, type IntegrityResult } from '@/api/ledger'
 import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
+import toast from 'react-hot-toast'
+import { downloadWithLogin } from '../lms'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 /**
@@ -27,6 +29,9 @@ interface CourseCert {
   course_id: number
   issued_at: string
   file_url: string | null
+  holder_name?: string
+  completed_on?: string | null
+  audience?: string
 }
 
 interface RecognitionCert {
@@ -52,6 +57,8 @@ interface UnifiedCertificate {
   certNumber: string
   fileUrl: string | null
   link: string | null
+  courseCertId?: number
+  recipient?: string
 }
 
 const toArray = <T,>(d: any): T[] =>
@@ -82,10 +89,12 @@ export default function YouthCertificatesPage() {
       source: 'course',
       title: c.course_title,
       issuer: 'LYDO Learning Platform',
-      issuedAt: c.issued_at,
+      issuedAt: c.completed_on || c.issued_at,
       certNumber: c.certificate_number,
       fileUrl: c.file_url,
-      link: `/lms`, // could deep-link to course detail later
+      link: `/lms/${c.course_id}`,
+      courseCertId: c.id,
+      recipient: c.holder_name,
     }))
     const recogCerts = (recognitionCertsQ.data ?? []).map<UnifiedCertificate>(c => ({
       key: `recognition-${c.id}`,
@@ -303,13 +312,13 @@ function CertificateCard({ cert, integrity }: { cert: UnifiedCertificate; integr
         <dl className="grid grid-cols-2 gap-3 mt-auto pt-4 border-t border-ink-100">
           <div>
             <dt className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-1 inline-flex items-center gap-1">
-              <Calendar size={10} /> Issued
+              <Calendar size={10} /> Completed
             </dt>
             <dd className="text-sm font-semibold text-ink-900">{formatDate(cert.issuedAt)}</dd>
           </div>
           <div className="min-w-0">
             <dt className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-1 inline-flex items-center gap-1">
-              <Hash size={10} /> Number
+              <Hash size={10} /> Certificate ID
             </dt>
             <dd className="text-sm font-mono font-semibold text-ink-900 truncate">
               {cert.certNumber}
@@ -317,8 +326,26 @@ function CertificateCard({ cert, integrity }: { cert: UnifiedCertificate; integr
           </div>
         </dl>
 
+        {cert.recipient && (
+          <p className="mt-3 text-xs text-ink-500">Awarded to <span className="font-semibold text-ink-800">{cert.recipient}</span></p>
+        )}
+
         <div className="flex gap-2 mt-5">
-          {cert.fileUrl ? (
+          {cert.courseCertId ? (
+            <>
+              <Link to={`/certificates/${cert.courseCertId}`} className="btn-primary text-sm flex-1 justify-center">
+                <Eye size={14} /> View Certificate
+              </Link>
+              <button
+                type="button"
+                className="btn-secondary text-sm whitespace-nowrap"
+                onClick={() => downloadWithLogin(`/courses/certificates/${cert.courseCertId}/pdf/`, `Certificate-${cert.certNumber}.pdf`)
+                  .catch(() => toast.error('Could not download the certificate. Please try again.'))}
+              >
+                <Download size={14} /> Download PDF
+              </button>
+            </>
+          ) : cert.fileUrl ? (
             <>
               <button type="button" onClick={() => setViewing(true)} className="btn-primary text-sm flex-1">
                 <Eye size={14} /> View
@@ -338,7 +365,7 @@ function CertificateCard({ cert, integrity }: { cert: UnifiedCertificate; integr
               File pending
             </span>
           )}
-          {cert.link && (
+          {cert.link && !cert.courseCertId && (
             <Link
               to={cert.link}
               className="btn-secondary text-sm whitespace-nowrap"

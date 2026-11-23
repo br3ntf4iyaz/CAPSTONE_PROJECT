@@ -2,6 +2,8 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    AdminCertificateViewSet,
+    CertificateSettingView,
     CertificateViewSet,
     CourseAdminViewSet,
     CourseViewSet,
@@ -18,8 +20,10 @@ router.register(r"certificates", CertificateViewSet, basename="certificate")
 router.register(r"quiz-attempts", QuizAttemptViewSet, basename="quiz-attempt")
 router.register(r"lessons", LessonViewSet, basename="lesson")
 router.register(r"admin/courses", CourseAdminViewSet, basename="admin-course")
+router.register(r"admin/certificates", AdminCertificateViewSet, basename="admin-certificate")
 router.register(r"", CourseViewSet, basename="course")
 
 urlpatterns = [
+    path("admin/certificate-settings/", CertificateSettingView.as_view()),
     path("", include(router.urls)),
 ]

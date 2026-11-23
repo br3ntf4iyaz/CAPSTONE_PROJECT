@@ -11,8 +11,8 @@ export const coursesApi = {
   list: (params?: Record<string, unknown>) =>
     apiClient.get<PaginatedResponse<Course>>('/courses/', { params }),
   get: (id: number) => apiClient.get<Course>(`/courses/${id}/`),
-  enroll: (courseId: number) =>
-    apiClient.post<Enrollment>('/courses/enrollments/', { course_id: courseId }),
+  enroll: (courseId: number, certificateName: string) =>
+    apiClient.post<Enrollment>('/courses/enrollments/', { course_id: courseId, certificate_name: certificateName }),
   myEnrollments: () =>
     apiClient.get<PaginatedResponse<Enrollment>>('/courses/enrollments/'),
   markLessonComplete: (enrollmentId: number, lessonId: number) =>
