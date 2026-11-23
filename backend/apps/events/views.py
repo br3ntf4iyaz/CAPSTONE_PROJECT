@@ -1,4 +1,5 @@
-import random
+import hmac
+import secrets
 import string
 
 from django.db import transaction
@@ -157,7 +158,7 @@ class EventViewSet(viewsets.ModelViewSet):
     )
     def start_checkin(self, request, pk=None):
         event = self.get_object()
-        code = ''.join(random.choices(string.digits, k=6))
+        code = ''.join(secrets.choice(string.digits) for _ in range(6))
         event.check_in_code = code
         event.check_in_active = True
         event.save(update_fields=['check_in_code', 'check_in_active'])
@@ -191,7 +192,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         code = str(request.data.get('code', '')).strip()
-        if not code or code != event.check_in_code:
+        if not code or not hmac.compare_digest(code.encode(), (event.check_in_code or '').encode()):
             return Response(
                 {'detail': 'Incorrect check-in code. Please try again.'},
                 status=status.HTTP_400_BAD_REQUEST,

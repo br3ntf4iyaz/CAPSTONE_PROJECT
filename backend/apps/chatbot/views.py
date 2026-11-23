@@ -88,6 +88,11 @@ class ChatbotView(APIView):
             session_key=session_key,
             defaults={'user': user},
         )
+        # A session that belongs to someone else must never be continued (or its history
+        # fed to the model) just because the caller knows or guessed its key.
+        if session.user_id is not None and (user is None or session.user_id != user.id):
+            session_key = str(uuid.uuid4())
+            session = ChatSession.objects.create(session_key=session_key, user=user)
 
         # Persist the incoming user message
         ChatMessage.objects.create(session=session, role='user', content=message_text)

@@ -4,7 +4,8 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import EmailMultiAlternatives
-from rest_framework import generics, permissions, status, viewsets
+from django.contrib.auth.password_validation import validate_password
+from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
@@ -20,6 +21,8 @@ from .permissions import IsAdminRole, IsSuperAdmin
 from .throttles import EmailSendThrottle, FriendlyThrottleMixin, LoginThrottle
 
 logger = logging.getLogger(__name__)
+
+from html import escape as html_escape
 
 User = get_user_model()
 
@@ -72,7 +75,7 @@ def _send_verification_email(user, token):
         </tr>
         <tr>
           <td style="padding:32px;color:#334155;font-size:15px;line-height:1.7;">
-            <p style="margin:0 0 16px;">Hi <strong>{user.first_name}</strong>,</p>
+            <p style="margin:0 0 16px;">Hi <strong>{html_escape(user.first_name)}</strong>,</p>
             <p style="margin:0 0 24px;">
               Thanks for registering on the <strong>Lucena Youth Leadership Hub</strong>.
               Click the button below to verify your email address and activate your account.
@@ -278,9 +281,31 @@ class GoogleAuthView(generics.GenericAPIView):
             return Response({"detail": "Google access token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Call Google's userinfo endpoint to verify the token and get profile data
+        import urllib.parse
         import urllib.request
         import urllib.error
         import json as _json
+
+        # The token must have been issued to OUR app. Otherwise a token that another site
+        # obtained from the same Google user could be replayed here to sign in as them.
+        expected_aud = getattr(settings, "GOOGLE_CLIENT_ID", "")
+        if expected_aud:
+            try:
+                info_req = urllib.request.Request(
+                    "https://oauth2.googleapis.com/tokeninfo",
+                    data=urllib.parse.urlencode({"access_token": access_token}).encode(),
+                    method="POST",
+                )
+                with urllib.request.urlopen(info_req, timeout=10) as info_resp:
+                    token_info = _json.loads(info_resp.read().decode())
+            except Exception as exc:
+                logger.warning("Google tokeninfo check failed: %s", exc)
+                return Response({"detail": "Invalid Google token. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
+            if expected_aud not in (token_info.get("aud"), token_info.get("azp")):
+                logger.warning("Google token rejected: audience mismatch")
+                return Response({"detail": "Invalid Google token. Please try again."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            logger.warning("GOOGLE_CLIENT_ID is not set: Google tokens are not checked for audience.")
 
         try:
             req = urllib.request.Request(
@@ -307,16 +332,19 @@ class GoogleAuthView(generics.GenericAPIView):
         last_name  = id_info.get("family_name", "").strip()
 
         # Get or create the user
-        user, created = User.objects.get_or_create(
-            email=email,
-            defaults={
-                "first_name": first_name or email.split("@")[0],
-                "last_name":  last_name or "",
-                "role":       User.Role.YOUTH,
-                "youth_type": User.YouthType.GENERAL,
-                "is_email_verified": True,
-            },
-        )
+        user = User.objects.filter(email__iexact=email).first()
+        created = False
+        if user is None:
+            user, created = User.objects.get_or_create(
+                email=email,
+                defaults={
+                    "first_name": first_name or email.split("@")[0],
+                    "last_name":  last_name or "",
+                    "role":       User.Role.YOUTH,
+                    "youth_type": User.YouthType.GENERAL,
+                    "is_email_verified": True,
+                },
+            )
 
         if not created:
             # Existing user — ensure they are marked verified & active
@@ -432,7 +460,7 @@ def _send_password_reset_email(user, token):
         </tr>
         <tr>
           <td style="padding:32px;color:#334155;font-size:15px;line-height:1.7;">
-            <p style="margin:0 0 16px;">Hi <strong>{user.first_name}</strong>,</p>
+            <p style="margin:0 0 16px;">Hi <strong>{html_escape(user.first_name)}</strong>,</p>
             <p style="margin:0 0 24px;">
               We received a request to reset your password on the
               <strong>Lucena Youth Leadership Hub</strong>.
@@ -534,6 +562,8 @@ class ResetPasswordView(generics.GenericAPIView):
             return Response({"detail": "Passwords do not match."}, status=status.HTTP_400_BAD_REQUEST)
         if len(password) < 8:
             return Response({"detail": "Password must be at least 8 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) > 128:
+            return Response({"detail": "Password must be 128 characters or fewer."}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             token_obj = PasswordResetToken.objects.select_related("user").get(token=token_str)
@@ -551,9 +581,19 @@ class ResetPasswordView(generics.GenericAPIView):
             )
 
         user = token_obj.user
+        try:
+            validate_password(password, user)
+        except DjangoValidationError as exc:
+            return Response({"detail": " ".join(exc.messages)}, status=status.HTTP_400_BAD_REQUEST)
         user.set_password(password)
         user.save(update_fields=["password"])
         token_obj.delete()
+
+        # Sign out every existing session: whoever had the old password (or a stolen
+        # refresh token) must not stay logged in after a reset.
+        from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
+        for outstanding in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=outstanding)
 
         AuditLog.objects.create(
             action="password_reset",
@@ -573,7 +613,12 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def update(self, request, *args, **kwargs):
         if "avatar" in request.FILES:
+            from .uploads import IMAGE_EXTS, check_upload
             user = request.user
+            try:
+                check_upload(request.FILES["avatar"], IMAGE_EXTS, 5 * 1024 * 1024, field="avatar")
+            except serializers.ValidationError as exc:
+                return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
             user.avatar = request.FILES["avatar"]
             user.save(update_fields=["avatar"])
         return super().update(request, *args, **kwargs)
