@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import {
   Users, Building2, ArrowRight, MapPin, CheckCircle2,
   TrendingUp, Shield, Heart, Pin, ImagePlus, X, MessageSquare,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Trash2,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
@@ -62,6 +62,7 @@ export default function CommunityHubPage() {
   const [barangayOptions, setBarangayOptions] = useState<string[]>([])
   const [openCommentIds, setOpenCommentIds] = useState<Set<number>>(new Set())
   const [editingPostId, setEditingPostId] = useState<number | null>(null)
+  const [postToDelete, setPostToDelete] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
 
   const toggleComments = (id: number) => {
@@ -145,7 +146,16 @@ export default function CommunityHubPage() {
       toast.success('Post deleted.')
     },
     onError: () => toast.error('Could not delete post.'),
+    onSettled: () => setPostToDelete(null),
   })
+
+  // Esc closes the confirmation (same as Cancel)
+  useEffect(() => {
+    if (postToDelete === null) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !deletePostMutation.isPending) setPostToDelete(null) }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [postToDelete, deletePostMutation.isPending])
 
   const likeMutation = useMutation({
     mutationFn: (id: number) => communityApi.react(id),
@@ -563,7 +573,7 @@ export default function CommunityHubPage() {
                       )}
                       {(post.is_own || isAdmin) && editingPostId !== post.id && (
                         <button
-                          onClick={() => deletePostMutation.mutate(post.id)}
+                          onClick={() => setPostToDelete(post.id)}
                           className="text-xs text-ink-400 hover:text-red-500 transition-colors"
                         >
                           Delete
@@ -652,6 +662,51 @@ export default function CommunityHubPage() {
 
         </div>
       </section>
+
+      {postToDelete !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+          onClick={() => { if (!deletePostMutation.isPending) setPostToDelete(null) }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-post-title"
+            aria-describedby="delete-post-desc"
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <Trash2 size={22} />
+            </div>
+            <h2 id="delete-post-title" className="text-center text-base font-bold text-ink-900">
+              Are you sure you want to delete this post?
+            </h2>
+            <p id="delete-post-desc" className="mt-2 text-center text-sm text-ink-500">
+              This action cannot be undone. Once deleted, this post will be permanently removed.
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setPostToDelete(null)}
+                disabled={deletePostMutation.isPending}
+                className="btn-secondary sm:min-w-[110px]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => deletePostMutation.mutate(postToDelete)}
+                disabled={deletePostMutation.isPending}
+                className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-red-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:opacity-60 sm:min-w-[110px]"
+              >
+                {deletePostMutation.isPending ? 'Deleting...' : 'Delete Post'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
