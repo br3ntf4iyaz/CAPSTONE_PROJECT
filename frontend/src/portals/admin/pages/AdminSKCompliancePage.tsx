@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronRight, Download, Globe2, History, Info, Landmark, RotateCcw, Search, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, Download, FileCheck2, FileText, Globe2, History, Info, Landmark, MousePointerClick, RotateCcw, Search, ShieldCheck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { MONTHS, STATUS_META, StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
+import { CELL_TINT, CompletionRing, KpiCard, groupTone, type Tone } from '@/components/ComplianceKit'
 import { apiMessage, downloadWithLogin } from '@/portals/youth/lms'
 import AdminSKTrackerPage from './AdminSKTrackerPage'
 import AdminDisclosurePage from './AdminDisclosurePage'
@@ -49,42 +50,63 @@ export default function AdminSKCompliancePage() {
   const o = q.data
   const s = o.summary
   const waiting = (queue.data?.to_verify.length ?? 0) + (queue.data?.ready_to_publish.length ?? 0)
-  const cards = [
-    { label: 'Total required', value: s.total, cls: 'border-gray-200 bg-white' },
-    { label: 'Completed', value: s.completed, cls: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-    { label: 'Pending', value: s.pending, cls: 'border-amber-200 bg-amber-50 text-amber-900' },
-    { label: 'Overdue', value: s.overdue, cls: s.overdue ? 'border-red-300 bg-red-50 text-red-900' : 'border-gray-200 bg-white' },
-    { label: 'Submitted for verification', value: s.for_verification, cls: 'border-sky-200 bg-sky-50 text-sky-900' },
-    { label: 'Returned for correction', value: s.returned, cls: s.returned ? 'border-orange-300 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white' },
-    { label: 'Verified', value: s.verified, cls: 'border-emerald-200 bg-white' },
-    { label: 'Published', value: s.published, cls: 'border-teal-300 bg-teal-50 text-teal-900' },
+  const kpis: { label: string; value: number; icon: React.ReactNode; tone: Tone; hint?: string }[] = [
+    { label: 'Total required', value: s.total, icon: <FileText size={16} />, tone: 'ink' },
+    { label: 'Completed', value: s.completed, icon: <CheckCircle2 size={16} />, tone: 'green' },
+    { label: 'Pending', value: s.pending, icon: <Clock size={16} />, tone: 'yellow' },
+    { label: 'Overdue', value: s.overdue, icon: <AlertTriangle size={16} />, tone: 'red' },
+    { label: 'Submitted for verification', value: s.for_verification, icon: <FileCheck2 size={16} />, tone: 'blue' },
+    { label: 'Returned for correction', value: s.returned, icon: <RotateCcw size={16} />, tone: 'orange' },
+    { label: 'Verified', value: s.verified, icon: <ShieldCheck size={16} />, tone: 'green', hint: 'ready to publish' },
+    { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'teal', hint: 'on the public FPDPB' },
   ]
+  const tabs = [['monitor', 'Monitoring (5 documents)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900"><Landmark size={22} className="text-primary-700" /> SK Compliance Monitoring System</h1>
-          <p className="mt-1 max-w-3xl text-sm text-gray-500">
-            Monitor the CBYDP, ABYIP, SK Approved Annual Budget, quarterly RCB and monthly MIL of every barangay. Verified documents are published on the
-            FPDPB (Full Public Disclosure Policy Board).
-          </p>
+      {/* Banner */}
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-lg">
+        <div className="ph-stripe h-1.5 w-full" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-16 h-64 w-64 rounded-full bg-accent-400/20 blur-2xl" />
+        <div className="relative flex flex-wrap items-center justify-between gap-6 p-6 sm:p-8">
+          <div className="min-w-0 max-w-3xl">
+            <p className="eyebrow-on-dark mb-2 flex items-center gap-1.5"><Landmark size={13} /> LYDO · City of Lucena</p>
+            <h1 className="font-display text-2xl font-extrabold leading-tight tracking-tightish sm:text-3xl">SK Compliance Monitoring System</h1>
+            <p className="mt-2 text-sm leading-relaxed text-primary-100">
+              Monitor the CBYDP, ABYIP, SK Approved Annual Budget, quarterly RCB and monthly MIL of every barangay. Verified documents are published on the
+              FPDPB (Full Public Disclosure Policy Board).
+            </p>
+            <Link to="/fpdpb" target="_blank" className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-primary-800 shadow-sm transition hover:bg-primary-50">
+              <Globe2 size={15} /> Open FPDPB (public)
+            </Link>
+          </div>
+          <div className="flex items-center gap-4 rounded-2xl bg-white/10 p-4 backdrop-blur-sm">
+            <CompletionRing percent={o.percent} />
+            <div>
+              <p className="font-display text-base font-bold">Compliance</p>
+              <p className="text-xs text-primary-100">{s.completed} of {s.total} documents</p>
+              <p className="mt-1 text-[11px] text-primary-200">{o.year}{o.rows.length ? ` · ${o.rows.length} barangay${o.rows.length === 1 ? '' : 's'}` : ''}</p>
+            </div>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link to="/fpdpb" target="_blank" className="btn-secondary btn-sm"><Globe2 size={13} /> Open FPDPB (public)</Link>
-        </div>
-      </div>
+      </header>
 
-      <div className="flex gap-2" role="tablist">
-        {([['monitor', 'Monitoring (5 documents)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const).map(([k, label]) => (
+      {/* Tabs */}
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-primary-100 bg-white p-1 shadow-sm" role="tablist">
+        {tabs.map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={cn('whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-semibold', tab === k ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300')}>{label}</button>
+            className={cn('inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-colors',
+              tab === k ? 'bg-primary-600 text-white shadow' : 'text-ink-600 hover:bg-primary-50 hover:text-primary-700')}>
+            {label}
+            {k === 'queue' && waiting > 0 && tab !== 'queue' && <span className="h-2 w-2 rounded-full bg-accent-400" aria-hidden />}
+          </button>
         ))}
       </div>
 
       {tab === 'monitor' ? (
         <>
-          <section aria-label="Filters" className="grid grid-cols-2 gap-3 rounded-2xl border border-gray-200 bg-white p-4 md:grid-cols-4 xl:grid-cols-7">
+          <section aria-label="Filters" className="grid grid-cols-2 gap-3 rounded-2xl border border-primary-100 bg-primary-50/50 p-4 md:grid-cols-4 xl:grid-cols-7">
             <Sel label="Year" value={f.year || String(o.year)} onChange={v => set('year', v)}>{o.years.map(y => <option key={y} value={y}>{y}</option>)}</Sel>
             <Sel label="Barangay" value={f.barangay} onChange={v => set('barangay', v)}><option value="">All barangays</option>{o.barangays.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</Sel>
             <Sel label="Document" value={f.category} onChange={v => set('category', v)}><option value="">All documents</option>{o.categories.map(c => <option key={c.key} value={c.key}>{c.short}</option>)}</Sel>
@@ -95,73 +117,84 @@ export default function AdminSKCompliancePage() {
           </section>
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {cards.map(c => (
-              <div key={c.label} className={cn('rounded-2xl border p-4', c.cls)}>
-                <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">{c.label}</p>
-                <p className="mt-1 text-3xl font-extrabold tabular-nums">{c.value}</p>
-              </div>
-            ))}
+            {kpis.map(c => <KpiCard key={c.label} {...c} />)}
           </div>
-          <div>
-            <div className="mb-1 flex justify-between text-xs font-semibold text-gray-500"><span>Compliance for the selected filters</span><span>{o.percent}%</span></div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${o.percent}%` }} /></div>
-          </div>
-          <StatusLegend />
 
-          <details className="group rounded-2xl border border-primary-100 bg-primary-50/40 p-4 text-sm">
-            <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-gray-900"><Info size={16} className="text-primary-700" /> What do CBYDP, ABYIP, RCB and MIL mean?
-              <ChevronRight size={15} className="ml-auto text-gray-400 transition-transform group-open:rotate-90" /></summary>
+          <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-600"><span>Compliance for the selected filters</span><span className="text-primary-700">{o.percent}%</span></div>
+            <div className="h-2.5 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-gradient-to-r from-primary-600 to-emerald-500 transition-all duration-700" style={{ width: `${o.percent}%` }} /></div>
+            <div className="mt-3"><StatusLegend /></div>
+          </div>
+
+          <details className="group rounded-2xl border border-accent-200 bg-accent-50/70 p-4 text-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink-900"><Info size={16} className="text-accent-700" /> What do CBYDP, ABYIP, RCB and MIL mean?
+              <ChevronRight size={15} className="ml-auto text-ink-400 transition-transform group-open:rotate-90" /></summary>
             <dl className="mt-3 grid gap-3 md:grid-cols-2">
               {o.categories.map(c => (
-                <div key={c.key} className="rounded-xl bg-white p-3">
-                  <dt className="font-semibold text-gray-900">{c.short} <span className="font-normal text-gray-500">· {c.label}</span></dt>
-                  <dd className="mt-0.5 text-xs leading-relaxed text-gray-600">{c.description}</dd>
+                <div key={c.key} className="rounded-xl border-l-4 border-accent-400 bg-white p-3 shadow-sm">
+                  <dt className="font-semibold text-ink-900">{c.short} <span className="font-normal text-ink-500">· {c.label}</span></dt>
+                  <dd className="mt-0.5 text-xs leading-relaxed text-ink-600">{c.description}</dd>
                 </div>
               ))}
             </dl>
           </details>
-          <p className="text-xs text-gray-500">Click any cell to open that barangay's document, review it, and see its history.</p>
+          <p className="-mt-2 flex items-center gap-1.5 text-xs text-ink-500"><MousePointerClick size={13} /> Click any cell to open that barangay's document, review it, and see its history.</p>
 
-          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <div className="overflow-x-auto rounded-2xl border border-primary-100 bg-white shadow-sm">
+            <table className="w-full min-w-[1020px] text-sm">
+              <thead className="border-b border-primary-100 bg-primary-50 text-left text-xs font-bold uppercase tracking-wide text-primary-800">
                 <tr><th className="px-4 py-3">Barangay</th>{o.categories.map(c => (
                   <th key={c.key} className="px-3 py-3 align-bottom" title={`${c.label}: ${c.description}`}>
                     <span className="block">{c.short}</span>
-                    <span className="mt-0.5 block max-w-[150px] text-[10px] font-normal normal-case leading-tight tracking-normal text-gray-400">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
-                  </th>))}<th className="px-3 py-3 text-right">Done</th></tr>
+                    <span className="mt-0.5 block max-w-[150px] text-[10px] font-medium normal-case leading-tight tracking-normal text-primary-600/80">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
+                  </th>))}<th className="px-4 py-3 text-right">Done</th></tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {o.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No records match these filters.</td></tr>}
-                {o.rows.map(r => (
-                  <tr key={r.barangay_id} className="hover:bg-gray-50/60">
-                    <td className="px-4 py-3 font-semibold text-gray-900">{r.barangay}</td>
-                    {o.categories.map(c => {
-                      const cell = r.cells[c.key]
-                      return (
-                        <td key={c.key} className="px-3 py-2.5 align-middle">
-                          {!cell || cell.total === 0 ? <span className="text-xs text-gray-300">—</span> : (
-                            <button type="button" title={`Open ${r.barangay} · ${c.short}`}
-                              className="group flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left shadow-sm transition hover:border-primary-400 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
-                              aria-label={`${r.barangay} ${c.short}`}
-                              onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}>
-                              <span className="min-w-0">
+              <tbody className="divide-y divide-ink-100">
+                {o.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-500">No records match these filters.</td></tr>}
+                {o.rows.map(r => {
+                  const pct = r.totals.total ? Math.round((r.totals.completed / r.totals.total) * 100) : 0
+                  return (
+                    <tr key={r.barangay_id} className="transition-colors odd:bg-white even:bg-paper-50/70 hover:bg-primary-50/40">
+                      <td className="px-4 py-2.5">
+                        <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-ink-900">
+                          <span className={cn('h-2 w-2 shrink-0 rounded-full', r.totals.overdue > 0 ? 'bg-alert-500' : r.totals.completed === r.totals.total && r.totals.total > 0 ? 'bg-emerald-500' : 'bg-ink-300')} aria-hidden />
+                          {r.barangay}
+                        </span>
+                      </td>
+                      {o.categories.map(c => {
+                        const cell = r.cells[c.key]
+                        if (!cell || cell.total === 0) return <td key={c.key} className="px-3 py-2"><span className="text-xs text-ink-300">—</span></td>
+                        const tone: ComplianceStatus = cell.kind === 'single' ? cell.periods[0].status : groupTone(cell.completed, cell.overdue, cell.total)
+                        return (
+                          <td key={c.key} className="min-w-[150px] px-3 py-2 align-middle">
+                            <button type="button" title={`Open ${r.barangay} · ${c.short}`} aria-label={`${r.barangay} ${c.short}`}
+                              onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
+                              className={cn('group flex w-full items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400', CELL_TINT[tone])}>
+                              <span className="min-w-0 flex-1">
                                 {cell.kind === 'single' ? <StatusChip status={cell.periods[0].status} /> : (
                                   <>
-                                    <span className="text-xs font-semibold text-gray-700">{cell.completed}/{cell.total}{cell.overdue ? <span className="ml-1 text-red-600">· {cell.overdue} overdue</span> : null}</span>
-                                    <span className="mt-1 flex flex-wrap gap-0.5">{cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-2.5 w-2.5 rounded-sm', STATUS_META[p.status].dot)} />)}</span>
+                                    <span className="flex items-baseline gap-1.5 whitespace-nowrap text-xs">
+                                      <span className="font-bold text-ink-900">{cell.completed}/{cell.total}</span>
+                                      {cell.overdue > 0 && <span className="font-semibold text-alert-600">{cell.overdue} overdue</span>}
+                                    </span>
+                                    <span className="mt-1.5 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${cell.periods.length}, minmax(0, 1fr))` }}>
+                                      {cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-1.5 rounded-full', STATUS_META[p.status].dot)} />)}
+                                    </span>
                                   </>
                                 )}
                               </span>
-                              <ChevronRight size={14} className="shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
+                              <ChevronRight size={14} className="shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
                             </button>
-                          )}
-                        </td>
-                      )
-                    })}
-                    <td className="px-3 py-3 text-right text-xs font-semibold tabular-nums text-gray-700">{r.totals.completed}/{r.totals.total}</td>
-                  </tr>
-                ))}
+                          </td>
+                        )
+                      })}
+                      <td className="px-4 py-2 text-right">
+                        <span className="text-xs font-bold tabular-nums text-ink-800">{r.totals.completed}/{r.totals.total}</span>
+                        <span className="ml-auto mt-1 block h-1.5 w-20 overflow-hidden rounded-full bg-ink-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -180,7 +213,7 @@ export default function AdminSKCompliancePage() {
 }
 
 function Sel({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return <label className="text-xs font-semibold text-gray-500">{label}<select className="input mt-1 py-2 text-sm" value={value} onChange={e => onChange(e.target.value)}>{children}</select></label>
+  return <label className="text-xs font-bold uppercase tracking-wide text-primary-800">{label}<select className="input mt-1 bg-white py-2 text-sm font-normal normal-case tracking-normal text-ink-900" value={value} onChange={e => onChange(e.target.value)}>{children}</select></label>
 }
 
 function Queue({ data, loading, onOpen }: { data?: { to_verify: QueueRow[]; ready_to_publish: QueueRow[] }; loading: boolean; onOpen: (r: QueueRow) => void }) {

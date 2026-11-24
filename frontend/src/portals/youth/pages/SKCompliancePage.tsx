@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronDown, ExternalLink, Eye, History, ShieldAlert, Upload, X } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock, ExternalLink, Eye, FileCheck2, FileText, Globe2, History, RotateCcw, ShieldAlert, ShieldCheck, Upload, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
+import { CompletionRing, KpiCard, type Tone } from '@/components/ComplianceKit'
 import { apiMessage, downloadWithLogin } from '../lms'
 
 interface Rec {
@@ -53,21 +54,24 @@ export default function SKCompliancePage() {
   }
   const o = q.data
   const s = o.summary
-  const cards: { label: string; value: number; cls: string }[] = [
-    { label: 'Total required', value: s.total, cls: 'border-gray-200 bg-white' },
-    { label: 'Completed', value: s.completed, cls: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-    { label: 'Pending', value: s.pending, cls: 'border-amber-200 bg-amber-50 text-amber-900' },
-    { label: 'Overdue', value: s.overdue, cls: s.overdue ? 'border-red-300 bg-red-50 text-red-900' : 'border-gray-200 bg-white' },
-    { label: 'Submitted for verification', value: s.for_verification, cls: 'border-sky-200 bg-sky-50 text-sky-900' },
-    { label: 'Returned for correction', value: s.returned, cls: s.returned ? 'border-orange-300 bg-orange-50 text-orange-900' : 'border-gray-200 bg-white' },
-    { label: 'Verified', value: s.verified, cls: 'border-emerald-200 bg-white' },
-    { label: 'Published', value: s.published, cls: 'border-teal-300 bg-teal-50 text-teal-900' },
+  const kpis: { label: string; value: number; icon: React.ReactNode; tone: Tone }[] = [
+    { label: 'Total required', value: s.total, icon: <FileText size={16} />, tone: 'ink' },
+    { label: 'Completed', value: s.completed, icon: <CheckCircle2 size={16} />, tone: 'green' },
+    { label: 'Pending', value: s.pending, icon: <Clock size={16} />, tone: 'yellow' },
+    { label: 'Overdue', value: s.overdue, icon: <AlertTriangle size={16} />, tone: 'red' },
+    { label: 'Submitted for verification', value: s.for_verification, icon: <FileCheck2 size={16} />, tone: 'blue' },
+    { label: 'Returned for correction', value: s.returned, icon: <RotateCcw size={16} />, tone: 'orange' },
+    { label: 'Verified', value: s.verified, icon: <ShieldCheck size={16} />, tone: 'green' },
+    { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'teal' },
   ]
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 pb-10">
-      <header className="rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 p-7 text-white sm:p-9">
-        <p className="eyebrow-on-dark mb-2">SK Compliance Monitoring System</p>
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 p-7 text-white shadow-lg sm:p-9">
+        <div className="ph-stripe absolute inset-x-0 top-0 h-1.5" aria-hidden />
+        <div aria-hidden className="pointer-events-none absolute -bottom-20 -right-16 h-64 w-64 rounded-full bg-accent-400/20 blur-2xl" />
+        <div className="absolute right-6 top-6 hidden sm:block"><CompletionRing percent={o.percent} size={84} /></div>
+        <p className="eyebrow-on-dark mb-2 relative">SK Compliance Monitoring System</p>
         <h1 className="font-display text-3xl font-extrabold leading-tight">{o.me.barangay?.name ?? 'Your barangay'}</h1>
         <p className="mt-2 max-w-2xl text-sm text-primary-100">
           Submit the five required documents, follow their deadlines and see when LYDO verifies and publishes them on the{' '}
@@ -92,18 +96,13 @@ export default function SKCompliancePage() {
       )}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {cards.map(c => (
-          <div key={c.label} className={cn('rounded-2xl border p-4', c.cls)}>
-            <p className="text-[11px] font-semibold uppercase tracking-wide opacity-75">{c.label}</p>
-            <p className="mt-1 text-3xl font-extrabold tabular-nums">{c.value}</p>
-          </div>
-        ))}
+        {kpis.map(c => <KpiCard key={c.label} {...c} />)}
       </div>
-      <div>
-        <div className="mb-1 flex justify-between text-xs font-semibold text-gray-500"><span>{o.year} compliance</span><span>{o.percent}%</span></div>
-        <div className="h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${o.percent}%` }} /></div>
+      <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
+        <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-600"><span>{o.year} compliance</span><span className="text-primary-700">{o.percent}%</span></div>
+        <div className="h-2.5 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-gradient-to-r from-primary-600 to-emerald-500 transition-all duration-700" style={{ width: `${o.percent}%` }} /></div>
+        <div className="mt-3"><StatusLegend /></div>
       </div>
-      <StatusLegend />
 
       {o.categories.map(c => <Category key={c.key} cat={c} year={o.year} barangayId={o.me.barangay?.id ?? 0} canSubmit={o.me.can_submit} />)}
     </div>
