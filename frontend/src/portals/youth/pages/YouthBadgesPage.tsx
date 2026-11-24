@@ -45,6 +45,23 @@ const THEMES: Record<string, Theme> = {
 const DEFAULT_THEME = THEMES.course
 const themeOf = (category: string): Theme => THEMES[category] ?? DEFAULT_THEME
 
+// Every badge has its own colour, so no two neighbours look alike (earned or locked).
+const BADGE_COLOURS: Theme[] = [
+  { a: '#38bdf8', b: '#2563eb', glow: '#bae6fd', soft: '#e0f2fe', ink: '#075985' }, // blue
+  { a: '#fbbf24', b: '#d97706', glow: '#fde68a', soft: '#fef3c7', ink: '#92400e' }, // gold
+  { a: '#34d399', b: '#059669', glow: '#a7f3d0', soft: '#d1fae5', ink: '#065f46' }, // green
+  { a: '#a78bfa', b: '#7c3aed', glow: '#ddd6fe', soft: '#ede9fe', ink: '#5b21b6' }, // violet
+  { a: '#fb7185', b: '#e11d48', glow: '#fecdd3', soft: '#ffe4e6', ink: '#9f1239' }, // red
+  { a: '#fb923c', b: '#ea580c', glow: '#fed7aa', soft: '#ffedd5', ink: '#9a3412' }, // orange
+  { a: '#2dd4bf', b: '#0d9488', glow: '#99f6e4', soft: '#ccfbf1', ink: '#115e59' }, // teal
+  { a: '#f472b6', b: '#db2777', glow: '#fbcfe8', soft: '#fce7f3', ink: '#9d174d' }, // pink
+  { a: '#a3e635', b: '#65a30d', glow: '#d9f99d', soft: '#ecfccb', ink: '#3f6212' }, // lime
+  { a: '#818cf8', b: '#4338ca', glow: '#c7d2fe', soft: '#e0e7ff', ink: '#3730a3' }, // indigo
+  { a: '#22d3ee', b: '#0891b2', glow: '#a5f3fc', soft: '#cffafe', ink: '#155e75' }, // cyan
+  { a: '#e879f9', b: '#a21caf', glow: '#f5d0fe', soft: '#fae8ff', ink: '#86198f' }, // magenta
+]
+const badgeTheme = (badge: { id: number }): Theme => BADGE_COLOURS[Math.abs(badge.id) % BADGE_COLOURS.length]
+
 const CATEGORY_ICON: Record<string, React.ElementType> = {
   course: GraduationCap, governance: Landmark, internship: Briefcase, project: Rocket, special: Star,
 }
@@ -280,31 +297,33 @@ export default function YouthBadgesPage() {
 
 function BadgeCard({ badge, earned }: { badge: Badge; earned?: UserBadge }) {
   const isEarned = !!earned
-  const t = themeOf(badge.category)
+  const t = badgeTheme(badge)
   const Emblem = emblemFor(badge)
+  // A locked badge keeps its own colour, only calmer, so it still looks like a prize waiting to be won.
+  const calm = isEarned ? undefined : 'saturate(0.7) brightness(0.88)'
   return (
     <article
       className={cn(
         'group relative overflow-hidden rounded-2xl border bg-white flex flex-col items-center text-center transition-all duration-300',
         isEarned ? 'hover:-translate-y-1.5 hover:shadow-xl' : 'hover:-translate-y-0.5 hover:shadow-md',
       )}
-      style={{ borderColor: isEarned ? t.a : '#e5e7eb', boxShadow: isEarned ? `0 8px 24px -10px ${t.b}88` : undefined }}
+      style={{ borderColor: isEarned ? t.a : t.a + '66', boxShadow: isEarned ? `0 8px 24px -10px ${t.b}88` : undefined }}
     >
       {/* coloured top band */}
       <div className="relative w-full pt-7 pb-5 flex justify-center overflow-hidden"
-        style={{ background: isEarned ? `linear-gradient(160deg, ${t.soft}, #fff 85%)` : 'linear-gradient(160deg,#f1f5f9,#fff 85%)' }}>
+        style={{ background: `linear-gradient(160deg, ${t.soft}, #fff 85%)` }}>
         {isEarned && <div aria-hidden className="absolute left-1/2 top-9 h-24 w-24 -translate-x-1/2 rounded-full blur-2xl" style={{ background: t.glow, opacity: 0.8 }} />}
 
         {/* the hexagon medal */}
         <div className={cn('relative h-24 w-24', isEarned && 'badge-anim')} style={isEarned ? { animation: 'badge-float 3.2s ease-in-out infinite' } : undefined}>
-          <div className="absolute inset-0" style={{ clipPath: HEX, background: isEarned ? `linear-gradient(145deg, ${t.glow}, ${t.a} 40%, ${t.b})` : 'linear-gradient(145deg,#94a3b8,#475569)' }} />
-          <div className="absolute inset-[5px]" style={{ clipPath: HEX, background: isEarned ? `linear-gradient(160deg, ${t.b}, ${t.a})` : 'linear-gradient(160deg,#334155,#1e293b)' }} />
+          <div className="absolute inset-0" style={{ clipPath: HEX, filter: calm, background: `linear-gradient(145deg, ${t.glow}, ${t.a} 40%, ${t.b})` }} />
+          <div className="absolute inset-[5px]" style={{ clipPath: HEX, filter: calm, background: `linear-gradient(160deg, ${t.b}, ${t.a})` }} />
           <div className="absolute inset-[9px] border border-white/30" style={{ clipPath: HEX }} />
           <div className="absolute inset-0 flex items-center justify-center">
             {badge.icon ? (
-              <img src={badge.icon} alt={badge.name} className={cn('h-11 w-11 object-contain', !isEarned && 'grayscale opacity-60')} />
+              <img src={badge.icon} alt={badge.name} className={cn('h-11 w-11 object-contain', !isEarned && 'opacity-80')} />
             ) : (
-              <Emblem size={38} strokeWidth={2.2} className={isEarned ? 'text-white drop-shadow' : 'text-slate-500'} />
+              <Emblem size={38} strokeWidth={2.2} className={isEarned ? 'text-white drop-shadow' : 'text-white/90'} />
             )}
           </div>
           {isEarned && (
@@ -323,7 +342,7 @@ function BadgeCard({ badge, earned }: { badge: Badge; earned?: UserBadge }) {
 
       <div className="flex flex-1 flex-col items-center px-5 pb-5 w-full">
         <span className="mb-2 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={isEarned ? { background: t.soft, color: t.ink } : { background: '#f1f5f9', color: '#64748b' }}>
+          style={{ background: t.soft, color: t.ink }}>
           {CATEGORY_LABELS[badge.category] ?? badge.category}
         </span>
 
