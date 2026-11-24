@@ -297,6 +297,8 @@ class AdminVerificationDetailView(APIView):
         v.reviewed_by = request.user
         v.reviewed_at = timezone.now()
         v.save(update_fields=["status", "admin_notes", "reviewed_by", "reviewed_at"])
+        if new_status in (IDVerification.Status.APPROVED, IDVerification.Status.REJECTED):
+            notify_decision(v, new_status == IDVerification.Status.APPROVED, v.admin_notes)
 
         # Audit trail
         try:
@@ -322,6 +324,20 @@ class AdminVerificationDetailView(APIView):
         return Response(row)
 
 
+def notify_decision(verification, approved, note=""):
+    """Tell the person the result, so they know they can apply (or what to do next). Never blocks the decision."""
+    try:
+        from apps.notifications.models import Notification
+        if approved:
+            title, message = "Identity verified", "Your identity was approved. You can now apply for jobs, scholarships and other opportunities."
+        else:
+            title = "Identity not approved"
+            message = "Your identity verification was not approved." + (f" Reason: {note}" if note else "") + " Please verify again with a clear photo of a valid ID."
+        Notification.objects.create(user=verification.user, title=title, message=message, notification_type="system", link="/verify-identity")
+    except Exception:
+        pass
+
+
 class AdminVerificationBulkView(APIView):
     """POST /api/verification/admin/bulk/  — bulk approve or reject."""
     permission_classes = [IsAuthenticated, IsAdminRole]
@@ -342,19 +358,24 @@ class AdminVerificationBulkView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        updated = IDVerification.objects.filter(
+        targets = IDVerification.objects.filter(
             pk__in=ids,
             status__in=[
                 IDVerification.Status.PENDING,
                 IDVerification.Status.REVIEWING,
                 IDVerification.Status.REJECTED,
             ],
-        ).update(
+        )
+        to_notify = list(targets.select_related("user"))
+        updated = targets.update(
             status=new_status,
             admin_notes=admin_notes,
             reviewed_by_id=request.user.pk,
             reviewed_at=timezone.now(),
         )
+
+        for row in to_notify:
+            notify_decision(row, new_status == IDVerification.Status.APPROVED, admin_notes)
 
         try:
             from apps.accounts.models import AuditLog

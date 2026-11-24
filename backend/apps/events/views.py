@@ -277,9 +277,9 @@ class SurveyViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('submit_response', 'analytics'):
+        if self.action == 'submit_response':
             return [IsAuthenticated()]
-        return [IsAuthenticated(), IsAdminRole()]
+        return [IsAuthenticated(), IsAdminRole()]  # results (analytics) are for staff only
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
@@ -328,7 +328,7 @@ class SurveyViewSet(viewsets.ModelViewSet):
         detail=True,
         methods=['get'],
         url_path='analytics',
-        permission_classes=[IsAuthenticated],
+        permission_classes=[IsAuthenticated, IsAdminRole],
     )
     def analytics(self, request, pk=None, **kwargs):
         """Returns aggregated response analytics per question."""

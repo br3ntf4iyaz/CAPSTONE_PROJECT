@@ -91,6 +91,32 @@ function WorkItem({ label, count, description, urgency, icon: Icon, onClick }: W
   )
 }
 
+function SetupReminders() {
+  const navigate = useNavigate()
+  const { data } = useQuery<{ items: { key: string; count: number; label: string; to: string }[] }>({
+    queryKey: ['admin-todo'],
+    queryFn: () => apiClient.get('/auth/admin/todo/').then(r => r.data),
+    staleTime: 60_000,
+  })
+  const items = data?.items ?? []
+  if (!items.length) return null
+  return (
+    <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+      <h2 className="mb-2 text-sm font-bold text-amber-900">Still to do</h2>
+      <ul className="grid gap-2 sm:grid-cols-2">
+        {items.map(i => (
+          <li key={i.key}>
+            <button onClick={() => navigate(i.to)} className="flex w-full items-center gap-3 rounded-xl border border-amber-100 bg-white px-3 py-2 text-left text-sm hover:border-amber-300">
+              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-amber-500 px-2 text-xs font-bold text-white">{i.count}</span>
+              <span className="text-ink-700">{i.label}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 export default function AdminDashPage() {
   const navigate = useNavigate()
 
@@ -199,6 +225,8 @@ export default function AdminDashPage() {
           <History size={14} /> Audit Log
         </button>
       </div>
+
+      <SetupReminders />
 
       {/* ── Work Queue ─────────────────────────────────────────────────── */}
       <section>

@@ -123,7 +123,9 @@ class ChatbotView(APIView):
                 # OUTBOUND_PROXY is needed on PythonAnywhere free accounts
                 # (http://proxy.server:3128); unset locally.
                 http_client=httpx.Client(
-                    verify=False,  # bypass local SSL inspection
+                    # Certificates are checked by default. Only turn this off on a development PC behind SSL inspection
+                    # (CHATBOT_VERIFY_SSL=False); never in production, because the API key travels on this connection.
+                    verify=os.getenv('CHATBOT_VERIFY_SSL', 'True').strip().lower() != 'false',
                     proxy=os.getenv('OUTBOUND_PROXY') or None,
                     timeout=30,
                 ),

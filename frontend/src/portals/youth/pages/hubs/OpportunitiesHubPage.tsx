@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
+import VerifyBanner from '../../components/VerifyBanner'
 const ROLLING_DEADLINES = new Set(['Rolling', 'Per semester', 'Per batch', 'Rolling — anytime'])
 
 function isDeadlinePassed(deadline: string): boolean {
@@ -111,6 +112,7 @@ export default function OpportunitiesHubPage() {
 
   return (
     <div className="space-y-10 pb-12">
+      <VerifyBanner />
 
       {/* ── Hero ────────────────────────────────────────────────────────── */}
       <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 text-white p-8 sm:p-10">

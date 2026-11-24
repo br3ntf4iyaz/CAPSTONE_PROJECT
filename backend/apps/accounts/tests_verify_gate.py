@@ -72,3 +72,26 @@ class VerifyGateTests(APITestCase):
         self.client.force_authenticate(self.user)
         self.assertEqual(self.client.get('/api/applications/').status_code, 200)
         self.assertEqual(self.client.get('/api/applications/scholarship/').status_code, 200)
+
+
+class AdminTodoAndNoticeTests(APITestCase):
+    def setUp(self):
+        self.youth = User.objects.create_user(email='t@x.com', password='p', role='youth', is_active=True)
+        self.admin = User.objects.create_user(email='ta@x.com', password='p', role='lgu_admin', is_active=True)
+
+    def test_todo_is_for_staff_only(self):
+        self.assertEqual(self.client.get('/api/auth/admin/todo/').status_code, 401)
+        self.client.force_authenticate(self.youth)
+        self.assertEqual(self.client.get('/api/auth/admin/todo/').status_code, 403)
+        self.client.force_authenticate(self.admin)
+        r = self.client.get('/api/auth/admin/todo/')
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('items', r.data)
+
+    def test_the_person_is_told_when_the_id_is_decided(self):
+        from apps.notifications.models import Notification
+        v = IDVerification.objects.create(user=self.youth, id_type='umid', status='pending')
+        self.client.force_authenticate(self.admin)
+        r = self.client.patch(f'/api/verification/admin/{v.pk}/', {'status': 'approved'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertTrue(Notification.objects.filter(user=self.youth, title='Identity verified').exists())

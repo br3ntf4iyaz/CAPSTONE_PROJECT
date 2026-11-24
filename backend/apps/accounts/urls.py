@@ -17,6 +17,8 @@ router.register("documents", DocumentViewSet, basename="document")
 router.register("admin/users", UserAdminViewSet, basename="admin-user")
 router.register("personal-events", PersonalEventViewSet, basename="personal-event")
 
+from .admin_todo import AdminTodoView
+
 urlpatterns = [
     path("login/", LoginView.as_view(), name="login"),
     path("register/", RegisterView.as_view(), name="register"),
@@ -34,6 +36,7 @@ urlpatterns = [
     path("me/change-password/", ChangePasswordView.as_view(), name="change-password"),
     path("me/complete-onboarding/", CompleteOnboardingView.as_view(), name="complete-onboarding"),
     path("admin/audit-logs/", AuditLogListView.as_view(), name="audit-logs"),
+    path("admin/todo/", AdminTodoView.as_view(), name="admin-todo"),
     path("stats/", StatsView.as_view(), name="stats"),
     path("", include(router.urls)),
 ]
