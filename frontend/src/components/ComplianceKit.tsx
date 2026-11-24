@@ -60,6 +60,17 @@ export const CELL_TINT: Record<ComplianceStatus, string> = {
   overdue: 'border-alert-200 bg-alert-50 hover:border-alert-400',
 }
 
+/** A segment of the one long strip a barangay row is made of: solid colour, no border of its own. */
+export const SEGMENT_TINT: Record<ComplianceStatus, string> = {
+  not_submitted: 'bg-ink-100 hover:bg-ink-200',
+  submitted: 'bg-sky-100 hover:bg-sky-200',
+  under_verification: 'bg-violet-100 hover:bg-violet-200',
+  returned: 'bg-orange-100 hover:bg-orange-200',
+  verified: 'bg-emerald-100 hover:bg-emerald-200',
+  published: 'bg-primary-100 hover:bg-primary-200',
+  overdue: 'bg-alert-100 hover:bg-alert-200',
+}
+
 /** One tone for a document that has several periods (quarters or months): the most urgent thing wins. */
 export function groupTone(completed: number, overdue: number, total: number): ComplianceStatus {
   if (overdue > 0) return 'overdue'

@@ -7,7 +7,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { MONTHS, STATUS_META, StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
-import { CELL_TINT, CompletionRing, KpiCard, groupTone, type Tone } from '@/components/ComplianceKit'
+import { CompletionRing, KpiCard, SEGMENT_TINT, groupTone, type Tone } from '@/components/ComplianceKit'
 import { apiMessage, downloadWithLogin } from '@/portals/youth/lms'
 import AdminSKTrackerPage from './AdminSKTrackerPage'
 import AdminDisclosurePage from './AdminDisclosurePage'
@@ -141,7 +141,7 @@ export default function AdminSKCompliancePage() {
           <p className="-mt-2 flex items-center gap-1.5 text-xs text-ink-500"><MousePointerClick size={13} /> Click any cell to open that barangay's document, review it, and see its history.</p>
 
           <div className="overflow-x-auto rounded-2xl border border-primary-100 bg-white shadow-sm">
-            <table className="w-full min-w-[1020px] text-sm">
+            <table className="w-full min-w-[1020px] border-separate border-spacing-y-1.5 text-sm">
               <thead className="border-b border-primary-100 bg-primary-50 text-left text-xs font-bold uppercase tracking-wide text-primary-800">
                 <tr><th className="px-4 py-3">Barangay</th>{o.categories.map(c => (
                   <th key={c.key} className="px-3 py-3 align-bottom" title={`${c.label}: ${c.description}`}>
@@ -149,27 +149,29 @@ export default function AdminSKCompliancePage() {
                     <span className="mt-0.5 block max-w-[150px] text-[10px] font-medium normal-case leading-tight tracking-normal text-primary-600/80">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
                   </th>))}<th className="px-4 py-3 text-right">Done</th></tr>
               </thead>
-              <tbody className="divide-y divide-ink-100">
+              <tbody>
                 {o.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-500">No records match these filters.</td></tr>}
                 {o.rows.map(r => {
                   const pct = r.totals.total ? Math.round((r.totals.completed / r.totals.total) * 100) : 0
                   return (
-                    <tr key={r.barangay_id} className="transition-colors odd:bg-white even:bg-paper-50/70 hover:bg-primary-50/40">
+                    <tr key={r.barangay_id}>
                       <td className="px-4 py-2.5">
                         <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-ink-900">
                           <span className={cn('h-2 w-2 shrink-0 rounded-full', r.totals.overdue > 0 ? 'bg-alert-500' : r.totals.completed === r.totals.total && r.totals.total > 0 ? 'bg-emerald-500' : 'bg-ink-300')} aria-hidden />
                           {r.barangay}
                         </span>
                       </td>
-                      {o.categories.map(c => {
+                      {o.categories.map((c, ci) => {
                         const cell = r.cells[c.key]
-                        if (!cell || cell.total === 0) return <td key={c.key} className="px-3 py-2"><span className="text-xs text-ink-300">—</span></td>
+                        // the five documents of a barangay are ONE long strip: joined segments, a thin white line between them, rounded only at the two ends
+                        const ends = cn(ci === 0 && 'rounded-l-xl', ci === o.categories.length - 1 && 'rounded-r-xl')
+                        if (!cell || cell.total === 0) return <td key={c.key} className="min-w-[150px] p-0"><span className={cn('block h-full bg-ink-50 px-3 py-3 text-xs text-ink-300', ends, ci > 0 && 'border-l-2 border-white')}>—</span></td>
                         const tone: ComplianceStatus = cell.kind === 'single' ? cell.periods[0].status : groupTone(cell.completed, cell.overdue, cell.total)
                         return (
-                          <td key={c.key} className="min-w-[150px] px-3 py-2 align-middle">
+                          <td key={c.key} className="min-w-[150px] p-0 align-middle">
                             <button type="button" title={`Open ${r.barangay} · ${c.short}`} aria-label={`${r.barangay} ${c.short}`}
                               onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
-                              className={cn('group flex w-full items-center justify-between gap-2 rounded-xl border px-2.5 py-2 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400', CELL_TINT[tone])}>
+                              className={cn('group flex h-full w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500', SEGMENT_TINT[tone], ends, ci > 0 && 'border-l-2 border-white')}>
                               <span className="min-w-0 flex-1">
                                 {cell.kind === 'single' ? <StatusChip status={cell.periods[0].status} /> : (
                                   <>
