@@ -28,7 +28,7 @@ interface Overview {
   year: number; years: number[]; percent: number
   summary: { total: number; completed: number; pending: number; overdue: number; for_verification: number; returned: number; verified: number; published: number }
   me: { role: 'admin' | 'sk'; barangay: { id: number; name: string } | null; can_submit: boolean; needs_verification: boolean }
-  categories: { key: string; short: string; label: string; kind: 'single' | 'quarterly' | 'monthly' }[]
+  categories: { key: string; short: string; label: string; kind: 'single' | 'quarterly' | 'monthly'; description: string }[]
 }
 
 const peso = (v: string | null | undefined) => (v ? `₱${Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : null)
@@ -127,7 +127,8 @@ function Category({ cat, year, barangayId, canSubmit }: { cat: Overview['categor
       <button type="button" aria-expanded={open} onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 bg-gray-50 px-5 py-4 text-left">
         <div className="min-w-0">
           <h2 className="font-semibold text-gray-900">{cat.label}</h2>
-          {d && <p className="text-xs text-gray-500">{done} of {d.slots.length} completed</p>}
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{cat.description}</p>
+          {d && <p className="mt-1 text-xs font-semibold text-gray-600">{done} of {d.slots.length} completed</p>}
         </div>
         <ChevronDown size={18} className={cn('shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
       </button>

@@ -25,11 +25,16 @@ from .disclosure import QUARTERS, quarter_deadline
 from .models import SKComplianceRecord
 
 CATEGORIES = [
-    {'key': 'cbydp', 'short': 'CBYDP', 'label': 'Comprehensive Barangay Youth Development Plan (CBYDP)', 'kind': 'single', 'existing': True},
-    {'key': 'abyip', 'short': 'ABYIP', 'label': 'Annual Barangay Youth Investment Program (ABYIP)', 'kind': 'single', 'existing': True},
-    {'key': 'annual_budget', 'short': 'Annual Budget', 'label': 'SK Approved Annual Budget', 'kind': 'single', 'existing': True},
-    {'key': 'quarterly_cash', 'short': 'RCB', 'label': 'Quarterly Register of Cash in Bank (RCB) and Other Related Financial Transactions', 'kind': 'quarterly', 'existing': False},
-    {'key': 'monthly_pr', 'short': 'MIL', 'label': 'Monthly Itemized List (MIL) of Purchase Requests', 'kind': 'monthly', 'existing': False},
+    {'key': 'cbydp', 'short': 'CBYDP', 'label': 'Comprehensive Barangay Youth Development Plan (CBYDP)', 'kind': 'single', 'existing': True,
+     'description': 'A three-year plan of the SK for the young people of the barangay. It sets the youth needs, goals and priorities the SK follows.'},
+    {'key': 'abyip', 'short': 'ABYIP', 'label': 'Annual Barangay Youth Investment Program (ABYIP)', 'kind': 'single', 'existing': True,
+     'description': "The SK's yearly list of programs, projects and activities (PPAs) with their budget, drawn from the CBYDP."},
+    {'key': 'annual_budget', 'short': 'Annual Budget', 'label': 'SK Approved Annual Budget', 'kind': 'single', 'existing': True,
+     'description': "The SK's approved budget for the year. It funds the programs, projects and activities in the ABYIP."},
+    {'key': 'quarterly_cash', 'short': 'RCB', 'label': 'Quarterly Register of Cash in Bank (RCB) and Other Related Financial Transactions', 'kind': 'quarterly', 'existing': False,
+     'description': "The Register of Cash in Bank (RCB): a record of the SK's money in the bank, with its other related financial transactions, submitted every quarter."},
+    {'key': 'monthly_pr', 'short': 'MIL', 'label': 'Monthly Itemized List (MIL) of Purchase Requests', 'kind': 'monthly', 'existing': False,
+     'description': "The Monthly Itemized List (MIL): the SK's purchase requests for the month. If there were none, the SK declares NONE FOR THE PERIOD."},
 ]
 CATEGORY_BY_KEY = {c['key']: c for c in CATEGORIES}
 EXISTING_CATEGORIES = [c['key'] for c in CATEGORIES if c['existing']]
@@ -209,7 +214,7 @@ def build_monitoring(barangays, year, today, category=None, status=None, publica
         rows.append({'barangay_id': b.id, 'barangay': b.barangay_name, 'cells': cells, 'totals': totals})
     pct = round(100 * summary['completed'] / summary['total']) if summary['total'] else 0
     return {'year': year, 'today': today, 'summary': summary, 'percent': pct, 'rows': rows,
-            'categories': [{'key': c['key'], 'short': c['short'], 'label': c['label'], 'kind': c['kind']} for c in CATEGORIES]}
+            'categories': [{'key': c['key'], 'short': c['short'], 'label': c['label'], 'kind': c['kind'], 'description': c['description']} for c in CATEGORIES]}
 
 
 def slot_details(barangay, category, year, today):

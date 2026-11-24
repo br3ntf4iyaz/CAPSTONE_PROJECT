@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, ExternalLink, Globe2, History, Landmark, RotateCcw, Search, ShieldCheck, X } from 'lucide-react'
+import { ChevronRight, Download, Globe2, History, Info, Landmark, RotateCcw, Search, ShieldCheck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
@@ -17,7 +17,7 @@ interface Row { barangay_id: number; barangay: string; cells: Record<string, Cel
 interface Overview {
   year: number; years: number[]; percent: number; rows: Row[]
   summary: { total: number; completed: number; pending: number; overdue: number; for_verification: number; returned: number; verified: number; published: number }
-  categories: { key: string; short: string; label: string; kind: string }[]
+  categories: { key: string; short: string; label: string; kind: string; description: string }[]
   barangays: { id: number; name: string }[]; statuses: { key: string; label: string }[]
 }
 interface Rec {
@@ -26,7 +26,7 @@ interface Rec {
   filename: string; via_existing_requirement: boolean; total_amount: string | null; published_at: string | null
 }
 interface Slot { label: string; deadline: string | null; status: ComplianceStatus; late: boolean; current: Rec | null; history: Rec[] }
-interface Detail { barangay: { id: number; name: string }; category: string; year: number; label: string; slots: Slot[] }
+interface Detail { barangay: { id: number; name: string }; category: string; year: number; label: string; description: string; slots: Slot[] }
 interface QueueRow extends Rec { barangay: string; barangay_id: number; category: string; category_short: string; period: string; waiting_days: number }
 
 export default function AdminSKCompliancePage() {
@@ -108,10 +108,28 @@ export default function AdminSKCompliancePage() {
           </div>
           <StatusLegend />
 
+          <details className="group rounded-2xl border border-primary-100 bg-primary-50/40 p-4 text-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-gray-900"><Info size={16} className="text-primary-700" /> What do CBYDP, ABYIP, RCB and MIL mean?
+              <ChevronRight size={15} className="ml-auto text-gray-400 transition-transform group-open:rotate-90" /></summary>
+            <dl className="mt-3 grid gap-3 md:grid-cols-2">
+              {o.categories.map(c => (
+                <div key={c.key} className="rounded-xl bg-white p-3">
+                  <dt className="font-semibold text-gray-900">{c.short} <span className="font-normal text-gray-500">· {c.label}</span></dt>
+                  <dd className="mt-0.5 text-xs leading-relaxed text-gray-600">{c.description}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+          <p className="text-xs text-gray-500">Click any cell to open that barangay's document, review it, and see its history.</p>
+
           <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white">
             <table className="w-full min-w-[820px] text-sm">
               <thead className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                <tr><th className="px-4 py-3">Barangay</th>{o.categories.map(c => <th key={c.key} className="px-3 py-3">{c.short}</th>)}<th className="px-3 py-3 text-right">Done</th></tr>
+                <tr><th className="px-4 py-3">Barangay</th>{o.categories.map(c => (
+                  <th key={c.key} className="px-3 py-3 align-bottom" title={`${c.label}: ${c.description}`}>
+                    <span className="block">{c.short}</span>
+                    <span className="mt-0.5 block max-w-[150px] text-[10px] font-normal normal-case leading-tight tracking-normal text-gray-400">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
+                  </th>))}<th className="px-3 py-3 text-right">Done</th></tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {o.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No records match these filters.</td></tr>}
@@ -123,14 +141,19 @@ export default function AdminSKCompliancePage() {
                       return (
                         <td key={c.key} className="px-3 py-2.5 align-middle">
                           {!cell || cell.total === 0 ? <span className="text-xs text-gray-300">—</span> : (
-                            <button type="button" className="group block text-left" aria-label={`${r.barangay} ${c.short}`}
+                            <button type="button" title={`Open ${r.barangay} · ${c.short}`}
+                              className="group flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-left shadow-sm transition hover:border-primary-400 hover:bg-primary-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+                              aria-label={`${r.barangay} ${c.short}`}
                               onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}>
-                              {cell.kind === 'single' ? <StatusChip status={cell.periods[0].status} /> : (
-                                <>
-                                  <span className="text-xs font-semibold text-gray-700 group-hover:underline">{cell.completed}/{cell.total}{cell.overdue ? <span className="ml-1 text-red-600">· {cell.overdue} overdue</span> : null}</span>
-                                  <span className="mt-1 flex flex-wrap gap-0.5">{cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-2.5 w-2.5 rounded-sm', STATUS_META[p.status].dot)} />)}</span>
-                                </>
-                              )}
+                              <span className="min-w-0">
+                                {cell.kind === 'single' ? <StatusChip status={cell.periods[0].status} /> : (
+                                  <>
+                                    <span className="text-xs font-semibold text-gray-700">{cell.completed}/{cell.total}{cell.overdue ? <span className="ml-1 text-red-600">· {cell.overdue} overdue</span> : null}</span>
+                                    <span className="mt-1 flex flex-wrap gap-0.5">{cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-2.5 w-2.5 rounded-sm', STATUS_META[p.status].dot)} />)}</span>
+                                  </>
+                                )}
+                              </span>
+                              <ChevronRight size={14} className="shrink-0 text-gray-300 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
                             </button>
                           )}
                         </td>
@@ -192,7 +215,8 @@ function DetailModal({ barangay_id, barangay, category, year, onClose }: { baran
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={`${barangay} ${category}`}>
       <div className="my-6 w-full max-w-3xl rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-start justify-between gap-3">
-          <div><h2 className="text-lg font-bold text-gray-900">{barangay}</h2><p className="text-sm text-gray-500">{q.data?.label ?? ''} · {year}</p></div>
+          <div><h2 className="text-lg font-bold text-gray-900">{barangay}</h2><p className="text-sm font-medium text-gray-700">{q.data?.label ?? ''} · {year}</p>
+            {q.data?.description && <p className="mt-1 max-w-xl text-xs leading-relaxed text-gray-500">{q.data.description}</p>}</div>
           <button type="button" aria-label="Close" className="rounded-lg p-1 text-gray-500 hover:bg-gray-100" onClick={onClose}><X size={18} /></button>
         </div>
         {q.isLoading ? <PageSpinner /> : q.isError || !q.data ? <p className="text-sm text-red-600">Could not load.</p> : (

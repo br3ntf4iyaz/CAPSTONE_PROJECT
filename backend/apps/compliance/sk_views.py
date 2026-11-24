@@ -146,7 +146,8 @@ class SlotsView(APIView):
             extra['ppa_budget_total'] = str(sum((p.estimated_budget or 0) for p in ppas))
             extra['manage_ppa_url'] = '/submissions'
         return Response({'barangay': {'id': barangay.id, 'name': barangay.barangay_name}, 'category': category, 'year': year,
-                         'label': sk.CATEGORY_BY_KEY[category]['label'], 'slots': out, 'me': me, **extra})
+                         'label': sk.CATEGORY_BY_KEY[category]['label'], 'description': sk.CATEGORY_BY_KEY[category]['description'],
+                         'slots': out, 'me': me, **extra})
 
 
 class RecordCreateView(APIView):
