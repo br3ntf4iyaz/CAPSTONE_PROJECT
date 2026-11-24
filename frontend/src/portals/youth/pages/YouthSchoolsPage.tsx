@@ -1,9 +1,11 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/authStore'
 import {
   GraduationCap, Search, MapPin, BookOpen,
   Phone, Mail, Globe, X, ExternalLink,
-  ChevronRight, Star, Facebook, BadgeCheck, AlertCircle,
+  ChevronRight, Star, Facebook, BadgeCheck, AlertCircle, Lock,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { cn, toArray } from '@/utils'
@@ -57,6 +59,7 @@ interface School {
   program_count: number
   programs?: SchoolProgram[]
   programs_unavailable?: boolean
+  courses_locked?: boolean
   source_url?: string
   is_featured?: boolean
 }
@@ -78,7 +81,26 @@ const TYPE_COLORS: Record<string, string> = {
 
 // ─── Detail Drawer ──────────────────────────────────────────────────────────
 
+/** What a visitor sees instead of the courses: a clear reason, and the two ways in. */
+function CoursesLock({ count, next = '/schools' }: { count?: number; next?: string }) {
+  return (
+    <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-5 text-center">
+      <span className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white"><Lock size={18} /></span>
+      <p className="font-display text-base font-bold text-gray-900">Sign in to see the courses</p>
+      <p className="mx-auto mt-1 max-w-sm text-sm text-gray-600">
+        {count && count > 0 ? `This school has ${count} verified course${count === 1 ? '' : 's'}. ` : ''}
+        The list of courses is for LYDO members. It is free to create an account.
+      </p>
+      <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <Link to={`/login?next=${encodeURIComponent(next)}`} className="btn-primary btn-sm">Sign in</Link>
+        <Link to="/register" className="btn-secondary btn-sm">Create account</Link>
+      </div>
+    </div>
+  )
+}
+
 function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () => void }) {
+  const signedIn = useAuthStore().isAuthenticated
   const { data: detail, isLoading } = useQuery<School>({
     queryKey: ['school-detail', school.id],
     queryFn: () => apiClient.get(`/schools/${school.id}/`).then(r => r.data),
@@ -172,8 +194,9 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
               )}
             </div>
 
-            {/* Programs, grouped by field of study (verified only) */}
-            {detail && (
+            {/* Programs, grouped by field of study (verified only). Visitors get a sign-in prompt instead. */}
+            {detail && !signedIn && <CoursesLock count={detail.program_count} />}
+            {detail && signedIn && (
               detail.programs && detail.programs.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
@@ -251,13 +274,14 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
 // ─── School Card ─────────────────────────────────────────────────────────────
 
 function SchoolCard({
-  school, onClick, compared, canAdd, onToggleCompare,
+  school, onClick, compared, canAdd, onToggleCompare, visitor = false,
 }: {
   school: School
   onClick: () => void
   compared: boolean
   canAdd: boolean
   onToggleCompare: () => void
+  visitor?: boolean
 }) {
   return (
     <div className="relative">
@@ -311,7 +335,7 @@ function SchoolCard({
               <span className="flex items-center gap-1 text-primary-700 font-medium">
                 <BadgeCheck size={10} /> {school.program_count} verified program{school.program_count !== 1 ? 's' : ''}
               </span>
-            ) : (
+            ) : visitor ? null : (
               <span className="flex items-center gap-1 text-amber-600 font-medium">
                 <AlertCircle size={10} /> Courses need verification
               </span>
@@ -321,12 +345,12 @@ function SchoolCard({
             <p className="text-xs text-gray-400 mt-1 line-clamp-1">{school.address}</p>
           )}
           <span className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-primary-700">
-            <BookOpen size={12} /> View Courses
+            {visitor ? <><Lock size={12} /> School details · sign in for courses</> : <><BookOpen size={12} /> View Courses</>}
           </span>
         </div>
       </div>
     </button>
-    <button
+    {!visitor && <button
       type="button"
       onClick={onToggleCompare}
       disabled={!compared && !canAdd}
@@ -340,7 +364,7 @@ function SchoolCard({
       )}
     >
       {compared ? '✓ Comparing' : '+ Compare'}
-    </button>
+    </button>}
     </div>
   )
 }
@@ -348,6 +372,8 @@ function SchoolCard({
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function YouthSchoolsPage() {
+  const signedIn = useAuthStore().isAuthenticated
+  const visitor = !signedIn
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
   const [view, setView] = useState<'schools' | 'courses'>('schools')
@@ -385,7 +411,7 @@ export default function YouthSchoolsPage() {
   if (schoolFilter) courseParams.set('school', schoolFilter)
   const coursesQ = useQuery({
     queryKey: ['youth-courses', schoolType, search, field, ptype, schoolFilter],
-    enabled: view === 'courses',
+    enabled: view === 'courses' && signedIn,
     queryFn: () =>
       apiClient.get(`/schools/courses/?${courseParams.toString()}`).then(r => r.data as { count: number; results: CourseRow[] }),
   })
@@ -411,7 +437,7 @@ export default function YouthSchoolsPage() {
           <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
         <p className="page-subtitle">
-          Compare schools, programs, and admission paths in Lucena City and nearby areas
+          {visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
           {!isLoading && schools.length > 0 && (
             <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>
           )}
@@ -446,7 +472,7 @@ export default function YouthSchoolsPage() {
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder="Search school name, course, program, or field of study…"
+          placeholder={visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -457,8 +483,8 @@ export default function YouthSchoolsPage() {
         )}
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {/* Filters: they are about courses, so visitors do not get them */}
+      {signedIn && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select className="input" value={field} onChange={e => setField(e.target.value)} aria-label="Field of study">
           <option value="">All fields of study</option>
           {Object.entries(FIELD_LABELS).filter(([k]) => k !== 'other').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -476,7 +502,7 @@ export default function YouthSchoolsPage() {
           <option value="">All schools</option>
           {(allSchools ?? []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-      </div>
+      </div>}
 
       {/* View switch */}
       <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
@@ -486,13 +512,14 @@ export default function YouthSchoolsPage() {
             onClick={() => setView(v)}
             className={cn('px-4 py-1.5 transition-colors', view === v ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50')}
           >
-            {v === 'schools' ? 'Schools' : 'Courses'}
+            {v === 'schools' ? 'Schools' : <span className="inline-flex items-center gap-1">{visitor && <Lock size={11} />} Courses</span>}
           </button>
         ))}
       </div>
 
-      {/* Course results */}
-      {view === 'courses' && (
+      {/* Course results (visitors get the sign-in prompt) */}
+      {view === 'courses' && visitor && <CoursesLock />}
+      {view === 'courses' && signedIn && (
         coursesQ.isLoading ? <ListSkeleton /> :
         coursesQ.isError ? <QueryError onRetry={() => coursesQ.refetch()} /> :
         (coursesQ.data?.results.length ?? 0) === 0 ? (
@@ -551,7 +578,7 @@ export default function YouthSchoolsPage() {
               </p>
               <div className="space-y-2">
                 {featured.map(s => (
-                  <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)}
+                  <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)} visitor={visitor}
                     compared={compare.some(x => x.id === s.id)} canAdd={compare.length < MAX_COMPARE} onToggleCompare={() => toggleCompare(s)} />
                 ))}
               </div>
@@ -565,7 +592,7 @@ export default function YouthSchoolsPage() {
             )}
             <div className="space-y-2">
               {(schoolType || search ? schools : rest).map(s => (
-                <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)}
+                <SchoolCard key={s.id} school={s} onClick={() => setSelected(s)} visitor={visitor}
                   compared={compare.some(x => x.id === s.id)} canAdd={compare.length < MAX_COMPARE} onToggleCompare={() => toggleCompare(s)} />
               ))}
             </div>
@@ -578,13 +605,13 @@ export default function YouthSchoolsPage() {
         </div>
       ))}
 
-      <CompareTray
+      {signedIn && <CompareTray
         items={compare}
         onRemove={id => setCompare(list => list.filter(x => x.id !== id))}
         onClear={() => setCompare([])}
         onOpen={() => setShowCompare(true)}
-      />
-      {showCompare && compare.length >= 2 && (
+      />}
+      {signedIn && showCompare && compare.length >= 2 && (
         <CompareSheet items={compare} onClose={() => setShowCompare(false)} />
       )}
 

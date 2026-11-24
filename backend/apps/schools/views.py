@@ -48,25 +48,31 @@ class SchoolViewSet(viewsets.ModelViewSet):
             'school_programs__program'
         ).annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True, school_programs__verification_status='verified'), distinct=True))
 
-        # Text search across name, program names, municipality, province
+        # A visitor can find a school by its name or place, but not by the courses it offers: the courses need an account.
+        signed_in = self.request.user.is_authenticated
+
+        # Text search across name, program names (signed in only), municipality, province
         search = self.request.query_params.get('search', '').strip()
         if search:
-            qs = qs.filter(
+            cond = (
                 Q(name__icontains=search)
                 | Q(municipality__icontains=search)
                 | Q(address__icontains=search)
                 | Q(description__icontains=search)
                 | Q(province__icontains=search)
-                | Q(school_programs__program__name__icontains=search, school_programs__verification_status='verified')
-                | Q(school_programs__program__field_of_study__icontains=search, school_programs__verification_status='verified')
-            ).distinct()
+            )
+            if signed_in:
+                cond = (cond
+                        | Q(school_programs__program__name__icontains=search, school_programs__verification_status='verified')
+                        | Q(school_programs__program__field_of_study__icontains=search, school_programs__verification_status='verified'))
+            qs = qs.filter(cond).distinct()
 
         # Exact filters
         school_type = self.request.query_params.get('school_type')
         if school_type:
             qs = qs.filter(school_type=school_type)
 
-        field = self.request.query_params.get('field_of_study')
+        field = self.request.query_params.get('field_of_study') if signed_in else None
         if field:
             qs = qs.filter(
                 school_programs__program__field_of_study=field,
@@ -74,7 +80,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 school_programs__is_active=True,
             ).distinct()
 
-        ptype = self.request.query_params.get('program_type')
+        ptype = self.request.query_params.get('program_type') if signed_in else None
         if ptype:
             qs = qs.filter(
                 school_programs__program__program_type=ptype,
@@ -171,7 +177,7 @@ class ProgramViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
             return [IsAuthenticated(), IsSuperAdmin()]
-        return [IsAuthenticatedOrReadOnly()]
+        return [IsAuthenticated()]  # the program catalogue is part of the courses, so it needs an account
 
 
 class SchoolBookmarkViewSet(viewsets.ReadOnlyModelViewSet):
@@ -298,11 +304,12 @@ class RecommendSchoolsView(APIView):
 
 class CourseSearchView(APIView):
     """
-    GET /api/schools/courses/  - public search over VERIFIED programs.
+    GET /api/schools/courses/  - search over VERIFIED programs. Signed-in users only: visitors may browse the schools,
+    but the courses each school offers need an account.
     Query params: search, school_type, school (id), field_of_study, program_type
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         qs = (

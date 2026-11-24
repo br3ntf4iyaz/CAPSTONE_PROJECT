@@ -544,6 +544,7 @@ const DISCOVERY_PATHS = [
   '/community', '/opportunities', '/events',
   '/resources', '/participate',
   '/programs', '/sk-directory', '/sk-feedback', '/sk-inbox',
+  '/schools',  // the school list is public; the courses of each school need an account
 ]
 
 // ── Main Layout ────────────────────────────────────────────────────────────────

@@ -84,6 +84,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
     program_count = serializers.IntegerField(read_only=True)
     programs_unavailable = serializers.SerializerMethodField()
     verification_note = serializers.SerializerMethodField()
+    courses_locked = serializers.SerializerMethodField()
 
     class Meta:
         model = School
@@ -113,6 +114,7 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'updated_at',
             'programs',
             'program_count',
+            'courses_locked',
         ]
 
     def get_logo_url(self, obj):
@@ -121,12 +123,23 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.logo.url)
         return None
 
+    def _signed_in(self):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return bool(user and user.is_authenticated)
+
+    def get_courses_locked(self, obj):
+        """True for a visitor: the school itself is public, the list of courses it offers needs an account."""
+        return not self._signed_in()
+
     def _is_admin(self):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         return bool(user and user.is_authenticated and getattr(user, 'role', None) in ('lgu_admin', 'super_admin'))
 
     def get_programs(self, obj):
+        if not self._signed_in():
+            return []  # visitors see the school, not its courses
         qs = obj.school_programs.filter(is_active=True).select_related('program')
         request = self.context.get('request')
         include_all = self._is_admin() and request is not None and request.query_params.get('include_unverified') in ('1', 'true')
