@@ -18,6 +18,17 @@ export function useMe() {
   })
 }
 
+/** The message to show when signing in fails. A server or network problem must not look like a wrong password. */
+export function loginErrorMessage(err: any): string {
+  const res = err?.response
+  const detail = res?.data?.detail
+  if (!res) return 'Cannot reach the server. Check your internet connection and try again.'
+  if (typeof detail === 'string' && detail) return detail
+  if (res.status >= 500) return 'The server had a problem signing you in. Please try again in a moment. If it keeps happening, contact LYDO.'
+  if (res.status === 429) return 'Too many attempts. Please wait a minute and try again.'
+  return 'Invalid email or password.'
+}
+
 interface LoginOptions {
   allowedRoles?: string[]
   portalName?: string
@@ -75,8 +86,7 @@ export function useLogin(options?: LoginOptions) {
         toast.error('Please verify your email first. Check your inbox for the verification link.', { duration: 5000 })
         return
       }
-      const detail = data?.detail
-      toast.error(detail ?? 'Invalid email or password.')
+      toast.error(loginErrorMessage(err))
     },
   })
 }

@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Eye, EyeOff, ArrowRight, Mail, Lock, AlertCircle } from 'lucide-react'
 import { LydoLogo } from '@/components/ui/LydoLogo'
-import { useLogin } from '@/hooks/useAuth'
+import { useLogin, loginErrorMessage } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
@@ -176,7 +176,7 @@ export default function YouthLoginPage() {
               {login.isError && (
                 <div className="flex items-start gap-3 rounded-xl bg-red-50 border border-red-200 p-3.5 text-sm text-red-700">
                   <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-                  <span>{(login.error as any)?.response?.data?.detail ?? 'Invalid email or password.'}</span>
+                  <span>{loginErrorMessage(login.error)}</span>
                 </div>
               )}
 

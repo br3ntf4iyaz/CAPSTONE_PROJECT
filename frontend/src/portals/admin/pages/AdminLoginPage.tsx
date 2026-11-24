@@ -8,6 +8,7 @@ import { Shield, Eye, EyeOff, Lock, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { authApi } from '@/api/auth'
 import { authStore } from '@/store/authStore'
+import { loginErrorMessage } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { LydoLogo } from '@/components/ui/LydoLogo'
@@ -56,8 +57,7 @@ export default function AdminLoginPage() {
     },
     onError: (err: any) => {
       authStore.logout()
-      const detail = err?.response?.data?.detail
-      toast.error(detail ?? 'Invalid email or password.')
+      toast.error(loginErrorMessage(err))
     },
   })
 
