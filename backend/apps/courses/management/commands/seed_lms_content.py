@@ -112,6 +112,14 @@ class Command(BaseCommand):
                     title=lms_content_org.TITLE, description=lms_content_org.DESCRIPTION, category=lms_content_org.CATEGORY,
                     audience=lms_content_org.AUDIENCE, is_published=True)
                 stats['created_course'] = 1
+            # SK Officials get their own governance course too (verified content in lms_content_sk)
+            if not Course.objects.filter(title='SK Governance Fundamentals', is_active=True).exists():
+                Course.objects.create(
+                    title='SK Governance Fundamentals', category='governance', audience='sk_officials', is_published=True,
+                    description=('For Sangguniang Kabataan officials. Learn the roles of the SK and the KK, the legal framework '
+                                 '(RA 10742 as amended by RA 11768), youth development planning, project implementation and '
+                                 'public accountability.'))
+                stats['created_course'] += 1
             for title, data in content.items():
                 course = Course.objects.filter(title=title, is_active=True, modules__isnull=False).distinct().first() \
                     or Course.objects.filter(title=title, is_active=True).first()

@@ -38,6 +38,16 @@ class PublicStatsView(APIView):
         return Response(data)
 
 
+def _courses_enrolled(user):
+    """Only enrollments in courses this account may use (the same rule as My Learning)."""
+    try:
+        from apps.courses.access import restrict_enrollments
+        from apps.courses.models import Enrollment
+        return restrict_enrollments(Enrollment.objects.filter(user=user), user).count()
+    except Exception:
+        return 0
+
+
 class DashboardStatsView(APIView):
     """GET /api/stats/dashboard/ — per-user counts for the youth dashboard."""
 
@@ -46,7 +56,7 @@ class DashboardStatsView(APIView):
     def get(self, request):
         user = request.user
         data = {
-            "courses_enrolled": _safe_count("courses", "Enrollment", user=user),
+            "courses_enrolled": _courses_enrolled(user),
             "events_registered": _safe_count("events", "EventRegistration", user=user),
             "programs_nearby": _safe_count("programs", "YouthProgram", status="active"),
             "submissions_made": _safe_count("programs", "ProgramSubmission", submitted_by=user),

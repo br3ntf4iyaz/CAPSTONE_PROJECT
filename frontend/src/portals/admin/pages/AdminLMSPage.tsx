@@ -131,7 +131,14 @@ export default function AdminLMSPage() {
       data instanceof FormData
         ? apiClient.patch(`/courses/admin/courses/${id}/`, data, { headers: { 'Content-Type': 'multipart/form-data' } })
         : apiClient.patch(`/courses/admin/courses/${id}/`, data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-courses'] }); toast.success('Course updated'); closeCourseModal() },
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['admin-courses'] })
+      const hidden = res?.data?.audience_change?.hidden_enrollments ?? 0
+      toast.success(hidden > 0
+        ? `Course updated. The new audience hides it from ${hidden} learner${hidden > 1 ? 's' : ''} who joined earlier (their records are kept).`
+        : 'Course updated', hidden > 0 ? { duration: 7000 } : undefined)
+      closeCourseModal()
+    },
     onError: () => toast.error('Failed to update course'),
   })
 

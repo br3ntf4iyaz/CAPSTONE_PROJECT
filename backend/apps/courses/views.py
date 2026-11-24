@@ -14,7 +14,7 @@ from apps.accounts.permissions import IsAdminRole
 from apps.resources.pagination import LibraryPagination
 
 from . import progress
-from .access import allowed_audiences, restrict_courses, restrict_enrollments
+from .access import allowed_audiences, restrict_certificates, restrict_courses, restrict_enrollments
 from .certificate_pdf import build_certificate_pdf
 from .models import (
     Certificate, CertificateSetting, Course, CourseModule, Enrollment, Lesson, LessonProgress,
@@ -117,6 +117,29 @@ class CourseAdminViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        """Changing a course's audience takes effect at once for everyone (access is checked on every request). The reply says
+        how many existing learners the change hides the course from, and the change is written to the audit log."""
+        course = self.get_object()
+        before = course.audience
+        response = super().update(request, *args, **kwargs)
+        course.refresh_from_db()
+        if course.audience != before:
+            hidden = 0
+            for e in Enrollment.objects.filter(course=course).select_related('user'):
+                if course.audience not in allowed_audiences(e.user):
+                    hidden += 1
+            try:
+                from apps.accounts.models import AuditLog
+                AuditLog.objects.create(
+                    user=request.user, action='course_audience_changed',
+                    details={'course_id': course.id, 'title': course.title, 'from': before, 'to': course.audience, 'hidden_enrollments': hidden})
+            except Exception:  # the audit trail must never block the admin's change
+                pass
+            if isinstance(response.data, dict):
+                response.data['audience_change'] = {'from': before, 'to': course.audience, 'hidden_enrollments': hidden}
+        return response
 
     def perform_destroy(self, instance):
         # Soft delete
@@ -606,9 +629,10 @@ class CertificateViewSet(
     serializer_class = CertificateSerializer
 
     def get_queryset(self):
-        return (
+        return restrict_certificates(
             Certificate.objects.filter(enrollment__user=self.request.user)
-            .select_related("enrollment__course", "enrollment__user")
+            .select_related("enrollment__course", "enrollment__user"),
+            self.request.user,
         )
 
     @action(detail=True, methods=['get'], url_path='pdf')

@@ -44,5 +44,16 @@ def restrict_enrollments(qs, user):
     return qs.filter(course__audience__in=allowed)
 
 
+def restrict_certificates(qs, user, lookup='enrollment__course__audience'):
+    """Certificates follow the course: a certificate for a course outside the account's tracks is not listed or opened.
+    `lookup` is the path to the course audience. Rows without a course (other kinds of certificates) are left alone."""
+    allowed = allowed_audiences(user)
+    if len(allowed) == len(ALL_AUDIENCES):
+        return qs
+    from django.db.models import Q
+    course_path = lookup.rsplit('__', 1)[0]
+    return qs.filter(Q(**{f'{lookup}__in': allowed}) | Q(**{f'{course_path}__isnull': True}))
+
+
 def may_enroll(user, course):
     return course.audience in allowed_audiences(user)

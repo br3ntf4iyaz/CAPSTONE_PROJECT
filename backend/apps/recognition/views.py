@@ -123,7 +123,8 @@ class CertificateViewSet(viewsets.ModelViewSet):
         qs = Certificate.objects.select_related('user', 'enrollment')
         if IsAdminRole().has_permission(self.request, self):
             return qs
-        return qs.filter(user=self.request.user)
+        from apps.courses.access import restrict_certificates
+        return restrict_certificates(qs.filter(user=self.request.user), self.request.user, 'enrollment__course__audience')
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):

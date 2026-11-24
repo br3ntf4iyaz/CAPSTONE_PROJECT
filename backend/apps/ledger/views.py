@@ -115,8 +115,9 @@ class CertificateIntegrityView(APIView):
         courses = CourseCert.objects.select_related('enrollment')
         recognitions = RecognitionCert.objects.all()
         if not everyone:
-            courses = courses.filter(enrollment__user=request.user)
-            recognitions = recognitions.filter(user=request.user)
+            from apps.courses.access import restrict_certificates
+            courses = restrict_certificates(courses.filter(enrollment__user=request.user), request.user)
+            recognitions = restrict_certificates(recognitions.filter(user=request.user), request.user)
         v = service.Verifier()
         results = {f'course-{c.pk}': v.check(payloads.COURSE_CERT, c.pk, payloads.course_cert(c)) for c in courses}
         results.update({
