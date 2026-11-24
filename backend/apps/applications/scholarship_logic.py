@@ -2,7 +2,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from .documents import DOCUMENT_TYPES
+from .documents import DOCUMENT_HELP, DOCUMENT_TYPES
 
 CLOSING_SOON_DAYS = 14
 
@@ -26,8 +26,8 @@ def document_requirements(s):
     out = []
     for key in s.required_documents or []:
         if key in DOCUMENT_TYPES:
-            out.append({'key': key, 'label': DOCUMENT_TYPES[key], 'required': True})
+            out.append({'key': key, 'label': DOCUMENT_TYPES[key], 'required': True, 'help': DOCUMENT_HELP.get(key, '')})
     for key in s.optional_documents or []:
         if key in DOCUMENT_TYPES and key not in (s.required_documents or []):
-            out.append({'key': key, 'label': DOCUMENT_TYPES[key], 'required': False})
+            out.append({'key': key, 'label': DOCUMENT_TYPES[key], 'required': False, 'help': DOCUMENT_HELP.get(key, '')})
     return out

@@ -11,3 +11,17 @@ DOCUMENT_TYPES = {
     'id_picture': 'Recent 2x2 ID Picture',
     'other': 'Other Supporting Documents',
 }
+
+
+# A short, plain explanation shown under each document while a young person applies, so nobody has to guess what to upload.
+DOCUMENT_HELP = {
+    'valid_id': "Any government-issued ID (for example a UMID, driver's license, passport, PhilSys ID or voter's ID) or your current school ID. Your name and photo must be readable.",
+    'residency': 'A certificate from your barangay saying that you live there. You can ask for it at the barangay hall.',
+    'indigency': 'A certificate from your barangay saying that your family has a low income. You can ask for it at the barangay hall.',
+    'enrollment': 'A certificate of enrollment or your registration form from your school for the current term. It shows that you are officially enrolled.',
+    'grades': 'High school or senior high: your latest Report Card. College or graduate: your Transcript of Records (TOR). If your term is not finished yet, your latest certificate of grades from the school registrar.',
+    'income_proof': "Anything that shows your family's income, such as a parent's or guardian's payslip, ITR or certificate of employment, or an income certificate from your barangay.",
+    'birth_certificate': 'A copy of your birth certificate. A PSA copy is best, or a certified true copy from the local civil registrar.',
+    'id_picture': 'A recent passport-style photo, 2 x 2 inches, with your face clearly visible and a plain background.',
+    'other': 'Anything else that supports your application, such as a recommendation letter or a certificate. Only upload what the scholarship asks for.',
+}

@@ -16,7 +16,7 @@ export interface ApplyScholarship {
   requires_gwa: boolean
   is_sample?: boolean
   instructions?: string
-  document_requirements: { key: string; label: string; required: boolean }[]
+  document_requirements: { key: string; label: string; required: boolean; help?: string }[]
 }
 
 type Section = Record<string, string>
@@ -111,8 +111,8 @@ function FieldInput({ d, value, error, onChange }: { d: FieldDef; value: string;
   )
 }
 
-function DocSlot({ label, required, files, onAdd, onRemove, onReplace, error }: {
-  label: string; required: boolean; files: File[]; onAdd: (f: File) => void; onRemove: (i: number) => void; onReplace: (i: number, f: File) => void; error?: string
+function DocSlot({ label, help, required, files, onAdd, onRemove, onReplace, error }: {
+  label: string; help?: string; required: boolean; files: File[]; onAdd: (f: File) => void; onRemove: (i: number) => void; onReplace: (i: number, f: File) => void; error?: string
 }) {
   const ref = useRef<HTMLInputElement>(null)
   const replacing = useRef<number | null>(null)
@@ -138,6 +138,7 @@ function DocSlot({ label, required, files, onAdd, onRemove, onReplace, error }: 
           </button>
         )}
       </div>
+      {help && <p className="mt-1 text-xs leading-relaxed text-ink-500">{help}</p>}
       <input ref={ref} type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" className="hidden"
         aria-label={`Upload ${label}`}
         onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
@@ -316,7 +317,7 @@ export default function ScholarshipApplyFlow({ scholarship: s, onClose }: { scho
                   )}
                   <div className="space-y-2.5">
                     {s.document_requirements.map(d => (
-                      <DocSlot key={d.key} label={d.label} required={d.required} files={files[d.key] ?? []} error={errors[d.key]}
+                      <DocSlot key={d.key} label={d.label} help={d.help} required={d.required} files={files[d.key] ?? []} error={errors[d.key]}
                         onAdd={f => { setFiles(prev => ({ ...prev, [d.key]: [...(prev[d.key] ?? []), f] })); setErrors(({ [d.key]: _x, ...r }) => r) }}
                         onReplace={(i, f) => setFiles(prev => ({ ...prev, [d.key]: (prev[d.key] ?? []).map((x, j) => (j === i ? f : x)) }))}
                         onRemove={i => setFiles(prev => ({ ...prev, [d.key]: (prev[d.key] ?? []).filter((_, j) => j !== i) }))} />
