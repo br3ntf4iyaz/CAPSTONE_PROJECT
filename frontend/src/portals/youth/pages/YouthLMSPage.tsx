@@ -47,12 +47,16 @@ export default function YouthLMSPage() {
   })
 
   const enrollments = enrollmentsQ.data ?? []
-  const courses = coursesQ.data ?? []
+  const allCourses = coursesQ.data ?? []
 
   const enrolledCourseIds = useMemo(
     () => new Set(enrollments.map(e => e.course.id)),
     [enrollments],
   )
+
+  // a course you already joined is in "My learning", so it is not listed again in the catalog
+  const courses = allCourses.filter(c => !enrolledCourseIds.has(c.id))
+  const joinedAll = allCourses.length > 0 && courses.length === 0
 
   const ongoing = enrollments.filter(e => e.status !== 'completed')
   const completed = enrollments.filter(e => e.status === 'completed')
@@ -206,10 +210,12 @@ export default function YouthLMSPage() {
         ) : courses.length === 0 ? (
           <div className="bg-white rounded-3xl border border-ink-100 p-8 text-center">
             <p className="font-display font-bold text-lg text-ink-900 mb-1">
-              {search.trim() || category || audience ? 'No matches.' : 'Catalog empty.'}
+              {joinedAll ? 'You have joined every course available for your account.' : search.trim() || category || audience ? 'No matches.' : 'Catalog empty.'}
             </p>
             <p className="text-sm text-ink-600">
-              {search.trim() || category || audience
+              {joinedAll
+                ? 'Continue them in My learning above. New courses appear here when they are published.'
+                : search.trim() || category || audience
                 ? 'Try a different keyword, category or audience.'
                 : 'New courses are published regularly. Check back soon.'}
             </p>

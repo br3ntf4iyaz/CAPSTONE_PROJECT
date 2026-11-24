@@ -158,17 +158,31 @@ class LmsFlowTests(APITestCase):
         self.assertEqual(self.client.post('/api/courses/enrollments/', {'course_id': sk.id, 'certificate_name': 'Juan Dela Cruz'}, format='json').status_code, 403)
         self.assertEqual(self.client.post('/api/courses/enrollments/', {'course_id': org.id, 'certificate_name': 'Juan Dela Cruz'}, format='json').status_code, 201)
 
-    def test_admins_and_visitors_see_every_course_and_old_enrollments_are_kept(self):
-        sk, _ = make_course('SK Course', audience='sk_officials')
-        # this general account enrolled before the rule existed: the enrollment and the course page stay available
-        Enrollment.objects.create(user=self.user, course=sk, certificate_name='Juan Dela Cruz')
-        self.assertEqual(self.client.get(f'/api/courses/{sk.id}/').status_code, 200)
+    def test_an_old_enrollment_outside_the_account_tracks_is_hidden_and_closed_but_not_deleted(self):
+        sk, sk_lessons = make_course('SK Course', audience='sk_officials')
+        # this general account enrolled before the rule existed
+        old = Enrollment.objects.create(user=self.user, course=sk, certificate_name='Juan Dela Cruz')
+        self.assertFalse(any(e['course']['title'] == 'SK Course' for e in self.client.get('/api/courses/enrollments/').data['results']))
+        self.assertEqual(self.client.get(f'/api/courses/{sk.id}/').status_code, 404)
+        self.assertEqual(self.client.get(f'/api/courses/enrollments/{old.id}/state/').status_code, 404)
+        self.assertEqual(self.client.get(f'/api/courses/lessons/{sk_lessons[0].id}/').status_code, 403)
+        r = self.client.post(f'/api/courses/lessons/{sk_lessons[0].id}/submit-quiz/', {
+            'enrollment_id': old.id, 'lesson_id': sk_lessons[0].id, 'answers': answers_for(sk_lessons[0])}, format='json')
+        self.assertEqual(r.status_code, 404)
+        self.assertTrue(Enrollment.objects.filter(pk=old.pk).exists())  # nothing is deleted
+        # once the account is an SK account, the same enrollment is back
+        self.user.youth_type = 'sk'
+        self.user.save()
         self.assertTrue(any(e['course']['title'] == 'SK Course' for e in self.client.get('/api/courses/enrollments/').data['results']))
+
+    def test_admins_and_visitors_see_every_course(self):
+        make_course('SK Course', audience='sk_officials')
         self.client.force_authenticate(None)
         self.assertEqual(len(self.client.get('/api/courses/my-audiences/').data['audiences']), 3)
         admin = User.objects.create_user(email='adm@x.com', password='p', role='lgu_admin', is_active=True)
         self.client.force_authenticate(admin)
         self.assertEqual(len(self.client.get('/api/courses/my-audiences/').data['audiences']), 3)
+        self.assertEqual(len(self.client.get('/api/courses/').data['results']), 2)
 
     def test_public_course_detail_does_not_leak_notes_or_videos(self):
         self.client.force_authenticate(None)

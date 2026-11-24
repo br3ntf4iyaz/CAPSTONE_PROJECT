@@ -7,7 +7,6 @@
 General Youth courses are the shared foundation for everyone. Staff and admin roles are not restricted. Enrollments that
 already exist are never removed, so nobody loses progress or a certificate when these rules change.
 """
-from django.db.models import Exists, OuterRef, Q
 
 GENERAL = 'general_youth'
 ORG = 'youth_org_leaders'
@@ -29,13 +28,20 @@ def allowed_audiences(user):
 
 
 def restrict_courses(qs, user):
-    """Limit a Course queryset to what the user may see: allowed audiences, plus any course they are already enrolled in."""
+    """Limit a Course queryset to the audiences the user may use."""
     allowed = allowed_audiences(user)
     if len(allowed) == len(ALL_AUDIENCES):
         return qs
-    from .models import Enrollment
-    mine = Enrollment.objects.filter(user=user, course=OuterRef('pk'))
-    return qs.filter(Q(audience__in=allowed) | Exists(mine))
+    return qs.filter(audience__in=allowed)
+
+
+def restrict_enrollments(qs, user):
+    """Limit an Enrollment queryset the same way. An enrollment in a course outside the account's tracks is hidden and
+    cannot be opened or answered. It is not deleted, so nothing is lost if the account type is corrected later."""
+    allowed = allowed_audiences(user)
+    if len(allowed) == len(ALL_AUDIENCES):
+        return qs
+    return qs.filter(course__audience__in=allowed)
 
 
 def may_enroll(user, course):

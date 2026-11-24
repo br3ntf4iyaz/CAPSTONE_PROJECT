@@ -14,7 +14,7 @@ from apps.accounts.permissions import IsAdminRole
 from apps.resources.pagination import LibraryPagination
 
 from . import progress
-from .access import allowed_audiences, restrict_courses
+from .access import allowed_audiences, restrict_courses, restrict_enrollments
 from .certificate_pdf import build_certificate_pdf
 from .models import (
     Certificate, CertificateSetting, Course, CourseModule, Enrollment, Lesson, LessonProgress,
@@ -266,13 +266,13 @@ class EnrollmentViewSet(
     serializer_class = EnrollmentSerializer
 
     def get_queryset(self):
-        return (
+        return restrict_enrollments(
             Enrollment.objects.filter(user=self.request.user)
             .select_related("course", "course__instructor")
             .prefetch_related("course__modules")
-            .annotate(enrollment_count=Count("course__enrollments"))
-            .order_by("-enrolled_at", "-id")
-        )
+            .annotate(enrollment_count=Count("course__enrollments")),
+            self.request.user,
+        ).order_by("-enrolled_at", "-id")
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -435,7 +435,7 @@ class LessonViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         return Lesson.objects.prefetch_related('questions__choices').select_related('module__course')
 
     def _enrollment(self, request, lesson):
-        return Enrollment.objects.filter(user=request.user, course=lesson.module.course).first()
+        return restrict_enrollments(Enrollment.objects.filter(user=request.user, course=lesson.module.course), request.user).first()
 
     def retrieve(self, request, *args, **kwargs):
         lesson = self.get_object()
@@ -511,7 +511,7 @@ class LessonViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         data = submit_serializer.validated_data
 
         try:
-            enrollment = Enrollment.objects.get(id=data['enrollment_id'], user=request.user)
+            enrollment = restrict_enrollments(Enrollment.objects.filter(id=data['enrollment_id'], user=request.user), request.user).get()
         except Enrollment.DoesNotExist:
             return Response({'detail': 'Enrollment not found.'}, status=status.HTTP_404_NOT_FOUND)
         if enrollment.course != lesson.module.course:
