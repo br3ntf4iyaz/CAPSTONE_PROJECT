@@ -93,16 +93,15 @@ function MiniCalendar({ events, selected, onSelect, cursor, setCursor }: {
             <div key={i} className="flex flex-col items-center py-0.5">
               <button
                 type="button"
-                disabled={!hasEvent}
                 onClick={() => onSelect(selected === day ? null : day)}
-                aria-label={hasEvent ? `${MONTH_NAMES[cursor.month]} ${day}: see events` : undefined}
-                aria-pressed={hasEvent ? selected === day : undefined}
+                aria-label={`${MONTH_NAMES[cursor.month]} ${day}${hasEvent ? ': has events' : ': no events'}`}
+                aria-pressed={selected === day}
                 className={cn(
                   'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors',
                   isToday ? 'bg-primary-600 text-white font-bold' : 'text-gray-700 dark:text-gray-300',
-                  hasEvent && !isToday && 'hover:bg-primary-50 cursor-pointer font-semibold',
-                  hasEvent && isToday && 'cursor-pointer',
-                  !hasEvent && 'cursor-default',
+                  'cursor-pointer',
+                  !isToday && 'hover:bg-primary-50',
+                  hasEvent && !isToday && 'font-semibold',
                   selected === day && 'ring-2 ring-primary-500 ring-offset-1',
                 )}
               >
@@ -152,7 +151,13 @@ export default function OrgCalendarWidget({ title = 'Calendar', className, admin
       {/* Mini calendar */}
       <MiniCalendar events={events} selected={selectedDay} onSelect={setSelectedDay} cursor={cursor} setCursor={setCursor} />
 
-      {selectedDay != null && (
+      {selectedDay != null && dayEvents.length === 0 && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" role="status">
+          No event on {MONTH_NAMES[cursor.month]} {selectedDay}, {cursor.year}.
+        </div>
+      )}
+
+      {selectedDay != null && dayEvents.length > 0 && (
         <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-3 dark:border-primary-900 dark:bg-primary-900/20" role="status">
           <p className="mb-2 text-xs font-bold text-primary-800 dark:text-primary-200">
             Upcoming event{dayEvents.length > 1 ? 's' : ''} on {MONTH_NAMES[cursor.month]} {selectedDay}, {cursor.year}
