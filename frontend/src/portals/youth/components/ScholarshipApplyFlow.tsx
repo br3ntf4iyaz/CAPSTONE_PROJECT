@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils'
 import { LUCENA_BARANGAYS } from '../pages/YouthRegisterPage'
 import { apiErrorMessage } from '../scholarshipApps'
+import VerifyGate from './VerifyGate'
 
 export interface ApplyScholarship {
   id: number
@@ -157,7 +158,11 @@ function DocSlot({ label, help, required, files, onAdd, onRemove, onReplace, err
   )
 }
 
-export default function ScholarshipApplyFlow({ scholarship: s, onClose }: { scholarship: ApplyScholarship; onClose: () => void }) {
+export default function ScholarshipApplyFlow(props: { scholarship: ApplyScholarship; onClose: () => void }) {
+  return <VerifyGate onClose={props.onClose} what="apply for a scholarship"><ScholarshipForm {...props} /></VerifyGate>
+}
+
+function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplyScholarship; onClose: () => void }) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const p = user?.profile

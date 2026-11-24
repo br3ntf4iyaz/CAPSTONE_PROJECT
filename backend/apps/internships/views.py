@@ -106,6 +106,9 @@ class InternshipApplicationViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("update", "partial_update", "destroy", "update_status"):
             return [permissions.IsAuthenticated(), IsAdminOrLGU()]
+        if self.action == "create":
+            from apps.accounts.verification import IsIDVerified
+            return [permissions.IsAuthenticated(), IsIDVerified()]  # applying needs a verified identity
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):

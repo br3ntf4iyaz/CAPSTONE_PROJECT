@@ -32,4 +32,4 @@ export const PROGRAM_TYPE_LABELS: Record<string, string> = {
   law:         'Law',
 }
 
-export const UNAVAILABLE_NOTE = 'Course information currently unavailable \u2013 verification required.'
+export const UNAVAILABLE_NOTE = "LYDO has not published this school's list of courses yet. This is about the school's information, not your account. Please check with the school directly."

@@ -81,6 +81,12 @@ class ScholarshipApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMix
     def get_throttles(self):
         return [ScholarshipApplyThrottle()] if self.action in ('create', 'comply') else []
 
+    def get_permissions(self):
+        if self.action == 'create':
+            from apps.accounts.verification import IsIDVerified
+            return [IsAuthenticated(), IsIDVerified()]  # applying needs a verified identity
+        return super().get_permissions()
+
     # ── apply ────────────────────────────────────────────────────────────
     def create(self, request, *args, **kwargs):
         scholarship = Scholarship.objects.filter(pk=request.data.get('scholarship') or 0, is_published=True).first()

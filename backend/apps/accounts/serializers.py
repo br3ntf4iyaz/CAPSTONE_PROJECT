@@ -124,14 +124,24 @@ class MeSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
     skills = serializers.SerializerMethodField()
     interests = serializers.SerializerMethodField()
+    id_verification_status = serializers.SerializerMethodField()
+    id_verified = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
             "id", "email", "first_name", "last_name", "full_name",
             "role", "youth_type", "is_email_verified", "avatar_url", "onboarding_complete", "date_joined",
-            "profile", "skills", "interests",
+            "profile", "skills", "interests", "id_verification_status", "id_verified",
         ]
+
+    def get_id_verification_status(self, obj):
+        from .verification import id_status
+        return id_status(obj)
+
+    def get_id_verified(self, obj):
+        from .verification import is_id_verified
+        return is_id_verified(obj)
 
     def get_avatar_url(self, obj):
         request = self.context.get("request")

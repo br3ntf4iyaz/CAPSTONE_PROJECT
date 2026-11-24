@@ -337,7 +337,7 @@ function SchoolCard({
               </span>
             ) : visitor ? null : (
               <span className="flex items-center gap-1 text-amber-600 font-medium">
-                <AlertCircle size={10} /> Courses need verification
+                <AlertCircle size={10} /> Course list not published yet
               </span>
             )}
           </div>

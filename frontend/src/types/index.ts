@@ -11,6 +11,8 @@ export interface User {
   role: Role
   youth_type: YouthType
   is_email_verified: boolean
+  id_verified?: boolean
+  id_verification_status?: 'none' | 'pending' | 'reviewing' | 'approved' | 'rejected'
   avatar_url: string | null
   onboarding_complete: boolean
   date_joined: string

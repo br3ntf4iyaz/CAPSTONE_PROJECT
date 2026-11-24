@@ -44,6 +44,9 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
     def get_permissions(self):
         if self.action in ('update', 'partial_update'):
             return [IsAuthenticated(), IsAdminRole()]
+        if self.action == 'create':
+            from apps.accounts.verification import IsIDVerified
+            return [IsAuthenticated(), IsIDVerified()]  # applying needs a verified identity; reading your own applications does not
         return super().get_permissions()
 
     def update(self, request, *args, **kwargs):

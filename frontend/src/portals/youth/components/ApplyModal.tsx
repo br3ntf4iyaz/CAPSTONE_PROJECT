@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import { cn } from '@/utils'
+import VerifyGate from './VerifyGate'
 
 interface Props {
   kind: 'scholarship' | 'job'
@@ -26,7 +27,11 @@ export function splitRequirements(raw?: string | string[] | null): string[] {
   return list.map(r => r.replace(/^[\s\-*•·\d.)]+/, '').trim()).filter(Boolean)
 }
 
-export default function ApplyModal({ kind, objectId, title, provider, requirements, onClose }: Props) {
+export default function ApplyModal(props: Props) {
+  return <VerifyGate onClose={props.onClose} what="apply"><ApplyForm {...props} /></VerifyGate>
+}
+
+function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: Props) {
   const { user } = useAuthStore()
   const qc = useQueryClient()
   const p = user?.profile

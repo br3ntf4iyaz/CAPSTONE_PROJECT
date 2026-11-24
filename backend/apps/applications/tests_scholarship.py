@@ -14,6 +14,7 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import User
 from apps.notifications.models import Notification
 from apps.resources.models import Scholarship
+from apps.verification.models import IDVerification
 
 from .models import ScholarshipApplication
 
@@ -46,6 +47,8 @@ class ScholarshipApplicationTests(APITestCase):
         self.user = User.objects.create_user(email='a@x.com', password='p', role='youth', is_active=True)
         self.other = User.objects.create_user(email='b@x.com', password='p', role='youth', is_active=True)
         self.admin = User.objects.create_user(email='ad@x.com', password='p', role='lgu_admin', is_active=True)
+        for u in (self.user, self.other):
+            IDVerification.objects.create(user=u, id_type='umid', status='approved')
         self.sch = Scholarship.objects.create(
             title='Test Grant', provider='P', provider_type='government', coverage='c', amount='a', slots='s',
             required_documents=['valid_id', 'grades'], optional_documents=['other'], requires_gwa=True)
