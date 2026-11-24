@@ -270,9 +270,9 @@ export default function YouthDashboardPage() {
             <ShieldAlert size={20} className="text-amber-600" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-amber-900 text-sm">Verify your identity to unlock events</p>
+            <p className="font-semibold text-amber-900 text-sm">Verify your identity to apply and join events</p>
             <p className="text-xs text-amber-700 mt-0.5">
-              Identity verification is required before you can register for any events.
+              Identity verification is required before you can apply for jobs and scholarships or register for events. You can already browse everything, including the courses of the schools.
             </p>
           </div>
           <Link

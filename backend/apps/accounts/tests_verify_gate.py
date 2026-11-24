@@ -95,3 +95,48 @@ class AdminTodoAndNoticeTests(APITestCase):
         r = self.client.patch(f'/api/verification/admin/{v.pk}/', {'status': 'approved'}, format='json')
         self.assertEqual(r.status_code, 200, r.data)
         self.assertTrue(Notification.objects.filter(user=self.youth, title='Identity verified').exists())
+
+
+class EveryYouthTypeTests(APITestCase):
+    """General youth, SK officials and youth organization leaders are treated the same way."""
+    TYPES = ('general_youth', 'sk', 'youth_org_leader')
+
+    def make(self, youth_type, status=None):
+        u = User.objects.create_user(email=f'{youth_type}@x.com', password='p', role='youth', youth_type=youth_type, is_active=True)
+        if status:
+            IDVerification.objects.create(user=u, id_type='umid', status=status)
+        return u
+
+    def test_apply_needs_a_verified_identity_for_every_type(self):
+        for t in self.TYPES:
+            self.client.force_authenticate(self.make(t))
+            for url in ('/api/applications/', '/api/applications/scholarship/', '/api/internships/applications/'):
+                r = self.client.post(url, {}, format='json')
+                self.assertEqual((t, url, r.status_code), (t, url, 403))
+                self.assertEqual(r.data['code'], 'verify_first')
+
+    def test_verified_members_of_every_type_pass_the_gate(self):
+        for i, t in enumerate(self.TYPES):
+            u = User.objects.create_user(email=f'ok{i}@x.com', password='p', role='youth', youth_type=t, is_active=True)
+            IDVerification.objects.create(user=u, id_type='umid', status='approved')
+            self.client.force_authenticate(u)
+            self.assertNotEqual(self.client.post('/api/applications/scholarship/', {}, format='multipart').status_code, 403, t)
+
+    def test_courses_are_open_to_every_signed_in_type_without_verification(self):
+        from apps.schools.models import School
+        school = School.objects.create(name='S', school_type='private', address='x', municipality='Lucena City', province='Quezon', region='IV-A')
+        for t in self.TYPES:
+            self.client.force_authenticate(User.objects.create_user(email=f'c{t}@x.com', password='p', role='youth', youth_type=t, is_active=True))
+            self.assertFalse(self.client.get(f'/api/schools/{school.id}/').data['courses_locked'], t)
+            self.assertEqual(self.client.get('/api/schools/courses/').status_code, 200, t)
+
+    def test_event_notices_reach_every_type(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from apps.events.models import Event
+        from apps.notifications.models import Notification
+        users = [User.objects.create_user(email=f'n{t}@x.com', password='p', role='youth', youth_type=t, is_active=True) for t in self.TYPES]
+        Event.objects.create(title='Summit', description='d', start_datetime=timezone.now() + timedelta(days=9),
+                             end_datetime=timezone.now() + timedelta(days=9, hours=1), is_published=True, is_active=True)
+        for u in users:
+            self.assertTrue(Notification.objects.filter(user=u, title='New event: Summit').exists(), u.youth_type)
