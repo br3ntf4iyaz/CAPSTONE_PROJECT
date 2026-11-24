@@ -10,6 +10,7 @@ import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import EnrollModal from '../components/EnrollModal'
+import CourseCover from '../components/CourseCover'
 import {
   AUDIENCE_STYLE, CATEGORY_LABELS, apiMessage, toArray,
   type CourseMini, type CourseState, type Enrollment,
@@ -223,9 +224,7 @@ function SideCard({
           {course.thumbnail_url ? (
             <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
           ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-50">
-              <BookOpen size={48} className="text-primary-400" />
-            </div>
+            <CourseCover category={course.category} audience={course.audience} />
           )}
         </div>
         <span className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', AUDIENCE_STYLE[course.audience])}>

@@ -8,6 +8,7 @@ import {
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import EnrollModal from '../components/EnrollModal'
+import CourseCover from '../components/CourseCover'
 import {
   AUDIENCES, AUDIENCE_STYLE, CATEGORY_LABELS, LEARNING_STATUS, toArray,
   type Audience, type CourseMini, type Enrollment,
@@ -256,9 +257,7 @@ function EnrollmentCard({ enrollment }: { enrollment: Enrollment }) {
         {course.thumbnail_url ? (
           <img src={course.thumbnail_url} alt={course.title} loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-50">
-            <BookOpen size={36} className="text-primary-400" />
-          </div>
+          <CourseCover category={course.category} audience={course.audience} />
         )}
         <span className={cn('absolute top-3 left-3 chip text-[11px]', isComplete ? 'bg-emerald-500 text-white' : st.cls)}>
           {isComplete && <CheckCircle2 size={11} className="mr-1" />} {st.label}
@@ -323,9 +322,7 @@ function CourseCard({
             className="absolute inset-0 w-full h-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary-100 to-primary-50">
-            <BookOpen size={40} className="text-primary-400" />
-          </div>
+          <CourseCover category={course.category} audience={course.audience} />
         )}
         <span className="absolute top-3 left-3 chip-primary bg-white/95 backdrop-blur-sm">
           {CATEGORY_LABELS[course.category] ?? course.category}
