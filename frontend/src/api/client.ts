@@ -17,11 +17,25 @@ apiClient.interceptors.request.use((config) => {
   return config
 })
 
-// Refresh token on 401
+/** Calls that are safe to repeat when the connection or a gateway fails: reads, and signing in. */
+function isRepeatable(config: any): boolean {
+  const method = String(config?.method ?? 'get').toLowerCase()
+  if (['get', 'head', 'options'].includes(method)) return true
+  return method === 'post' && /\/auth\/(login|token\/refresh)\/?$/.test(String(config?.url ?? ''))
+}
+
+// Refresh token on 401, and repeat safe calls a few times when the network or a gateway (502/503/504) fails
 apiClient.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
+    const status = error.response?.status
+    const gatewayProblem = !error.response || status === 502 || status === 503 || status === 504
+    if (original && gatewayProblem && isRepeatable(original) && (original._tries ?? 0) < 3) {
+      original._tries = (original._tries ?? 0) + 1
+      await new Promise(r => setTimeout(r, 400 * original._tries))
+      return apiClient(original)
+    }
     if (error.response?.status === 401 && !original._retry) {
       original._retry = true
       const refresh = authStore.refresh
