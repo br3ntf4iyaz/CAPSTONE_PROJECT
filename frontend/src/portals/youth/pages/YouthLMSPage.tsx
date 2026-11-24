@@ -22,6 +22,13 @@ export default function YouthLMSPage() {
   const [audience, setAudience] = useState<Audience | null>(null)
   const [enrollTarget, setEnrollTarget] = useState<CourseMini | null>(null)
 
+  // the server decides which audiences this account may use (General Youth is open to everyone)
+  const audiencesQ = useQuery({
+    queryKey: ['my-audiences'],
+    queryFn: () => apiClient.get('/courses/my-audiences/').then(r => (r.data?.audiences ?? []) as Audience[]).catch(() => [] as Audience[]),
+  })
+  const allowedAudiences = AUDIENCES.filter(a => (audiencesQ.data ?? []).includes(a.value))
+
   const enrollmentsQ = useQuery({
     queryKey: ['my-enrollments'],
     queryFn: () =>
@@ -134,11 +141,12 @@ export default function YouthLMSPage() {
           </div>
         </header>
 
-        {/* Audience filter: it only filters the list. Everyone can still enroll in any course. */}
+        {/* Audience filter: only when the account has more than one track (General Youth plus its own) */}
+        {allowedAudiences.length > 1 && (
         <div className="mb-3" role="group" aria-label="Filter by audience">
           <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-ink-400">Who is it for?</p>
           <div className="flex flex-wrap gap-2">
-            {[{ value: null, label: 'All Courses' }, ...AUDIENCES.map(a => ({ value: a.value as Audience | null, label: a.label }))].map(a => (
+            {[{ value: null, label: 'All My Courses' }, ...allowedAudiences.map(a => ({ value: a.value as Audience | null, label: a.label }))].map(a => (
               <button
                 key={a.label}
                 type="button"
@@ -156,6 +164,7 @@ export default function YouthLMSPage() {
             ))}
           </div>
         </div>
+        )}
 
         {/* Category filter chips */}
         <div className="flex flex-wrap gap-2 mb-5">

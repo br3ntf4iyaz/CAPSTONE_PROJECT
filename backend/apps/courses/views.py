@@ -14,6 +14,7 @@ from apps.accounts.permissions import IsAdminRole
 from apps.resources.pagination import LibraryPagination
 
 from . import progress
+from .access import allowed_audiences, restrict_courses
 from .certificate_pdf import build_certificate_pdf
 from .models import (
     Certificate, CertificateSetting, Course, CourseModule, Enrollment, Lesson, LessonProgress,
@@ -69,7 +70,12 @@ class CourseViewSet(viewsets.ReadOnlyModelViewSet):
         if not (user.is_authenticated and hasattr(user, "role") and
                 user.role in ("lgu_admin", "super_admin")):
             qs = qs.filter(is_published=True)
-        return qs
+        return restrict_courses(qs, user)
+
+    @action(detail=False, methods=["get"], url_path="my-audiences", permission_classes=[permissions.AllowAny])
+    def my_audiences(self, request):
+        """Which course audiences this account may see and enroll in (the page uses it for its filter chips)."""
+        return Response({"audiences": list(allowed_audiences(request.user))})
 
     def get_serializer_class(self):
         if self.action == "retrieve":

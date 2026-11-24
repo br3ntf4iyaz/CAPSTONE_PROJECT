@@ -127,18 +127,48 @@ class LmsFlowTests(APITestCase):
         self.assertEqual(self.client.patch(url, {'certificate_name': 'Hacker Name'}, format='json').status_code, 404)
 
     # ── audience ─────────────────────────────────────────────────────────
-    def test_audience_filters_and_labels_but_never_restricts_enrollment(self):
+    def test_a_general_youth_account_only_sees_and_joins_general_youth_courses(self):
         sk, _ = make_course('SK Course', audience='sk_officials')
         org, _ = make_course('Org Course', audience='youth_org_leaders')
         titles = lambda data: sorted(c['title'] for c in (data['results'] if isinstance(data, dict) else data))
-        self.assertEqual(titles(self.client.get('/api/courses/', {'audience': 'sk_officials'}).data), ['SK Course'])
-        self.assertEqual(titles(self.client.get('/api/courses/', {'audience': 'youth_org_leaders'}).data), ['Org Course'])
-        self.assertIn('Test Course', titles(self.client.get('/api/courses/', {'audience': 'general_youth'}).data))
-        card = next(c for c in self.client.get('/api/courses/').data['results'] if c['title'] == 'SK Course')
-        self.assertEqual(card['audience_display'], 'SK Officials')
-        # a general youth account (this user) can enroll in the SK course
-        r = self.client.post('/api/courses/enrollments/', {'course_id': sk.id, 'certificate_name': 'Juan Dela Cruz'}, format='json')
-        self.assertEqual(r.status_code, 201)
+        self.assertEqual(titles(self.client.get('/api/courses/').data), ['Test Course'])
+        self.assertEqual(titles(self.client.get('/api/courses/', {'audience': 'sk_officials'}).data), [])
+        self.assertEqual(self.client.get('/api/courses/my-audiences/').data['audiences'], ['general_youth'])
+        for course in (sk, org):
+            self.assertEqual(self.client.get(f'/api/courses/{course.id}/').status_code, 404)
+            r = self.client.post('/api/courses/enrollments/', {'course_id': course.id, 'certificate_name': 'Juan Dela Cruz'}, format='json')
+            self.assertIn(r.status_code, (403, 400), r.data)
+            self.assertFalse(Enrollment.objects.filter(user=self.user, course=course).exists())
+
+    def test_sk_and_org_leader_accounts_get_their_own_track_plus_the_general_courses(self):
+        sk, _ = make_course('SK Course', audience='sk_officials')
+        org, _ = make_course('Org Course', audience='youth_org_leaders')
+        titles = lambda data: sorted(c['title'] for c in (data['results'] if isinstance(data, dict) else data))
+        sk_user = User.objects.create_user(email='sk@x.com', password='p', role='youth', youth_type='sk', is_active=True)
+        self.client.force_authenticate(sk_user)
+        self.assertEqual(titles(self.client.get('/api/courses/').data), ['SK Course', 'Test Course'])
+        self.assertEqual(self.client.get('/api/courses/my-audiences/').data['audiences'], ['general_youth', 'sk_officials'])
+        self.assertEqual(self.client.post('/api/courses/enrollments/', {'course_id': sk.id, 'certificate_name': 'Juan Dela Cruz'}, format='json').status_code, 201)
+        r = self.client.post('/api/courses/enrollments/', {'course_id': org.id, 'certificate_name': 'Juan Dela Cruz'}, format='json')
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(r.data['code'], 'audience_mismatch')
+        org_user = User.objects.create_user(email='org@x.com', password='p', role='youth', youth_type='youth_org_leader', is_active=True)
+        self.client.force_authenticate(org_user)
+        self.assertEqual(titles(self.client.get('/api/courses/').data), ['Org Course', 'Test Course'])
+        self.assertEqual(self.client.post('/api/courses/enrollments/', {'course_id': sk.id, 'certificate_name': 'Juan Dela Cruz'}, format='json').status_code, 403)
+        self.assertEqual(self.client.post('/api/courses/enrollments/', {'course_id': org.id, 'certificate_name': 'Juan Dela Cruz'}, format='json').status_code, 201)
+
+    def test_admins_and_visitors_see_every_course_and_old_enrollments_are_kept(self):
+        sk, _ = make_course('SK Course', audience='sk_officials')
+        # this general account enrolled before the rule existed: the enrollment and the course page stay available
+        Enrollment.objects.create(user=self.user, course=sk, certificate_name='Juan Dela Cruz')
+        self.assertEqual(self.client.get(f'/api/courses/{sk.id}/').status_code, 200)
+        self.assertTrue(any(e['course']['title'] == 'SK Course' for e in self.client.get('/api/courses/enrollments/').data['results']))
+        self.client.force_authenticate(None)
+        self.assertEqual(len(self.client.get('/api/courses/my-audiences/').data['audiences']), 3)
+        admin = User.objects.create_user(email='adm@x.com', password='p', role='lgu_admin', is_active=True)
+        self.client.force_authenticate(admin)
+        self.assertEqual(len(self.client.get('/api/courses/my-audiences/').data['audiences']), 3)
 
     def test_public_course_detail_does_not_leak_notes_or_videos(self):
         self.client.force_authenticate(None)

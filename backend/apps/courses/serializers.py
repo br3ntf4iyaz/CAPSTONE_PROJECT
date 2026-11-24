@@ -1,7 +1,7 @@
 import bleach
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
+from rest_framework import exceptions, serializers
 
 from .models import (
     Certificate,
@@ -418,6 +418,12 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         user = request.user if request else attrs.get("user")
         course = attrs.get("course")
+        from .access import may_enroll
+        if not may_enroll(user, course):
+            raise exceptions.PermissionDenied({
+                "detail": f"This course is for {course.get_audience_display()}. It is not part of your account type.",
+                "code": "audience_mismatch",
+            })
         if Enrollment.objects.filter(user=user, course=course).exists():
             raise serializers.ValidationError(
                 {"course_id": "You are already enrolled in this course."}
