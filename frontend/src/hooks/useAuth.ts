@@ -26,7 +26,10 @@ export function loginErrorMessage(err: any): string {
   if (typeof detail === 'string' && detail) return detail
   if (res.status >= 500) return 'The server had a problem signing you in. Please try again in a moment. If it keeps happening, contact LYDO.'
   if (res.status === 429) return 'Too many attempts. Please wait a minute and try again.'
-  return 'Invalid email or password.'
+  const body = res.data && typeof res.data === 'object'
+    ? Object.values(res.data).flat().filter(v => typeof v === 'string').join(' ')
+    : ''
+  return `Sign in failed (code ${res.status}${body ? `: ${body.slice(0, 120)}` : ''}). Check your email and password and try again.`
 }
 
 interface LoginOptions {
