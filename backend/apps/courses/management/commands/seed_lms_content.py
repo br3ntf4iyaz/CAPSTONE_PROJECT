@@ -11,6 +11,8 @@ Safe to run again.
 
     python manage.py seed_lms_content
 """
+import importlib
+import pkgutil
 import random
 
 from django.core.management.base import BaseCommand
@@ -18,6 +20,7 @@ from django.db import transaction
 
 from apps.courses.lms_content import CONTENT
 from apps.courses import lms_content_org, lms_content_sk
+from apps.courses import more_questions
 from apps.courses.lms_media import MEDIA
 from apps.courses.lms_content_extra import merge
 from apps.courses.models import Course, CourseModule, Lesson, Question, QuestionChoice, QuizAttempt
@@ -49,6 +52,42 @@ COURSE_META = {
         'resource management', 'volunteer coordination', 'community engagement and project evaluation']),
 }
 
+TARGET_QUESTIONS = 10  # every lesson assessment is topped up to this many questions
+
+
+def load_more_questions():
+    """{(course title, lesson title): [question, ...]} from apps/courses/more_questions/*.py."""
+    found = {}
+    for info in pkgutil.iter_modules(more_questions.__path__):
+        if info.name.startswith('_'):
+            continue
+        mod = importlib.import_module(f'{more_questions.__name__}.{info.name}')
+        for lesson_title, qs in mod.MORE.items():
+            found[(mod.COURSE, lesson_title)] = qs
+    return found
+
+
+def top_up(lesson, extra):
+    """Add questions from `extra` until the lesson has TARGET_QUESTIONS. Never edits or removes an existing question."""
+    have = list(lesson.questions.values_list('text', flat=True))
+    order = (lesson.questions.order_by('-order').values_list('order', flat=True).first() or 0)
+    added = 0
+    for q in extra:
+        if len(have) + added >= TARGET_QUESTIONS:
+            break
+        if q['text'] in have:
+            continue
+        order += 1
+        question = Question.objects.create(lesson=lesson, text=q['text'], order=order, explanation=q.get('explanation', ''))
+        choices = list(q['choices'])
+        if q.get('shuffle'):
+            random.Random(q['text']).shuffle(choices)
+        for ci, (text, ok) in enumerate(choices, start=1):
+            QuestionChoice.objects.create(question=question, text=text, is_correct=ok, order=ci)
+        added += 1
+    return added
+
+
 UNRELATED_TEST_VIDEO = 'dQw4w9WgXcQ'  # an old placeholder that sent every lesson to the same unrelated video
 
 
@@ -64,7 +103,8 @@ class Command(BaseCommand):
         content[lms_content_org.TITLE] = {'category': lms_content_org.CATEGORY, 'modules': lms_content_org.MODULES}
         for sk in lms_content_sk.COURSES:  # verified SK content replaces the older text for these two courses
             content[sk['title']] = {'category': content.get(sk['title'], {}).get('category', ''), 'modules': sk['modules']}
-        stats = dict(courses=0, modules=0, lessons=0, titled=0, questions=0, created_course=0, labelled=0, replaced=0, kept=0, videos=0, resources=0)
+        more = load_more_questions()
+        stats = dict(topped=0, courses=0, modules=0, lessons=0, titled=0, questions=0, created_course=0, labelled=0, replaced=0, kept=0, videos=0, resources=0)
         with transaction.atomic():
             cleared = Lesson.objects.filter(video_url__icontains=UNRELATED_TEST_VIDEO).update(video_url='')
             if not Course.objects.filter(title=lms_content_org.TITLE, is_active=True).exists():
@@ -115,6 +155,7 @@ class Command(BaseCommand):
                         if lesson.questions.exists() and l.get('replace'):
                             if QuizAttempt.objects.filter(lesson=lesson).exists():
                                 stats['kept'] += 1  # learners already answered it: never rewrite what they were graded on
+                                stats['topped'] += top_up(lesson, more.get((title, l['title']), []))
                                 continue
                             lesson.title, lesson.content = l['title'], l['content']
                             if l.get('duration'):
@@ -134,6 +175,8 @@ class Command(BaseCommand):
                                 lesson.save(update_fields=['study_resources'])
                                 stats['resources'] += 1
                         if lesson.questions.exists():
+                            if lesson.title == l['title']:
+                                stats['topped'] += top_up(lesson, more.get((title, l['title']), []))
                             continue
                         for qi, q in enumerate(l['questions'], start=1):
                             question = Question.objects.create(lesson=lesson, text=q['text'], order=qi,
@@ -144,7 +187,8 @@ class Command(BaseCommand):
                             for ci, (text, ok) in enumerate(choices, start=1):
                                 QuestionChoice.objects.create(question=question, text=text, is_correct=ok, order=ci)
                             stats['questions'] += 1
+                        stats['topped'] += top_up(lesson, more.get((title, l['title']), []))
         self.stdout.write(self.style.SUCCESS(
             f"{stats['courses']} courses checked ({stats['created_course']} created, {stats['labelled']} labelled with audience and outcomes) | {stats['modules']} modules, {stats['lessons']} lessons added | "
-            f"{stats['titled']} lessons given real titles and notes, {stats['replaced']} replaced with verified text, {stats['kept']} kept (already answered) | {stats['questions']} questions added | {stats['videos']} videos and {stats['resources']} study-material lists attached | "
+            f"{stats['titled']} lessons given real titles and notes, {stats['replaced']} replaced with verified text, {stats['kept']} kept (already answered) | {stats['questions']} questions added, {stats['topped']} extra questions added to reach {TARGET_QUESTIONS} per lesson | {stats['videos']} videos and {stats['resources']} study-material lists attached | "
             f"{cleared} unrelated test video link(s) removed"))

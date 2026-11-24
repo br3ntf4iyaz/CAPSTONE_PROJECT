@@ -583,3 +583,31 @@ class LessonMediaTests(APITestCase):
         self.assertEqual((data['video_title'], data['video_kind']), ('The topic to watch', 'other'))
         self.assertEqual(data['study_resources'][0]['url'], 'https://example.org/read')
         self.assertEqual(self.client.post(f'/api/courses/lessons/{lessons[0].id}/watched/').status_code, 200)
+
+
+class QuestionBankTests(APITestCase):
+    """Every seeded lesson has a 10-question assessment, and the extra questions are well formed."""
+
+    def test_extra_questions_are_well_formed(self):
+        from .management.commands.seed_lms_content import load_more_questions
+        more = load_more_questions()
+        self.assertTrue(more)
+        for (course, lesson), qs in more.items():
+            texts = [q['text'] for q in qs]
+            self.assertEqual(len(texts), len(set(texts)), (course, lesson, 'duplicate question'))
+            for q in qs:
+                self.assertEqual(len(q['choices']), 4, (course, lesson, q['text']))
+                self.assertEqual(sum(1 for _, ok in q['choices'] if ok), 1, (course, lesson, q['text']))
+                self.assertEqual(len({c.strip().lower() for c, _ in q['choices']}), 4, (course, lesson, q['text'], 'repeated choice'))
+                self.assertTrue(q['explanation'].strip(), (course, lesson, q['text']))
+
+    def test_every_seeded_lesson_ends_with_ten_questions_and_seeding_twice_adds_nothing(self):
+        for title in ('Leadership Fundamentals', 'Youth Governance 101', 'Communication Skills for Leaders', 'Financial Literacy for SK',
+                      'Digital Skills for Youth Leaders', 'SK Governance Fundamentals', 'Youth Leadership and Communication'):
+            Course.objects.get_or_create(title=title, defaults={'description': 'x', 'is_published': True})
+        call_command('seed_lms_content', verbosity=0)
+        counts = {l.id: l.questions.count() for l in Lesson.objects.all()}
+        self.assertTrue(counts)
+        self.assertTrue(all(n == 10 for n in counts.values()), {l.title: l.questions.count() for l in Lesson.objects.all() if l.questions.count() != 10})
+        call_command('seed_lms_content', verbosity=0)
+        self.assertEqual(counts, {l.id: l.questions.count() for l in Lesson.objects.all()})
