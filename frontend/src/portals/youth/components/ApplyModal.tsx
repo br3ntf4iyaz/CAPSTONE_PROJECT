@@ -46,8 +46,10 @@ function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: P
     message: '',
   })
   const [checked, setChecked] = useState<Set<string>>(new Set())
-  const [file, setFile] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null)       // the resume
+  const [idFile, setIdFile] = useState<File | null>(null)    // photo or scan of the valid ID
   const [done, setDone] = useState(false)
+  const isJob = kind === 'job'
 
   const { data: mine = [] } = useQuery<{ kind: string; object_id: number }[]>({
     queryKey: ['my-applications'],
@@ -59,8 +61,8 @@ function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: P
   const valid = useMemo(
     () =>
       !!(form.full_name.trim() && form.contact_number.trim() && form.email.trim() &&
-        form.address.trim() && form.id_number.trim() && allChecked),
-    [form, allChecked],
+        form.address.trim() && form.id_number.trim() && allChecked && (!isJob || (idFile && file))),
+    [form, allChecked, isJob, idFile, file],
   )
 
   const submit = useMutation({
@@ -71,6 +73,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: P
       Object.entries(form).forEach(([k, v]) => { if (v) fd.append(k, v) })
       Array.from(checked).forEach(r => fd.append('confirmed_requirements', r))
       if (file) fd.append('document', file)
+      if (idFile) fd.append('id_document', idFile)
       return apiClient.post('/applications/', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
     },
     onSuccess: () => {
@@ -121,7 +124,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: P
             <CheckCircle2 size={48} className="text-green-500 mx-auto" />
             <h3 className="text-lg font-bold text-gray-900">Application submitted</h3>
             <p className="text-sm text-gray-600">
-              Your application for <b>{title}</b> was received. LYDO will review it and contact you.
+              Your application for <b>{title}</b> was received. LYDO staff will check your ID and resume before deciding, and you will be notified of the result.
             </p>
             <button onClick={onClose} className="btn-primary">Done</button>
           </div>
@@ -164,25 +167,39 @@ function ApplyForm({ kind, objectId, title, provider, requirements, onClose }: P
               <input className="input" type="email" placeholder="Email" value={form.email} onChange={set('email')} required />
               <input className="input" placeholder="Complete address (barangay, city, province)" value={form.address} onChange={set('address')} required />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <select className="input" value={form.id_type} onChange={set('id_type')}>
+                <select className="input" value={form.id_type} onChange={set('id_type')} aria-label="Type of valid ID">
                   {ID_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
                 <input className="input" placeholder="ID number" value={form.id_number} onChange={set('id_number')} required />
               </div>
+              {isJob && (
+                <div>
+                  <p className="mb-1.5 text-xs font-semibold text-gray-700">Valid government ID <span className="text-red-500">*</span> <span className="font-normal text-gray-400">(clear photo or scan, JPG, PNG or PDF, max 5 MB)</span></p>
+                  <label className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed text-sm cursor-pointer hover:border-primary-400', idFile ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-gray-300 text-gray-600')}>
+                    {idFile ? <CheckCircle2 size={15} /> : <Paperclip size={15} />}
+                    <span className="truncate">{idFile ? idFile.name : 'Upload your valid ID'}</span>
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,image/jpeg,image/png,application/pdf" className="hidden" onChange={e => setIdFile(e.target.files?.[0] ?? null)} />
+                  </label>
+                </div>
+              )}
             </section>
 
             <section className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-800">
-                {n1 + 2}. Supporting document <span className="font-normal text-gray-400">(optional, max 5 MB)</span>
+                {n1 + 2}. {isJob ? 'Resume' : 'Supporting document'}{' '}
+                {isJob ? <span className="text-red-500">*</span> : null}{' '}
+                <span className="font-normal text-gray-400">({isJob ? 'PDF, Word or image, max 5 MB' : 'optional, max 5 MB'})</span>
               </h3>
-              <label className="flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-gray-300 text-sm text-gray-600 cursor-pointer hover:border-primary-400">
-                <Paperclip size={15} /> <span className="truncate">{file ? file.name : 'Attach PDF or image'}</span>
-                <input type="file" accept=".pdf,image/*" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
+              <label className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed text-sm cursor-pointer hover:border-primary-400', file ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-gray-300 text-gray-600')}>
+                {file ? <CheckCircle2 size={15} /> : <Paperclip size={15} />} <span className="truncate">{file ? file.name : isJob ? 'Upload your resume' : 'Attach PDF or image'}</span>
+                <input type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
               </label>
               <textarea className="input resize-none" rows={3} placeholder="Message to the reviewer (optional)" value={form.message} onChange={set('message')} />
             </section>
 
             {!allChecked && <p className="text-xs text-amber-600">Confirm all requirements to enable Submit.</p>}
+            {isJob && (!idFile || !file) && <p className="text-xs text-amber-600">Upload your valid ID and your resume to enable Submit.</p>}
+            <p className="text-[11px] leading-relaxed text-gray-500">Your ID and resume are seen only by you and the LYDO staff who review your application.</p>
             <button
               type="submit"
               disabled={!valid || submit.isPending}

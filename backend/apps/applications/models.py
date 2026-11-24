@@ -32,7 +32,8 @@ class OpportunityApplication(models.Model):
     id_number = models.CharField(max_length=60, blank=True)
     message = models.TextField(blank=True)
     confirmed_requirements = models.JSONField(default=list, blank=True)
-    document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)
+    document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # the resume, for jobs
+    id_document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # photo or scan of the valid ID
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
     admin_note = models.TextField(blank=True)

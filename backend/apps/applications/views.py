@@ -41,6 +41,13 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         app = self.get_object()  # get_queryset already limits non-admins to their own rows
         return private_file_response(app.document)
 
+    @action(detail=True, methods=['get'], url_path='id-document')
+    def id_document(self, request, pk=None):
+        """The photo or scan of the applicant's valid ID: the applicant, or an administrator. Login required."""
+        from apps.accounts.uploads import private_file_response
+        app = self.get_object()
+        return private_file_response(app.id_document)
+
     def get_permissions(self):
         if self.action in ('update', 'partial_update'):
             return [IsAuthenticated(), IsAdminRole()]
@@ -55,6 +62,18 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         old = instance.status
         ser = ApplicationReviewSerializer(instance, data=request.data, partial=True)
         ser.is_valid(raise_exception=True)
+        new = ser.validated_data.get('status', old)
+        checked = str(request.data.get('documents_checked', '')).lower() in ('1', 'true', 'yes')
+        if new != old and new in ('approved', 'rejected'):
+            # A decision is never made blindly: the application must be under review first, the ID and resume must have been
+            # checked, and a refusal needs a reason the applicant can read.
+            if old != 'under_review':
+                return Response({'detail': 'Start the review first. An application cannot be approved or refused straight from Submitted.'}, status=http.HTTP_400_BAD_REQUEST)
+            if not checked:
+                return Response({'detail': 'Confirm that you checked the ID and the resume before you decide.'}, status=http.HTTP_400_BAD_REQUEST)
+            note = ser.validated_data.get('admin_note', instance.admin_note) or ''
+            if new == 'rejected' and len(note.strip()) < 5:
+                return Response({'detail': 'Write the reason, so the applicant knows why it was not accepted.'}, status=http.HTTP_400_BAD_REQUEST)
         app = ser.save(reviewed_at=timezone.now())
         AuditLog.objects.create(
             user=request.user,
@@ -62,7 +81,7 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
             model_name='OpportunityApplication',
             object_id=app.pk,
             ip_address=get_client_ip(request),
-            details={'applicant': app.email, 'title': app.title, 'from': old, 'to': app.status},
+            details={'applicant': app.email, 'title': app.title, 'from': old, 'to': app.status, 'documents_checked': checked},
         )
         if app.status != old:
             label = app.get_status_display()
