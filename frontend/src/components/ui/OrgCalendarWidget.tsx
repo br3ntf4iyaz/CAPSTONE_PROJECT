@@ -27,9 +27,17 @@ const MONTH_NAMES = ['January','February','March','April','May','June',
   'July','August','September','October','November','December']
 const DAY_NAMES = ['Su','Mo','Tu','We','Th','Fr','Sa']
 
-function MiniCalendar({ events }: { events: Event[] }) {
+function sameDay(a: Date, y: number, m: number, d: number) {
+  return a.getFullYear() === y && a.getMonth() === m && a.getDate() === d
+}
+
+type Cursor = { year: number; month: number }
+
+function MiniCalendar({ events, selected, onSelect, cursor, setCursor }: {
+  events: Event[]; selected: number | null; onSelect: (day: number | null) => void
+  cursor: Cursor; setCursor: (f: (c: Cursor) => Cursor) => void
+}) {
   const today = new Date()
-  const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() })
 
   const firstDay = new Date(cursor.year, cursor.month, 1).getDay()
   const daysInMonth = new Date(cursor.year, cursor.month + 1, 0).getDate()
@@ -43,8 +51,8 @@ function MiniCalendar({ events }: { events: Event[] }) {
       .map(e => new Date(e.start_datetime).getDate())
   )
 
-  const prev = () => setCursor(c => c.month === 0 ? { year: c.year - 1, month: 11 } : { year: c.year, month: c.month - 1 })
-  const next = () => setCursor(c => c.month === 11 ? { year: c.year + 1, month: 0 } : { year: c.year, month: c.month + 1 })
+  const prev = () => { onSelect(null); setCursor(c => c.month === 0 ? { year: c.year - 1, month: 11 } : { year: c.year, month: c.month - 1 }) }
+  const next = () => { onSelect(null); setCursor(c => c.month === 11 ? { year: c.year + 1, month: 0 } : { year: c.year, month: c.month + 1 }) }
 
   const cells: (number | null)[] = [
     ...Array(firstDay).fill(null),
@@ -83,12 +91,23 @@ function MiniCalendar({ events }: { events: Event[] }) {
           const hasEvent = eventDays.has(day)
           return (
             <div key={i} className="flex flex-col items-center py-0.5">
-              <div className={cn(
-                'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors',
-                isToday ? 'bg-primary-600 text-white font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              )}>
+              <button
+                type="button"
+                disabled={!hasEvent}
+                onClick={() => onSelect(selected === day ? null : day)}
+                aria-label={hasEvent ? `${MONTH_NAMES[cursor.month]} ${day}: see events` : undefined}
+                aria-pressed={hasEvent ? selected === day : undefined}
+                className={cn(
+                  'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors',
+                  isToday ? 'bg-primary-600 text-white font-bold' : 'text-gray-700 dark:text-gray-300',
+                  hasEvent && !isToday && 'hover:bg-primary-50 cursor-pointer font-semibold',
+                  hasEvent && isToday && 'cursor-pointer',
+                  !hasEvent && 'cursor-default',
+                  selected === day && 'ring-2 ring-primary-500 ring-offset-1',
+                )}
+              >
                 {day}
-              </div>
+              </button>
               {hasEvent && <div className={cn('w-1.5 h-1.5 rounded-full mt-0.5', isToday ? 'bg-white' : 'bg-primary-500')} />}
             </div>
           )
@@ -115,6 +134,9 @@ export default function OrgCalendarWidget({ title = 'Calendar', className, admin
     staleTime: 1000 * 60 * 2,
   })
 
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
+  const [cursor, setCursor] = useState<Cursor>({ year: new Date().getFullYear(), month: new Date().getMonth() })
+  const dayEvents = selectedDay == null ? [] : events.filter(e => sameDay(new Date(e.start_datetime), cursor.year, cursor.month, selectedDay))
   const now = new Date()
   const upcoming = events
     .filter(e => new Date(e.start_datetime) >= now)
@@ -128,7 +150,27 @@ export default function OrgCalendarWidget({ title = 'Calendar', className, admin
       </div>
 
       {/* Mini calendar */}
-      <MiniCalendar events={events} />
+      <MiniCalendar events={events} selected={selectedDay} onSelect={setSelectedDay} cursor={cursor} setCursor={setCursor} />
+
+      {selectedDay != null && (
+        <div className="rounded-xl border border-primary-200 bg-primary-50/60 p-3 dark:border-primary-900 dark:bg-primary-900/20" role="status">
+          <p className="mb-2 text-xs font-bold text-primary-800 dark:text-primary-200">
+            Upcoming event{dayEvents.length > 1 ? 's' : ''} on {MONTH_NAMES[cursor.month]} {selectedDay}, {cursor.year}
+          </p>
+          <div className="space-y-2">
+            {dayEvents.map(ev => (
+              <div key={ev.id} className="rounded-lg bg-white p-2.5 text-xs dark:bg-gray-800">
+                <p className="font-semibold text-gray-900 dark:text-gray-100">{ev.title}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-gray-500 dark:text-gray-400">
+                  <span className="flex items-center gap-1"><Clock size={10} />{new Date(ev.start_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {ev.location && <span className="flex items-center gap-1"><MapPin size={10} />{ev.location}</span>}
+                  <span className={cn('rounded px-1.5 py-0.5 font-medium', EVENT_TYPE_COLORS[ev.event_type] ?? EVENT_TYPE_COLORS.other)}>{ev.event_type.replace('_', ' ')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="border-t border-gray-100 dark:border-gray-800 pt-4">
         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Upcoming</p>
