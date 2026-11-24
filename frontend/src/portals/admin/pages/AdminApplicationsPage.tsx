@@ -22,6 +22,11 @@ interface Application {
   confirmed_requirements: string[]
   document_url: string | null
   id_document_url: string | null
+  id_document_back_url: string | null
+  selfie_url: string | null
+  face_check: { distance?: number; similarity?: number; matched?: boolean } | null
+  resubmit_count: number
+  previous_note: string
   status: 'submitted' | 'under_review' | 'approved' | 'rejected'
   submitted_at: string
   admin_note: string
@@ -39,13 +44,18 @@ function Card({ a }: { a: Application }) {
   const [note, setNote] = useState(a.admin_note)
   const [open, setOpen] = useState(a.status === 'submitted' || a.status === 'under_review')
   const [idSeen, setIdSeen] = useState(false)
+  const [backSeen, setBackSeen] = useState(false)
+  const [selfieSeen, setSelfieSeen] = useState(false)
   const [resumeSeen, setResumeSeen] = useState(false)
   const [idOk, setIdOk] = useState(false)
   const [resumeOk, setResumeOk] = useState(false)
   const st = STATUSES.find(s => s.value === a.status)!
   const isJob = a.kind === 'job'
   const needsId = !!a.id_document_url      // older applications were made before the ID photo was required
+  const needsBack = !!a.id_document_back_url
+  const needsSelfie = !!a.selfie_url
   const needsResume = !!a.document_url
+  const face = a.face_check ?? {}
 
   const send = useMutation({
     mutationFn: (body: Record<string, unknown>) => apiClient.patch(`/applications/${a.id}/`, body),
@@ -62,7 +72,7 @@ function Card({ a }: { a: Application }) {
   }
 
   const checked = (!needsId || idOk) && (!needsResume || resumeOk)
-  const canCheckId = !needsId || idSeen
+  const canCheckId = (!needsId || idSeen) && (!needsBack || backSeen) && (!needsSelfie || selfieSeen)
   const canCheckResume = !needsResume || resumeSeen
   const decide = (status: 'approved' | 'rejected') => send.mutate({ status, admin_note: note, documents_checked: true })
 
@@ -75,8 +85,15 @@ function Card({ a }: { a: Application }) {
             {isJob ? 'Job' : 'Scholarship'} · {a.email} · {a.contact_number} · {formatDateTime(a.submitted_at)}
           </p>
         </div>
-        <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', st.cls)}>{st.label}</span>
+        <div className="flex flex-col items-end gap-1">
+          <span className={cn('text-xs font-semibold px-2 py-0.5 rounded-full', st.cls)}>{st.label}</span>
+          {a.resubmit_count > 0 && <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">Sent again ×{a.resubmit_count}</span>}
+        </div>
       </div>
+
+      {a.resubmit_count > 0 && a.previous_note && (
+        <p className="rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-900"><b>Sent again after it was not accepted.</b> Earlier reason: {a.previous_note}</p>
+      )}
 
       <button type="button" onClick={() => setOpen(o => !o)} className="text-xs font-semibold text-primary-700 hover:text-primary-800">
         {open ? 'Hide details' : 'View details'}
@@ -100,12 +117,34 @@ function Card({ a }: { a: Application }) {
             )}
           </dl>
 
+          {needsSelfie && (
+            <p className={cn('rounded-lg px-3 py-2 text-xs', face.matched === true ? 'bg-emerald-50 text-emerald-800' : face.matched === false ? 'bg-red-50 text-red-800' : 'bg-amber-50 text-amber-800')}>
+              <b>Face check on the applicant device:</b>{' '}
+              {face.matched === true ? `matched (${Math.round((face.similarity ?? 0) * 100)}% similar).` : face.matched === false ? 'did not match.' : 'could not run, so compare the faces yourself.'}{' '}
+              This is only a guide. Open the front of the ID and the selfie and compare the faces yourself.
+            </p>
+          )}
+
           <div className="grid gap-2 sm:grid-cols-2">
             <button type="button" disabled={!a.id_document_url} onClick={() => open_(a.id_document_url, setIdSeen)}
               className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold', idSeen ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-white text-gray-800 hover:border-primary-300', !a.id_document_url && 'opacity-60')}>
               {idSeen ? <CheckCircle2 size={16} /> : <CreditCard size={16} />}
-              <span>{a.id_document_url ? (idSeen ? 'ID photo opened' : 'Open the ID photo') : 'No ID photo (older application)'}</span>
+              <span>{a.id_document_url ? (idSeen ? 'ID front opened' : 'Open the ID (front)') : 'No ID photo (older application)'}</span>
             </button>
+            {needsBack && (
+              <button type="button" onClick={() => open_(a.id_document_back_url, setBackSeen)}
+                className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold', backSeen ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-white text-gray-800 hover:border-primary-300')}>
+                {backSeen ? <CheckCircle2 size={16} /> : <CreditCard size={16} />}
+                <span>{backSeen ? 'ID back opened' : 'Open the ID (back)'}</span>
+              </button>
+            )}
+            {needsSelfie && (
+              <button type="button" onClick={() => open_(a.selfie_url, setSelfieSeen)}
+                className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold', selfieSeen ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-white text-gray-800 hover:border-primary-300')}>
+                {selfieSeen ? <CheckCircle2 size={16} /> : <ShieldCheck size={16} />}
+                <span>{selfieSeen ? 'Selfie opened' : 'Open the selfie'}</span>
+              </button>
+            )}
             <button type="button" disabled={!a.document_url} onClick={() => open_(a.document_url, setResumeSeen)}
               className={cn('flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-sm font-semibold', resumeSeen ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-gray-200 bg-white text-gray-800 hover:border-primary-300', !a.document_url && 'opacity-60')}>
               {resumeSeen ? <CheckCircle2 size={16} /> : <FileText size={16} />}
@@ -131,8 +170,8 @@ function Card({ a }: { a: Application }) {
             {needsId && (
               <label className={cn('flex items-center gap-2', !canCheckId && 'opacity-50')}>
                 <input type="checkbox" disabled={!canCheckId} checked={idOk} onChange={e => setIdOk(e.target.checked)} />
-                I opened the ID photo and it matches the applicant
-                {!canCheckId && <span className="text-xs text-gray-500">(open it first)</span>}
+                I compared the ID (front and back) with the selfie and the face matches the applicant
+                {!canCheckId && <span className="text-xs text-gray-500">(open the ID front, back and selfie first)</span>}
               </label>
             )}
             {needsResume && (

@@ -43,15 +43,52 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
 
     @action(detail=True, methods=['get'], url_path='id-document')
     def id_document(self, request, pk=None):
-        """The photo or scan of the applicant's valid ID: the applicant, or an administrator. Login required."""
+        """The front of the applicant's valid ID: the applicant, or an administrator. Login required."""
         from apps.accounts.uploads import private_file_response
         app = self.get_object()
         return private_file_response(app.id_document)
 
+    @action(detail=True, methods=['get'], url_path='id-document-back')
+    def id_document_back(self, request, pk=None):
+        from apps.accounts.uploads import private_file_response
+        app = self.get_object()
+        return private_file_response(app.id_document_back)
+
+    @action(detail=True, methods=['get'], url_path='selfie')
+    def selfie(self, request, pk=None):
+        from apps.accounts.uploads import private_file_response
+        app = self.get_object()
+        return private_file_response(app.selfie)
+
+    @action(detail=True, methods=['post'], url_path='resubmit')
+    def resubmit(self, request, pk=None):
+        """The applicant sends the application again after it was not accepted (for example a wrong or unclear ID)."""
+        app = self.get_object()
+        if app.applicant_id != request.user.id:
+            return Response({'detail': 'You can only resubmit your own application.'}, status=http.HTTP_403_FORBIDDEN)
+        if app.kind != 'job' or app.status != 'rejected':
+            return Response({'detail': 'Only an application that was not accepted can be sent again.'}, status=http.HTTP_400_BAD_REQUEST)
+        ser = ApplicationSerializer(app, data=request.data, context=self.get_serializer_context())
+        ser.is_valid(raise_exception=True)
+        data = ser.validated_data
+        # the old files are replaced, so none of them is kept without a purpose
+        for name in ('id_document', 'id_document_back', 'selfie') + (('document',) if data.get('document') else ()):
+            old = getattr(app, name)
+            if old:
+                old.delete(save=False)
+        note = app.admin_note
+        updated = ser.save(status='submitted', previous_note=note, admin_note='', reviewed_at=None,
+                           resubmit_count=app.resubmit_count + 1)
+        AuditLog.objects.create(
+            user=request.user, action='application_resubmitted', model_name='OpportunityApplication', object_id=updated.pk,
+            ip_address=get_client_ip(request), details={'applicant': updated.email, 'title': updated.title, 'times': updated.resubmit_count},
+        )
+        return Response(ApplicationSerializer(updated, context=self.get_serializer_context()).data, status=http.HTTP_200_OK)
+
     def get_permissions(self):
         if self.action in ('update', 'partial_update'):
             return [IsAuthenticated(), IsAdminRole()]
-        if self.action == 'create':
+        if self.action in ('create', 'resubmit'):
             from apps.accounts.verification import IsIDVerified
             return [IsAuthenticated(), IsIDVerified()]  # applying needs a verified identity; reading your own applications does not
         return super().get_permissions()

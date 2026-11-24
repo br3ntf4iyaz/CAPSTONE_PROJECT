@@ -33,7 +33,12 @@ class OpportunityApplication(models.Model):
     message = models.TextField(blank=True)
     confirmed_requirements = models.JSONField(default=list, blank=True)
     document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # the resume, for jobs
-    id_document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # photo or scan of the valid ID
+    id_document = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # the FRONT of the valid ID, taken with the camera
+    id_document_back = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # the BACK of the valid ID
+    selfie = models.FileField(upload_to=application_doc_path, storage=private_storage, null=True, blank=True)  # live selfie for the face check
+    face_check = models.JSONField(default=dict, blank=True)  # what the applicant's device measured (face distance, live capture); the reviewer still compares the faces
+    resubmit_count = models.PositiveSmallIntegerField(default=0)
+    previous_note = models.TextField(blank=True)  # the reason LYDO gave the last time it was not accepted
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
     admin_note = models.TextField(blank=True)

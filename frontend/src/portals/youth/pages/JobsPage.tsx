@@ -217,7 +217,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
           {dl === 'closed' ? (
             <p className="text-sm text-center text-ink-400 py-1">This position is no longer accepting applications.</p>
           ) : applied ? (
-            <AppliedNotice kind="job" objectId={j.id} />
+            <AppliedNotice kind="job" objectId={j.id} onResubmit={() => setApplying(true)} />
           ) : (
             <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
           )}
@@ -230,6 +230,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         </div>
         {applying && (
           <ApplyModal kind="job" objectId={j.id} title={j.title} provider={j.company_or_org}
+            resubmit={applied?.status === 'rejected'}
             requirements={splitRequirements(j.requirements)} onClose={() => setApplying(false)} />
         )}
       </div>
