@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Briefcase, School as SchoolIcon, Award, Plus, Edit2, Trash2, X,
@@ -388,7 +389,11 @@ export default function AdminJobsSchoolsPage() {
     <div className="space-y-5">
       <div>
         <h1 className="page-title">Jobs, Scholarships &amp; Schools</h1>
-        <p className="page-subtitle">Manage job listings, scholarship references, and the school directory</p>
+        <p className="page-subtitle">
+          Add and edit what young people can apply for: job listings, scholarships and the school directory. When someone applies, it appears under{' '}
+          <Link to="/admin/applications" className="font-semibold text-primary-700 hover:underline">Applications</Link>{' '}
+          (<Link to="/admin/applications?tab=scholarships" className="font-semibold text-primary-700 hover:underline">scholarship applications</Link>).
+        </p>
       </div>
 
       {/* Tabs */}

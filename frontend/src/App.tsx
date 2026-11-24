@@ -90,8 +90,7 @@ const HelpCenterPage = lazy(() => import('@/portals/youth/pages/HelpCenterPage')
 const AdminSupportPage = lazy(() => import('@/portals/admin/pages/AdminSupportPage'))
 const AdminSKOfficialsPage = lazy(() => import('@/portals/admin/pages/AdminSKOfficialsPage'))
 const MyApplicationsPage = lazy(() => import('@/portals/youth/pages/MyApplicationsPage'))
-const AdminApplicationsPage = lazy(() => import('@/portals/admin/pages/AdminApplicationsPage'))
-const AdminScholarshipApplicationsPage = lazy(() => import('@/portals/admin/pages/AdminScholarshipApplicationsPage'))
+const AdminApplicationsHubPage = lazy(() => import('@/portals/admin/pages/AdminApplicationsHubPage'))
 const AdminVerificationPage   = lazy(() => import('@/portals/admin/pages/AdminVerificationPage'))
 const AdminAuditLogPage       = lazy(() => import('@/portals/admin/pages/AdminAuditLogPage'))
 const AdminParticipationPage  = lazy(() => import('@/portals/admin/pages/AdminParticipationPage'))
@@ -258,8 +257,8 @@ export default function App() {
         <Route path="/admin/programs"         element={<Wrap><AdminProgramsPage /></Wrap>} />
         <Route path="/admin/reports"         element={<Wrap><AdminReportsPage /></Wrap>} />
         <Route path="/admin/support"         element={<Wrap><AdminSupportPage /></Wrap>} />
-        <Route path="/admin/applications"    element={<Wrap><AdminApplicationsPage /></Wrap>} />
-        <Route path="/admin/scholarship-applications" element={<Wrap><AdminScholarshipApplicationsPage /></Wrap>} />
+        <Route path="/admin/applications"    element={<Wrap><AdminApplicationsHubPage /></Wrap>} />
+        <Route path="/admin/scholarship-applications" element={<Navigate to="/admin/applications?tab=scholarships" replace />} />
         <Route path="/admin/verification"    element={<Wrap><AdminVerificationPage /></Wrap>} />
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
         <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />

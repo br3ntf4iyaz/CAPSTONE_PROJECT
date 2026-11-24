@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, Save, Download, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -113,7 +114,7 @@ function csvCell(v: unknown) {
   return /^[=+\-@]/.test(s) ? `"'${s}"` : `"${s}"`
 }
 
-export default function AdminApplicationsPage() {
+export default function AdminApplicationsPage({ embedded = false }: { embedded?: boolean }) {
   const [status, setStatus] = useState('')
   const [kind, setKind] = useState('')
   const [q, setQ] = useState('')
@@ -151,8 +152,15 @@ export default function AdminApplicationsPage() {
         <div className="flex items-center gap-3">
           <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white"><ClipboardCheck size={20} /></span>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Applications</h1>
+            {embedded
+              ? <h2 className="text-lg font-bold text-gray-900">Job applications</h2>
+              : <h1 className="text-xl font-bold text-gray-900">Job applications</h1>}
             <p className="text-xs text-gray-500">{count('submitted')} new · {count('under_review')} under review · {data.length} total</p>
+            <p className="mt-0.5 text-xs text-gray-500">
+              Applications sent by young people for jobs (this also shows any older scholarship applications made before the new scholarship system).
+              To add or edit the listings, go to{' '}
+              <Link to="/admin/jobs-schools" className="font-semibold text-primary-700 hover:underline">Jobs, Scholarships &amp; Schools</Link>.
+            </p>
           </div>
         </div>
         <button type="button" onClick={exportCsv} disabled={shown.length === 0} className="btn-secondary inline-flex items-center gap-2 disabled:opacity-50">

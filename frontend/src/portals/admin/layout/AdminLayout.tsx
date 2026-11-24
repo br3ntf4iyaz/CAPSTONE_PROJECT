@@ -171,7 +171,6 @@ const NAV_ITEMS = [
   { label: 'Library',          icon: Library,         to: '/admin/library' },
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
   { label: 'Applications',     icon: ClipboardList,  to: '/admin/applications' },
-  { label: 'Scholarship Applications', icon: GraduationCap, to: '/admin/scholarship-applications' },
   { label: 'ID Verification',  icon: Shield,          to: '/admin/verification' },
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
@@ -205,8 +204,10 @@ export default function AdminLayout() {
       const skq = await apiClient.get('/compliance/sk/queue/').then(r => (r.data?.to_verify?.length ?? 0) + (r.data?.ready_to_publish?.length ?? 0)).catch(() => 0)
       return {
         '/admin/sk-compliance': skq,
-        '/admin/applications': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
-        '/admin/scholarship-applications': sch.filter(a => a.status === 'submitted').length,
+        // one menu entry for both lists: the badge adds them up, and the tabs inside show each one
+        '/admin/applications': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length + sch.filter(a => a.status === 'submitted').length,
+        '/admin/applications:jobs': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
+        '/admin/applications:scholarships': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
         '/admin/support': tix.filter(t => t.status === 'open').length,
       }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GraduationCap, Save, FileText, Eye, ChevronDown, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -118,7 +119,7 @@ function Row({ a }: { a: ScholarshipApplication }) {
   )
 }
 
-export default function AdminScholarshipApplicationsPage() {
+export default function AdminScholarshipApplicationsPage({ embedded = false }: { embedded?: boolean }) {
   const [status, setStatus] = useState('')
   const [scholarship, setScholarship] = useState('')
   const [q, setQ] = useState('')
@@ -136,8 +137,14 @@ export default function AdminScholarshipApplicationsPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="page-title flex items-center gap-2"><GraduationCap size={22} className="text-primary-700" /> Scholarship Applications</h1>
-        <p className="page-subtitle">Review applications, check documents and update the status. Every change notifies the applicant.</p>
+        {embedded
+          ? <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900"><GraduationCap size={18} className="text-primary-700" /> Scholarship applications</h2>
+          : <h1 className="page-title flex items-center gap-2"><GraduationCap size={22} className="text-primary-700" /> Scholarship applications</h1>}
+        <p className={embedded ? 'text-sm text-gray-500' : 'page-subtitle'}>
+          Applications sent by young people for a scholarship: review them, check the documents and update the status. Every change notifies the applicant.
+          To add or edit the scholarships themselves, go to{' '}
+          <Link to="/admin/jobs-schools" className="font-semibold text-primary-700 hover:underline">Jobs, Scholarships &amp; Schools</Link>.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
