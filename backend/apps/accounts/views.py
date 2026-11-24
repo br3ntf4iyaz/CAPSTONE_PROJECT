@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.mail import EmailMultiAlternatives
+from django.utils import timezone
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -335,6 +336,14 @@ class GoogleAuthView(generics.GenericAPIView):
         user = User.objects.filter(email__iexact=email).first()
         created = False
         if user is None:
+            # A new account is only created after the person actively agrees to the Terms of Use and Privacy Policy.
+            if str(request.data.get("accepted_terms", "")).lower() not in ("true", "1"):
+                return Response(
+                    {"detail": "Please read and agree to the Terms of Use and Privacy Policy to create your account.",
+                     "code": "terms_required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            from apps.policies.views import current_versions
             user, created = User.objects.get_or_create(
                 email=email,
                 defaults={
@@ -343,6 +352,8 @@ class GoogleAuthView(generics.GenericAPIView):
                     "role":       User.Role.YOUTH,
                     "youth_type": User.YouthType.GENERAL,
                     "is_email_verified": True,
+                    "policies_accepted_at": timezone.now(),
+                    "policies_version": current_versions(),
                 },
             )
 

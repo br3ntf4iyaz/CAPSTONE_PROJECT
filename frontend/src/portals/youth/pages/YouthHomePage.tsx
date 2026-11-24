@@ -5,6 +5,7 @@ import { toArray } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { HeroSection } from './home/HeroSection'
 import { ActivitiesSection } from './home/ActivitiesSection'
+import { YouthOrgProgramsSection } from './home/YouthOrgProgramsSection'
 import { FeaturedPostsSection } from './home/FeaturedPostsSection'
 import { FeaturesSection } from './home/FeaturesSection'
 import { OpportunitiesSection } from './home/OpportunitiesSection'
@@ -79,6 +80,7 @@ export default function YouthHomePage() {
     <div className="bg-paper-50">
       <HeroSection isAuthenticated={isAuthenticated} stats={statsQ.data} />
       <ActivitiesSection slides={slides} />
+      <YouthOrgProgramsSection />
       <FeaturedPostsSection posts={featuredPostsQ.data ?? []} isLoading={featuredPostsQ.isLoading} />
       <FeaturesSection gated={gated} />
       <OpportunitiesSection />

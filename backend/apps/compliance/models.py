@@ -1,5 +1,10 @@
+import os
+import uuid
+
 from django.conf import settings
 from django.db import models
+
+from apps.accounts.storage import private_storage
 
 
 LUCENA_BARANGAYS = [
@@ -157,3 +162,63 @@ class SKAssemblyRecord(models.Model):
 
     def __str__(self):
         return f"Assembly - {self.get_barangay_display()} ({self.year})"
+
+
+# ─── Full Public Disclosure (FPDPB) ──────────────────────────────────────────
+
+class DisclosureRequirement(models.Model):
+    """A document that must be disclosed on a schedule (one row of the FPDPB checklist).
+
+    Quarterly requirements follow the fixed deadlines in disclosure.py (April 7, July 7, October 7 and January 7).
+    Annual requirements may have a deadline the administrator sets (month and day); with none, they are never overdue.
+    """
+    FREQUENCY_CHOICES = [('quarterly', 'Quarterly'), ('annual', 'Annual')]
+
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default='quarterly')
+    deadline_month = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Annual only: month of the yearly deadline (1-12).')
+    deadline_day = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Annual only: day of the yearly deadline.')
+    order = models.PositiveSmallIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.title
+
+
+def disclosure_upload_path(instance, filename):
+    ext = os.path.splitext(filename or '')[1].lower()
+    return f'disclosure/{instance.year}/{instance.requirement_id}/{uuid.uuid4().hex}{ext}'
+
+
+class DisclosureSubmission(models.Model):
+    """One uploaded document for one reporting period. Uploads are never overwritten: a new upload is a new row, so the
+    full history is kept. A period only counts as completed when one of its uploads has been VERIFIED by an administrator."""
+    STATUS_CHOICES = [('uploaded', 'Uploaded, waiting for verification'), ('verified', 'Verified'), ('rejected', 'Rejected')]
+
+    requirement = models.ForeignKey(DisclosureRequirement, on_delete=models.PROTECT, related_name='submissions')
+    year = models.PositiveSmallIntegerField()
+    quarter = models.PositiveSmallIntegerField(null=True, blank=True)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    file = models.FileField(upload_to=disclosure_upload_path, storage=private_storage)
+    original_name = models.CharField(max_length=255, blank=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='uploaded')
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    verified_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.TextField(blank=True)
+    # Shown to the public only when verified AND this is true.
+    is_public = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-uploaded_at', '-id']
+        indexes = [models.Index(fields=['requirement', 'year', 'quarter']), models.Index(fields=['status'])]
+
+    def __str__(self):
+        return f'{self.title} ({self.year}{f" Q{self.quarter}" if self.quarter else ""}) - {self.status}'

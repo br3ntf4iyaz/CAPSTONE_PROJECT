@@ -27,6 +27,7 @@ interface YouthProgram {
   end_date: string | null
   location: string
   is_featured: boolean
+  is_published: boolean
   contact_person: string
   contact_email: string
   contact_phone: string
@@ -48,6 +49,7 @@ interface ProgramFormData {
   end_date: string
   location: string
   is_featured: boolean
+  is_published: boolean
   contact_person: string
   contact_email: string
   contact_phone: string
@@ -95,6 +97,7 @@ const EMPTY_FORM: ProgramFormData = {
   end_date: '',
   location: '',
   is_featured: false,
+  is_published: true,
   contact_person: '',
   contact_email: '',
   contact_phone: '',
@@ -128,6 +131,7 @@ function ProgramModal({ editProgram, onClose, onSaved }: ProgramModalProps) {
           end_date: editProgram.end_date ?? '',
           location: editProgram.location,
           is_featured: editProgram.is_featured,
+          is_published: editProgram.is_published ?? true,
           contact_person: editProgram.contact_person,
           contact_email: editProgram.contact_email,
           contact_phone: editProgram.contact_phone,
@@ -321,6 +325,19 @@ function ProgramModal({ editProgram, onClose, onSaved }: ProgramModalProps) {
             <span className="text-sm font-medium text-gray-700">Featured (shown prominently on programs page)</span>
           </label>
 
+          <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-primary-100 bg-primary-50/40 p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 w-4 h-4 accent-primary-700"
+              checked={form.is_published}
+              onChange={e => setF('is_published', e.target.checked)}
+            />
+            <span className="text-sm text-gray-700">
+              <span className="font-semibold">Published</span> &mdash; visible to the public on the homepage, without signing in.
+              Untick to keep it as a draft that only administrators can see.
+            </span>
+          </label>
+
           {/* Contact Information */}
           <div className="pt-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Contact Information</p>
@@ -426,6 +443,7 @@ export default function AdminProgramsPage() {
                 <th>Title</th>
                 <th>Category</th>
                 <th>Status</th>
+                <th>Visibility</th>
                 <th>Type</th>
                 <th>Barangay</th>
                 <th>Contact</th>
@@ -451,6 +469,11 @@ export default function AdminProgramsPage() {
                       prog.status === 'completed' ? 'badge-gray' : 'badge-red'
                     )}>
                       {prog.status_display}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={cn('badge text-xs', prog.is_published ? 'badge-green' : 'badge-gray')}>
+                      {prog.is_published ? 'Published' : 'Draft'}
                     </span>
                   </td>
                   <td className="text-sm text-ink-500">

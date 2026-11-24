@@ -6,6 +6,7 @@ import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useMe } from '@/hooks/useAuth'
 import FloatingChatbot from '../components/FloatingChatbot'
+import PolicyLinks from '@/components/PolicyLinks'
 
 export default function YouthPublicLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -207,7 +208,10 @@ export default function YouthPublicLayout() {
           </div>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pt-6 border-t border-white/10 text-xs text-primary-100/60">
-            <p>&copy; 2025 City Government of Lucena · Youth Development Office</p>
+            <div className="space-y-2">
+              <p>&copy; 2025 City Government of Lucena · Youth Development Office</p>
+              <PolicyLinks disclosure className="text-primary-100/80" linkClassName="hover:text-white" />
+            </div>
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-sm bg-primary-500" />
               <span className="w-3 h-3 rounded-sm bg-alert-500" />

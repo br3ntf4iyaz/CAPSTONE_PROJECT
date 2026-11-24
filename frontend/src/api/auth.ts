@@ -19,6 +19,7 @@ export const authApi = {
     password2: string
     organization?: string
     job_title?: string
+    accepted_terms: boolean
   }) => apiClient.post<{ detail: string; email: string }>('/auth/register/', { ...data, email: normalizeEmail(data.email) }),
 
   verifyEmail: (token: string) =>
@@ -27,8 +28,8 @@ export const authApi = {
   resendVerification: (email: string) =>
     apiClient.post<{ detail: string }>('/auth/resend-verification/', { email: normalizeEmail(email) }),
 
-  googleAuth: (accessToken: string) =>
-    apiClient.post<AuthResponse & { created: boolean }>('/auth/google/', { access_token: accessToken }),
+  googleAuth: (accessToken: string, acceptedTerms = false) =>
+    apiClient.post<AuthResponse & { created: boolean }>('/auth/google/', { access_token: accessToken, accepted_terms: acceptedTerms }),
 
   logout: (refresh: string) =>
     apiClient.post('/auth/logout/', { refresh }),

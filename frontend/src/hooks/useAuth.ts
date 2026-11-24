@@ -109,6 +109,7 @@ export function useRegister() {
       password2: string
       organization?: string
       job_title?: string
+      accepted_terms: boolean
     }) => {
       const res = await authApi.register(payload)
       // Register endpoint now returns { detail, email } \u2014 no JWT yet
@@ -136,8 +137,8 @@ export function useGoogleAuth(redirectTo?: string | null) {
   const qc = useQueryClient()
 
   return useMutation({
-    mutationFn: async (accessToken: string) => {
-      const res = await authApi.googleAuth(accessToken)
+    mutationFn: async ({ token, accepted = false }: { token: string; accepted?: boolean }) => {
+      const res = await authApi.googleAuth(token, accepted)
       const { user, access, refresh, created } = res.data as any
       authStore.storeTokens(access, refresh)
       return { user, access, refresh, created }
@@ -154,6 +155,8 @@ export function useGoogleAuth(redirectTo?: string | null) {
     },
     onError: (err: any) => {
       authStore.logout()
+      // A new account needs the person to agree to the policies first: the button asks, so no error toast here
+      if (err?.response?.data?.code === 'terms_required') return
       const detail = err?.response?.data?.detail
       toast.error(detail ?? 'Google Sign-In failed. Please try again.')
     },

@@ -54,6 +54,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(default=timezone.now)
     avatar = models.ImageField(upload_to=avatar_upload_path, null=True, blank=True)
     onboarding_complete = models.BooleanField(default=True)  # skip forced onboarding
+    # The Terms of Use / Privacy Policy the person actively acknowledged when creating the account (blank for older accounts).
+    policies_accepted_at = models.DateTimeField(null=True, blank=True)
+    policies_version = models.CharField(max_length=60, blank=True)
 
     objects = UserManager()
 

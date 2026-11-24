@@ -10,10 +10,17 @@ class RegisterSerializer(serializers.ModelSerializer):
     organization = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     job_title = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
     barangay = serializers.CharField(write_only=True, required=False, allow_blank=True, default='')
+    # The person must actively confirm they read the Terms of Use and Privacy Policy. Never assumed.
+    accepted_terms = serializers.BooleanField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ["email", "first_name", "last_name", "barangay", "role", "youth_type", "password", "password2", "organization", "job_title"]
+        fields = ["email", "first_name", "last_name", "barangay", "role", "youth_type", "password", "password2", "organization", "job_title", "accepted_terms"]
+
+    def validate_accepted_terms(self, value):
+        if value is not True:
+            raise serializers.ValidationError("You must read and agree to the Terms of Use and Privacy Policy to create an account.")
+        return value
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password2"]:
@@ -45,12 +52,17 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop("password2")
+        validated_data.pop("accepted_terms", None)
         password = validated_data.pop("password")
         organization = validated_data.pop("organization", "")
         job_title = validated_data.pop("job_title", "")
         barangay = validated_data.pop("barangay", "")
         user = User(**validated_data)
         user.set_password(password)
+        from django.utils import timezone
+        from apps.policies.views import current_versions
+        user.policies_accepted_at = timezone.now()
+        user.policies_version = current_versions()
         user.save()
         profile_fields = {}
         if organization:

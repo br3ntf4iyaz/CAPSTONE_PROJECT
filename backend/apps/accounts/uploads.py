@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 DOC_EXTS = {".pdf", ".doc", ".docx"}
+OFFICE_EXTS = {".pdf", ".doc", ".docx", ".xls", ".xlsx"}  # documents and spreadsheets (public disclosure files)
 
 
 def _fail(field, message):
@@ -36,9 +37,9 @@ def check_upload(file, allowed_exts, max_bytes, field="file"):
         file.seek(0)
     elif ext == ".pdf":
         ok = head.startswith(b"%PDF")
-    elif ext == ".docx":
+    elif ext in (".docx", ".xlsx"):
         ok = head.startswith(b"PK")
-    elif ext == ".doc":
+    elif ext in (".doc", ".xls"):
         ok = head.startswith(b"\xd0\xcf\x11\xe0")
     if not ok:
         _fail(field, "The file content does not match its type.")

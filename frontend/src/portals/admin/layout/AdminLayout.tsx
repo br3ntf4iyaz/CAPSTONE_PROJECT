@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FolderOpen, Users, ClipboardCheck, BarChart3,
   CalendarDays, BookOpen, ClipboardList, GraduationCap, UserCog, Library,
   Briefcase, Bell, Shield, LogOut, ChevronLeft, ChevronRight, Menu,
-  Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy,
+  Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy, Landmark, Scale,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -176,6 +176,8 @@ const NAV_ITEMS = [
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
   { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
+  { label: 'Public Disclosure', icon: Landmark,        to: '/admin/disclosure' },
+  { label: 'Policies',         icon: Scale,           to: '/admin/policies' },
   { label: 'Audit Log',        icon: History,         to: '/admin/audit-log' },
 ]
 

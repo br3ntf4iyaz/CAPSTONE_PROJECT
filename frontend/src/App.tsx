@@ -22,6 +22,8 @@ import ResetPasswordPage from '@/portals/youth/pages/ResetPasswordPage'
 import OnboardingPage from '@/portals/youth/pages/OnboardingPage'
 import TermsPage from '@/portals/youth/pages/TermsPage'
 import PrivacyPage from '@/portals/youth/pages/PrivacyPage'
+import CookiePolicyPage from '@/portals/youth/pages/CookiePolicyPage'
+import CookieConsent from '@/components/CookieConsent'
 
 // ─── Youth Portal pages (lazy) ────────────────────────────────────────────────
 const YouthDashboardPage   = lazy(() => import('@/portals/youth/pages/YouthDashboardPage'))
@@ -94,6 +96,9 @@ const AdminVerificationPage   = lazy(() => import('@/portals/admin/pages/AdminVe
 const AdminAuditLogPage       = lazy(() => import('@/portals/admin/pages/AdminAuditLogPage'))
 const AdminParticipationPage  = lazy(() => import('@/portals/admin/pages/AdminParticipationPage'))
 const AdminProgramsPage       = lazy(() => import('@/portals/admin/pages/AdminProgramsPage'))
+const TransparencyPage        = lazy(() => import('@/portals/youth/pages/TransparencyPage'))
+const AdminDisclosurePage     = lazy(() => import('@/portals/admin/pages/AdminDisclosurePage'))
+const AdminPoliciesPage       = lazy(() => import('@/portals/admin/pages/AdminPoliciesPage'))
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 /**
@@ -149,6 +154,7 @@ function YORPGuard() {
 
 export default function App() {
   return (
+    <>
     <Routes>
       {/* ── Youth Portal &mdash; public pages (no auth) ─────────────────────── */}
       <Route element={<YouthPublicLayout />}>
@@ -159,6 +165,8 @@ export default function App() {
         <Route path="/news-feed/:id"     element={<ProgramNewsDetailPage />} />
         {/* Survey detail — publicly viewable, submit requires login */}
         <Route path="/surveys/:id"       element={<Wrap><PublicSurveyDetailPage /></Wrap>} />
+        {/* Public disclosure: verified documents anyone may read, no sign-in */}
+        <Route path="/transparency"      element={<Wrap><TransparencyPage /></Wrap>} />
       </Route>
 
       {/* ── Auth pages &mdash; standalone (have their own header) ──────────── */}
@@ -171,6 +179,7 @@ export default function App() {
       <Route path="/onboarding"           element={<OnboardingPage />} />
       <Route path="/terms"                element={<TermsPage />} />
       <Route path="/privacy"              element={<PrivacyPage />} />
+      <Route path="/cookies"              element={<CookiePolicyPage />} />
 
       {/* ── Youth Portal &mdash; authenticated (all show tab nav) ───────────── */}
       <Route element={<YouthLayout />}>
@@ -250,10 +259,14 @@ export default function App() {
         <Route path="/admin/verification"    element={<Wrap><AdminVerificationPage /></Wrap>} />
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
         <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />
+        <Route path="/admin/disclosure"      element={<Wrap><AdminDisclosurePage /></Wrap>} />
+        <Route path="/admin/policies"        element={<Wrap><AdminPoliciesPage /></Wrap>} />
       </Route>
 
       {/* ── Catch-all ─────────────────────────────────────────────────── */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    <CookieConsent />
+    </>
   )
 }

@@ -15,6 +15,7 @@ import { useMe } from '@/hooks/useAuth'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import FloatingChatbot from '../components/FloatingChatbot'
+import PolicyLinks from '@/components/PolicyLinks'
 import { PageSpinner } from '@/components/ui/Spinner'
 
 // ── Tab Definitions ────────────────────────────────────────────────────────────
@@ -669,6 +670,13 @@ export default function YouthLayout() {
       <main className="flex-1 max-w-screen-2xl w-full mx-auto px-4 sm:px-6 py-6 pb-20 md:pb-6">
         <Outlet />
       </main>
+
+      <footer className="border-t border-ink-100 bg-white px-4 py-4 pb-20 text-xs text-ink-500 md:pb-4">
+        <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:px-2">
+          <span>&copy; City Government of Lucena · Youth Development Office</span>
+          <PolicyLinks disclosure linkClassName="hover:text-primary-700" />
+        </div>
+      </footer>
 
       {/* ── Mobile bottom tab bar ──────────────────────────────────────── */}
       <MobileTabBar tabs={tabs} />

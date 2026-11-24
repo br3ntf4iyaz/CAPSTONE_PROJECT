@@ -9,6 +9,7 @@ import { useRegister } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
+import PolicyLinks from '@/components/PolicyLinks'
 
 export const LUCENA_BARANGAYS = [
   'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)',
@@ -32,7 +33,7 @@ const schema = z.object({
   position:     z.string().max(200).optional(),
   password:     z.string().min(8, 'Password must be at least 8 characters'),
   password2:    z.string().min(1, 'Please confirm your password'),
-  terms:        z.boolean().refine(v => v === true, 'You must agree to the terms'),
+  terms:        z.boolean().refine(v => v === true, 'You must read and agree to the Terms of Use and Privacy Policy to create an account'),
 }).superRefine((data, ctx) => {
   if (data.password !== data.password2) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Passwords do not match', path: ['password2'] })
@@ -101,6 +102,7 @@ export default function YouthRegisterPage() {
       role:       'youth',
       password:   data.password,
       password2:  data.password2,
+      accepted_terms: data.terms === true,
       ...(data.youth_type === 'youth_org_leader' ? {
         organization: data.organization ?? '',
         job_title:    data.position ?? '',
@@ -401,10 +403,12 @@ export default function YouthRegisterPage() {
                     className="mt-0.5 h-4 w-4 rounded border-ink-300 text-primary-600 focus:ring-2 focus:ring-primary-400 focus:ring-offset-1 cursor-pointer accent-primary-600"
                   />
                   <span className="text-sm text-ink-700 leading-relaxed">
-                    I agree to the{' '}
-                    <Link to="/terms" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">terms and conditions</Link>{' '}
-                    and{' '}
-                    <Link to="/privacy" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">privacy policy</Link>.
+                    I have read and agree to the{' '}
+                    <Link to="/terms" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Terms of Use</Link>{' '}
+                    and the{' '}
+                    <Link to="/privacy" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Privacy Policy</Link>.
+                    {' '}See also the{' '}
+                    <Link to="/cookies" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Cookie Policy</Link>.
                   </span>
                 </label>
                 {errors.terms && <p className="error-msg">{errors.terms.message}</p>}
@@ -439,6 +443,7 @@ export default function YouthRegisterPage() {
                 )}
               </button>
             </form>
+            <PolicyLinks className="mt-6 text-xs text-ink-500" linkClassName="hover:text-primary-700" />
 
             <p className="mt-8 text-xs text-ink-500 leading-relaxed text-center">
               By creating an account, you agree to receive notifications from LYDO

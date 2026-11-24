@@ -57,6 +57,8 @@ class YouthProgram(models.Model):
         related_name='programs_submitted',
     )
     is_featured = models.BooleanField(default=False)
+    # Only published programs are shown to the public (homepage and /programs). Drafts stay admin-only.
+    is_published = models.BooleanField(default=True)
     thumbnail = models.ImageField(upload_to='program_thumbnails/', null=True, blank=True)
     contact_person = models.CharField(max_length=150, blank=True, default='')
     contact_email = models.EmailField(blank=True, default='')

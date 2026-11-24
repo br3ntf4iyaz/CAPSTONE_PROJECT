@@ -12,6 +12,7 @@ import { cn, toArray } from '@/utils'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
+import { prefStorage } from '@/lib/consent'
 import apiClient from '@/api/client'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -108,7 +109,7 @@ const LS_KEY = 'lydo_saved_scholarships'
 
 function loadSaved(): Set<string> {
   try {
-    const raw = localStorage.getItem(LS_KEY)
+    const raw = prefStorage.getItem(LS_KEY)
     return new Set(raw ? JSON.parse(raw) : [])
   } catch {
     return new Set()
@@ -116,7 +117,7 @@ function loadSaved(): Set<string> {
 }
 
 function persistSaved(set: Set<string>) {
-  localStorage.setItem(LS_KEY, JSON.stringify([...set]))
+  try { prefStorage.setItem(LS_KEY, JSON.stringify([...set])) } catch { /* storage blocked */ }
 }
 
 function useSavedScholarships() {

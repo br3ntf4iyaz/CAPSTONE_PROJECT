@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.sk_requirements",
     "apps.jobs",
     "apps.programs",
+    "apps.policies",
     "apps.chatbot",
     "apps.verification",
     "apps.community",

@@ -6,7 +6,7 @@ User = get_user_model()
 
 REGISTER = {
     'first_name': 'Juan', 'last_name': 'Cruz', 'role': 'youth',
-    'password': 'Str0ng!Passw0rd', 'password2': 'Str0ng!Passw0rd',
+    'password': 'Str0ng!Passw0rd', 'password2': 'Str0ng!Passw0rd', 'accepted_terms': True,
 }
 
 

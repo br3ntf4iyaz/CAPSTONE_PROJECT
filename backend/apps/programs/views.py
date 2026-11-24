@@ -16,6 +16,7 @@ from .serializers import (
     CompletionReportSerializer,
     FeaturedSlideSerializer,
     ProgramDetailSerializer,
+    ProgramHomeSerializer,
     ProgramListSerializer,
     ProgramSubmissionSerializer,
     SubmissionAttachmentSerializer,
@@ -77,6 +78,9 @@ class YouthProgramViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         qs = YouthProgram.objects.select_related('organization', 'submitted_by')
+        # Visitors and ordinary accounts only ever see published programs. Administrators see drafts too.
+        if not IsAdminRole().has_permission(self.request, self):
+            qs = qs.filter(is_published=True)
 
         # Query-param filters
         category = self.request.query_params.get('category')
@@ -104,7 +108,7 @@ class YouthProgramViewSet(viewsets.ModelViewSet):
         return ProgramDetailSerializer
 
     def get_permissions(self):
-        if self.action in ('list', 'retrieve', 'featured_completed'):
+        if self.action in ('list', 'retrieve', 'featured_completed', 'home'):
             return [AllowAny()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -127,10 +131,19 @@ class YouthProgramViewSet(viewsets.ModelViewSet):
         homepage / landing page showcase.
         """
         qs = YouthProgram.objects.filter(
-            status='completed', is_featured=True
+            status='completed', is_featured=True, is_published=True
         ).select_related('organization', 'submitted_by').order_by('-updated_at')
         serializer = ProgramListSerializer(qs, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='home', permission_classes=[AllowAny])
+    def home(self, request):
+        """Published youth organization programs for the public homepage. No sign-in needed. Upcoming and ongoing first."""
+        qs = (YouthProgram.objects.filter(is_published=True, submitter_type='youth_org')
+              .exclude(status='cancelled').select_related('organization'))
+        order = {'ongoing': 0, 'upcoming': 1, 'completed': 2}
+        items = sorted(qs, key=lambda p: (order.get(p.status, 3), -(p.start_date.toordinal() if p.start_date else 0), -p.id))[:12]
+        return Response(ProgramHomeSerializer(items, many=True, context={'request': request}).data)
 
 
 # ---------------------------------------------------------------------------

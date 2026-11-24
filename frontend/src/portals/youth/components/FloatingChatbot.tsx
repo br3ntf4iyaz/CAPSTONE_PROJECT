@@ -3,6 +3,7 @@ import { X, Send, Sparkles, ChevronDown } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { chatbotApi } from '@/api'
 import { cn } from '@/utils'
+import { prefStorage } from '@/lib/consent'
 import { ChatMarkdown } from './ChatMarkdown'
 
 interface Message {
@@ -26,7 +27,7 @@ const GREETING: Message = {
 /** Restore the previous conversation (per browser) so a reload doesn't wipe it. */
 function loadSaved(): { key: string; messages: Message[] } {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = prefStorage.getItem(STORAGE_KEY)
     if (raw) {
       const parsed = JSON.parse(raw)
       if (parsed?.key && Array.isArray(parsed.messages) && parsed.messages.length > 0) {
@@ -53,7 +54,7 @@ function FloatingChatbotInner() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ key: sessionKey, messages: messages.slice(-30) }))
+      prefStorage.setItem(STORAGE_KEY, JSON.stringify({ key: sessionKey, messages: messages.slice(-30) }))
     } catch { /* ignore quota/private-mode errors */ }
   }, [messages, sessionKey])
 

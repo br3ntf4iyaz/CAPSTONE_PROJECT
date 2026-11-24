@@ -1,4 +1,6 @@
-﻿import { useGoogleLogin } from '@react-oauth/google'
+﻿import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useGoogleLogin } from '@react-oauth/google'
 import { useGoogleAuth } from '@/hooks/useAuth'
 import { Spinner } from '@/components/ui/Spinner'
 
@@ -17,6 +19,9 @@ interface Props {
  */
 export function GoogleSignInButton({ label = 'Continue with Google', redirectTo }: Props) {
   const googleAuth = useGoogleAuth(redirectTo)
+  // set when Google sign-in would create a NEW account: the person must agree to the policies first (never assumed)
+  const [pendingToken, setPendingToken] = useState<string | null>(null)
+  const [agreed, setAgreed] = useState(false)
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? ''
 
   if (!clientId) return null
@@ -24,7 +29,11 @@ export function GoogleSignInButton({ label = 'Continue with Google', redirectTo 
   const login = useGoogleLogin({
     onSuccess: (tokenResponse) => {
       // tokenResponse.access_token &mdash; sent to backend for profile lookup
-      googleAuth.mutate(tokenResponse.access_token)
+      googleAuth.mutate({ token: tokenResponse.access_token }, {
+        onError: (err: any) => {
+          if (err?.response?.data?.code === 'terms_required') { setAgreed(false); setPendingToken(tokenResponse.access_token) }
+        },
+      })
     },
     onError: () => {
       // Popup closed or cancelled &mdash; no toast needed, user can retry
@@ -32,6 +41,31 @@ export function GoogleSignInButton({ label = 'Continue with Google', redirectTo 
   })
 
   return (
+    <>
+    {pendingToken && (
+      <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label="Create your account">
+        <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <h2 className="font-display text-lg font-bold text-ink-900">Create your account</h2>
+          <p className="mt-1 text-sm text-ink-600">There is no LYDO account for this Google email yet. To create one, please confirm the following.</p>
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-ink-200 bg-paper-50 p-3.5">
+            <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
+              className="mt-0.5 h-4 w-4 cursor-pointer rounded border-ink-300 accent-primary-600" />
+            <span className="text-sm leading-relaxed text-ink-700">
+              I have read and agree to the{' '}
+              <Link to="/terms" target="_blank" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link> and the{' '}
+              <Link to="/privacy" target="_blank" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link>.
+            </span>
+          </label>
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="btn-secondary btn-sm" onClick={() => setPendingToken(null)}>Cancel</button>
+            <button type="button" className="btn-primary btn-sm" disabled={!agreed || googleAuth.isPending}
+              onClick={() => googleAuth.mutate({ token: pendingToken, accepted: true }, { onSettled: () => setPendingToken(null) })}>
+              Create account
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <button
       type="button"
       onClick={() => login()}
@@ -50,5 +84,6 @@ export function GoogleSignInButton({ label = 'Continue with Google', redirectTo 
       )}
       <span>{googleAuth.isPending ? 'Signing in…' : label}</span>
     </button>
+    </>
   )
 }

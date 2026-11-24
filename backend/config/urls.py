@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/sk-requirements/", include("apps.sk_requirements.urls")),
     path("api/jobs/", include("apps.jobs.urls")),
     path("api/programs/", include("apps.programs.urls")),
+    path("api/policies/", include("apps.policies.urls")),
     path("api/chatbot/", include("apps.chatbot.urls")),
     path("api/ledger/", include("apps.ledger.urls")),
     path("api/verification/", include("apps.verification.urls")),

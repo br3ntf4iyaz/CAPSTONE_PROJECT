@@ -89,6 +89,7 @@ class ProgramListSerializer(serializers.ModelSerializer):
             'end_date',
             'location',
             'is_featured',
+            'is_published',
             'total_participants',
             'thumbnail_url',
             'contact_person',
@@ -145,6 +146,7 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
             'submitted_by',
             'submitted_by_email',
             'is_featured',
+            'is_published',
             'thumbnail',
             'thumbnail_url',
             'contact_person',
@@ -484,3 +486,25 @@ class CompletionReportSerializer(serializers.ModelSerializer):
 # AdminDashPage.tsx and any other code that imports ProgramSubmissionSerializer
 # expects the list-style compact representation.
 ProgramSubmissionSerializer = SubmissionListSerializer
+
+
+class ProgramHomeSerializer(serializers.ModelSerializer):
+    """What a visitor sees on the public homepage. Only fields meant for the public: no submitter account details."""
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    organization_name = serializers.CharField(source='organization.name', read_only=True, default=None)
+    thumbnail_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = YouthProgram
+        fields = [
+            'id', 'title', 'category', 'category_display', 'status', 'status_display', 'organization_name', 'barangay',
+            'description', 'objectives', 'target_beneficiaries', 'start_date', 'end_date', 'location',
+            'contact_person', 'contact_email', 'contact_phone', 'thumbnail_url',
+        ]
+
+    def get_thumbnail_url(self, obj):
+        request = self.context.get('request')
+        if obj.thumbnail and request:
+            return request.build_absolute_uri(obj.thumbnail.url)
+        return obj.thumbnail.url if obj.thumbnail else None

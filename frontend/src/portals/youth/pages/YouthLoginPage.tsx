@@ -9,6 +9,7 @@ import { useLogin, loginErrorMessage } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
+import PolicyLinks from '@/components/PolicyLinks'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -203,6 +204,11 @@ export default function YouthLoginPage() {
                 Contact LYDO →
               </a>
             </p>
+            <p className="mt-4 text-xs leading-relaxed text-ink-500">
+              By signing in you agree to our <Link to="/terms" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link> and{' '}
+              <Link to="/privacy" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link>.
+            </p>
+            <PolicyLinks className="mt-3 text-xs text-ink-500" linkClassName="hover:text-primary-700" />
           </div>
         </main>
       </div>
