@@ -16,6 +16,23 @@ import { AlertCircle, RefreshCw, Home } from 'lucide-react'
  * Mount one of these per route \u2014 App.tsx wraps every `<Wrap>` in this.
  */
 
+/** A page file that no longer exists on the server: the site was updated while this tab was open. */
+export function isStaleBundleError(error: unknown): boolean {
+  const msg = String((error as any)?.message ?? error ?? '')
+  return /Failed to fetch dynamically imported module|error loading dynamically imported module|Importing a module script failed|Unable to preload CSS/i.test(msg)
+}
+
+/** Reload once to pick up the new version. The timestamp stops an endless reload loop if the problem is something else. */
+export function reloadForNewVersion(): boolean {
+  try {
+    const last = Number(sessionStorage.getItem('lydo-stale-reload') || 0)
+    if (Date.now() - last < 60_000) return false
+    sessionStorage.setItem('lydo-stale-reload', String(Date.now()))
+  } catch { /* storage blocked: still reload once below */ }
+  window.location.reload()
+  return true
+}
+
 interface Props {
   children: ReactNode
 }
@@ -34,6 +51,7 @@ export class RouteErrorBoundary extends Component<Props, State> {
     // Forward to console for now; later this is where Sentry would hook in.
     // eslint-disable-next-line no-console
     console.error('[RouteErrorBoundary] Caught render error:', error, info)
+    if (isStaleBundleError(error)) reloadForNewVersion()
   }
 
   handleReset = () => {
@@ -42,6 +60,25 @@ export class RouteErrorBoundary extends Component<Props, State> {
 
   render() {
     if (!this.state.error) return this.props.children
+
+    if (isStaleBundleError(this.state.error)) {
+      return (
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="bg-white rounded-3xl border border-primary-100 p-8 sm:p-10 text-center">
+            <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-50 text-primary-700 mb-5">
+              <RefreshCw size={26} />
+            </span>
+            <h1 className="font-display font-extrabold text-2xl text-ink-900 mb-3">The site was just updated.</h1>
+            <p className="text-ink-600 leading-relaxed max-w-lg mx-auto mb-6">
+              A newer version is available. Reload the page to continue. Your account and progress are safe.
+            </p>
+            <button type="button" className="btn-primary" onClick={() => window.location.reload()}>
+              <RefreshCw size={16} /> Reload now
+            </button>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div className="max-w-2xl mx-auto py-12">

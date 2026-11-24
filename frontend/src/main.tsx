@@ -6,7 +6,14 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { Toaster } from 'react-hot-toast'
 import { GoogleOAuthProvider } from '@react-oauth/google'
 import App from './App'
+import { reloadForNewVersion } from '@/components/RouteErrorBoundary'
 import './index.css'
+
+// The site was updated while this tab was open: a page file it asks for is gone. Load the new version once.
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  reloadForNewVersion()
+})
 
 const queryClient = new QueryClient({
   defaultOptions: {
