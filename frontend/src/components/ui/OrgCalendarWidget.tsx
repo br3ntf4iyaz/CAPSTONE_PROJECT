@@ -3,6 +3,7 @@ import { CalendarDays, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-r
 import { useState } from 'react'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
+import { holidayOn, HOLIDAY_KIND_LABEL } from '@/utils/phHolidays'
 
 interface Event {
   id: number
@@ -89,18 +90,22 @@ function MiniCalendar({ events, selected, onSelect, cursor, setCursor }: {
           if (!day) return <div key={i} />
           const isToday = day === today.getDate() && cursor.month === today.getMonth() && cursor.year === today.getFullYear()
           const hasEvent = eventDays.has(day)
+          const holiday = holidayOn(cursor.year, cursor.month, day)
+          const red = (i % 7 === 0) || !!holiday  // Sundays and holidays are red, like a printed calendar
           return (
             <div key={i} className="flex flex-col items-center py-0.5">
               <button
                 type="button"
                 onClick={() => onSelect(selected === day ? null : day)}
-                aria-label={`${MONTH_NAMES[cursor.month]} ${day}${hasEvent ? ': has events' : ': no events'}`}
+                aria-label={`${MONTH_NAMES[cursor.month]} ${day}${holiday ? `: ${holiday.name}` : ''}${hasEvent ? ': has events' : ': no events'}`}
+                title={holiday?.name}
                 aria-pressed={selected === day}
                 className={cn(
                   'w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-colors',
-                  isToday ? 'bg-primary-600 text-white font-bold' : 'text-gray-700 dark:text-gray-300',
+                  isToday ? 'bg-primary-600 text-white font-bold' : red ? 'text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300',
                   'cursor-pointer',
                   !isToday && 'hover:bg-primary-50',
+                  holiday && !isToday && 'bg-red-50 dark:bg-red-900/20',
                   hasEvent && !isToday && 'font-semibold',
                   selected === day && 'ring-2 ring-primary-500 ring-offset-1',
                 )}
@@ -135,6 +140,7 @@ export default function OrgCalendarWidget({ title = 'Calendar', className, admin
 
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [cursor, setCursor] = useState<Cursor>({ year: new Date().getFullYear(), month: new Date().getMonth() })
+  const selectedHoliday = selectedDay == null ? undefined : holidayOn(cursor.year, cursor.month, selectedDay)
   const dayEvents = selectedDay == null ? [] : events.filter(e => sameDay(new Date(e.start_datetime), cursor.year, cursor.month, selectedDay))
   const now = new Date()
   const upcoming = events
@@ -150,6 +156,19 @@ export default function OrgCalendarWidget({ title = 'Calendar', className, admin
 
       {/* Mini calendar */}
       <MiniCalendar events={events} selected={selectedDay} onSelect={setSelectedDay} cursor={cursor} setCursor={setCursor} />
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-gray-500 dark:text-gray-400">
+        <span className="flex items-center gap-1"><span className="inline-block h-1.5 w-1.5 rounded-full bg-primary-500" /> Event</span>
+        <span className="flex items-center gap-1"><span className="inline-block h-3 w-3 rounded-full bg-red-50 text-center text-[8px] font-bold leading-3 text-red-600 ring-1 ring-red-200">1</span> Holiday</span>
+        <span className="font-bold text-red-600">Sunday</span>
+      </div>
+
+      {selectedDay != null && selectedHoliday && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs dark:border-red-900 dark:bg-red-900/20" role="status">
+          <p className="font-bold text-red-700 dark:text-red-300">{selectedHoliday.name}</p>
+          <p className="text-red-600/80 dark:text-red-300/80">{HOLIDAY_KIND_LABEL[selectedHoliday.kind]} · {MONTH_NAMES[cursor.month]} {selectedDay}, {cursor.year}</p>
+        </div>
+      )}
 
       {selectedDay != null && dayEvents.length === 0 && (
         <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300" role="status">
