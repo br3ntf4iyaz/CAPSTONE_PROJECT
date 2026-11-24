@@ -57,8 +57,7 @@ const TABS: Tab[] = [
   // Role overlays &mdash; appended after base nav
   { label: 'YORP Registration', icon: Building2,        to: '/yorp-registration', roles: ['youth_org_leader'] },
   { label: 'Submissions',       icon: FileText,         to: '/submissions',       roles: ['sk', 'youth_org_leader'] },
-  { label: 'SK Requirements',   icon: ClipboardCheck,   to: '/sk-requirements',   roles: ['sk'] },
-  { label: 'SK Compliance',     icon: Landmark,         to: '/sk-compliance',     roles: ['sk'] },
+  { label: 'SK Compliance',     icon: Landmark,         to: '/sk-compliance',     roles: ['sk'] },  // includes the SK Requirements uploads
   { label: 'Feedback Inbox',    icon: MessageCircle,    to: '/sk-inbox',          roles: ['sk'] },
 ]
 

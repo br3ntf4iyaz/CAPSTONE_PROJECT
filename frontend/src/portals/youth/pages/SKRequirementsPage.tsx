@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, Clock, AlertTriangle, Upload, ClipboardCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -87,12 +88,16 @@ export default function SKRequirementsPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <Link to="/sk-compliance" className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-ink-800">
+        ← Back to SK Compliance Monitoring
+      </Link>
       <header>
         <h1 className="page-title flex items-center gap-2">
           <ClipboardCheck size={22} className="text-primary-700" /> SK Requirements
         </h1>
         <p className="page-subtitle">
-          Documents your council submits to LYDO. Upload each one as a PDF (up to 10 MB).
+          Documents your council submits to LYDO. Upload each one as a PDF (up to 10 MB). This is part of the SK Compliance Monitoring System:
+          the CBYDP, ABYIP and Annual Budget you upload here are verified and published there. The RCB and MIL are submitted in SK Compliance.
         </p>
       </header>
 

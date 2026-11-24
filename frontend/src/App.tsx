@@ -243,7 +243,7 @@ export default function App() {
         <Route path="/admin"                 element={<Wrap><AdminDashPage /></Wrap>} />
         <Route path="/admin/projects"        element={<Wrap><AdminProjectsPage /></Wrap>} />
         <Route path="/admin/yorp"            element={<Wrap><AdminYORPPage /></Wrap>} />
-        <Route path="/admin/sk-tracker"      element={<Wrap><AdminSKTrackerPage /></Wrap>} />
+        <Route path="/admin/sk-tracker"      element={<Navigate to="/admin/sk-compliance?tab=other" replace />} />
         <Route path="/admin/sk-officials"    element={<Wrap><AdminSKOfficialsPage /></Wrap>} />
         <Route path="/admin/analytics"       element={<Wrap><AdminAnalyticsPage /></Wrap>} />
         <Route path="/admin/calendar"        element={<Wrap><AdminCalendarPage /></Wrap>} />
@@ -264,7 +264,7 @@ export default function App() {
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
         <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />
         <Route path="/admin/sk-compliance"   element={<Wrap><AdminSKCompliancePage /></Wrap>} />
-        <Route path="/admin/disclosure"      element={<Wrap><AdminDisclosurePage /></Wrap>} />
+        <Route path="/admin/disclosure"      element={<Navigate to="/admin/sk-compliance?tab=office" replace />} />
         <Route path="/admin/policies"        element={<Wrap><AdminPoliciesPage /></Wrap>} />
       </Route>
 

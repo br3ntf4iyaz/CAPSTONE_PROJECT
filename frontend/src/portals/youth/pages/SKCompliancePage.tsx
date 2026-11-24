@@ -78,6 +78,9 @@ export default function SKCompliancePage() {
             {o.years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
           <span className="rounded-full bg-white/15 px-3 py-1 text-sm font-semibold">{o.percent}% complete</span>
+          <Link to="/sk-requirements" className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-sm font-semibold text-primary-800 hover:bg-primary-50">
+            <Upload size={14} /> Upload CBYDP, ABYIP or Annual Budget
+          </Link>
         </div>
       </header>
 

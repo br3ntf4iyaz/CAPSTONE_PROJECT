@@ -45,7 +45,7 @@ function deadlineNote(p: Period): string {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function AdminDisclosurePage() {
+export default function AdminDisclosurePage({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient()
   const [year, setYear] = useState<number | null>(null)
   const [upload, setUpload] = useState<{ req: Req; period: Period } | null>(null)
@@ -75,7 +75,9 @@ export default function AdminDisclosurePage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900"><Landmark size={22} className="text-primary-700" /> LYDO Office Documents (FPDPB)</h1>
+          {embedded
+            ? <h2 className="flex items-center gap-2 text-lg font-bold text-gray-900"><Landmark size={18} className="text-primary-700" /> LYDO office documents</h2>
+            : <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900"><Landmark size={22} className="text-primary-700" /> LYDO office documents (FPDPB)</h1>}
           <p className="mt-1 max-w-2xl text-sm text-gray-500">
             Track the documents that must be disclosed. A period is only completed after the uploaded document is checked and verified here.
           </p>
@@ -86,7 +88,6 @@ export default function AdminDisclosurePage() {
           </select>
           <button type="button" className="btn-secondary btn-sm" onClick={() => setManage(true)}><Settings2 size={14} /> Manage checklist</button>
           <Link to="/fpdpb" target="_blank" className="btn-secondary btn-sm"><Eye size={14} /> FPDPB (public)</Link>
-          <Link to="/admin/sk-compliance" className="btn-secondary btn-sm">SK Compliance Monitoring</Link>
         </div>
       </div>
 

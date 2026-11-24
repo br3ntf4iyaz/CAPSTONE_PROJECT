@@ -159,7 +159,6 @@ const NAV_ITEMS = [
   { label: 'Programs',          icon: FolderOpen,     to: '/admin/programs' },
   { label: 'Project Monitoring', icon: CheckCheck,   to: '/admin/projects' },
   { label: 'Youth Orgs / YORP', icon: Users,          to: '/admin/yorp' },
-  { label: 'SK Requirements',  icon: ClipboardCheck,  to: '/admin/sk-tracker' },
   { label: 'SK Officials',     icon: Users,           to: '/admin/sk-officials' },
   { label: 'Analytics',        icon: BarChart3,       to: '/admin/analytics' },
   { label: 'Reports',          icon: FileText,        to: '/admin/reports' },
@@ -176,7 +175,7 @@ const NAV_ITEMS = [
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
   { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
-  { label: 'SK Compliance (FPDPB)', icon: Landmark,    to: '/admin/sk-compliance' },
+  { label: 'SK Compliance Monitoring', icon: Landmark, to: '/admin/sk-compliance' },
   { label: 'Policies',         icon: Scale,           to: '/admin/policies' },
   { label: 'Audit Log',        icon: History,         to: '/admin/audit-log' },
 ]
@@ -203,7 +202,9 @@ export default function AdminLayout() {
         list('/applications/'), list('/verification/admin/'), list('/support/tickets/', { status: 'open' }),
       ])
       const sch = await list('/applications/scholarship/')
+      const skq = await apiClient.get('/compliance/sk/queue/').then(r => (r.data?.to_verify?.length ?? 0) + (r.data?.ready_to_publish?.length ?? 0)).catch(() => 0)
       return {
+        '/admin/sk-compliance': skq,
         '/admin/applications': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
         '/admin/scholarship-applications': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,

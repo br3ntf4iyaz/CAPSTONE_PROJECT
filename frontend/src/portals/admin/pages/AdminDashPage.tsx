@@ -245,10 +245,10 @@ export default function AdminDashPage() {
               label="SK councils with overdue reports"
               count={overdueSkCount}
               description="Barangays with at least one overdue requirement"
-              to="/admin/sk-tracker"
+              to="/admin/sk-compliance"
               urgency="medium"
               icon={AlertTriangle}
-              onClick={() => navigate('/admin/sk-tracker')}
+              onClick={() => navigate('/admin/sk-compliance')}
             />
             <WorkItem
               label="Youth org registrations pending"
@@ -451,7 +451,7 @@ export default function AdminDashPage() {
           <button onClick={() => navigate('/admin/analytics')} className="btn-secondary btn-sm">
             <BarChart3 size={15} /> Analytics
           </button>
-          <button onClick={() => navigate('/admin/sk-tracker')} className="btn-secondary btn-sm">
+          <button onClick={() => navigate('/admin/sk-compliance')} className="btn-secondary btn-sm">
             <ClipboardCheck size={15} /> SK Tracker
           </button>
           <button onClick={() => navigate('/admin/audit-log')} className="btn-secondary btn-sm">

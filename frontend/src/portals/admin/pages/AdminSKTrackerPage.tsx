@@ -1011,7 +1011,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'feedback', label: 'Youth Feedback' },
 ]
 
-export default function AdminSKTrackerPage() {
+export default function AdminSKTrackerPage({ embedded = false }: { embedded?: boolean }) {
   const [activeTab, setActiveTab] = useState<Tab>('me')
   const [year, setYear] = useState(new Date().getFullYear())
 
@@ -1019,8 +1019,17 @@ export default function AdminSKTrackerPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="page-title">SK Compliance Tracker</h1>
-          <p className="page-subtitle">Monitor SK councils' compliance across all 33 Lucena City barangays</p>
+          {embedded ? (
+            <>
+              <h2 className="text-lg font-bold text-gray-900">Other SK requirements and records</h2>
+              <p className="text-sm text-gray-500">ME Portal encoding, minutes, SK directory, youth org lists, KK Assembly, Linggo ng Kabataan, DILG requirements and youth feedback.</p>
+            </>
+          ) : (
+            <>
+              <h1 className="page-title">Other SK requirements and records</h1>
+              <p className="page-subtitle">Monitor SK councils' compliance across all 33 Lucena City barangays</p>
+            </>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setYear(y => y - 1)} className="btn-secondary btn-sm p-1.5"><ChevronLeft size={14} /></button>

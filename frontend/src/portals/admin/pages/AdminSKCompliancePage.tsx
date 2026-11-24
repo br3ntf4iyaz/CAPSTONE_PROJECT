@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Download, ExternalLink, Globe2, History, Landmark, RotateCcw, Search, ShieldCheck, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -8,6 +8,8 @@ import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { MONTHS, STATUS_META, StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
 import { apiMessage, downloadWithLogin } from '@/portals/youth/lms'
+import AdminSKTrackerPage from './AdminSKTrackerPage'
+import AdminDisclosurePage from './AdminDisclosurePage'
 
 interface Period { label: string; quarter: number | null; month: number | null; deadline: string | null; status: ComplianceStatus; late: boolean; workflow: string | null; record_id: number | null }
 interface Cell { periods: Period[]; kind: 'single' | 'quarterly' | 'monthly'; completed: number; overdue: number; total: number }
@@ -28,7 +30,9 @@ interface Detail { barangay: { id: number; name: string }; category: string; yea
 interface QueueRow extends Rec { barangay: string; barangay_id: number; category: string; category_short: string; period: string; waiting_days: number }
 
 export default function AdminSKCompliancePage() {
-  const [tab, setTab] = useState<'monitor' | 'queue'>('monitor')
+  const [search, setSearch] = useSearchParams()
+  const tab = (['monitor', 'queue', 'other', 'office'].includes(search.get('tab') ?? '') ? search.get('tab') : 'monitor') as 'monitor' | 'queue' | 'other' | 'office'
+  const setTab = (t: 'monitor' | 'queue' | 'other' | 'office') => setSearch(t === 'monitor' ? {} : { tab: t }, { replace: true })
   const [f, setF] = useState({ year: '', barangay: '', category: '', quarter: '', month: '', status: '', publication: '' })
   const [open, setOpen] = useState<{ barangay_id: number; barangay: string; category: string; year: number } | null>(null)
   const params = Object.fromEntries(Object.entries(f).filter(([, v]) => v))
@@ -67,16 +71,14 @@ export default function AdminSKCompliancePage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to="/admin/sk-tracker" className="btn-secondary btn-sm"><ExternalLink size={13} /> SK Requirements (existing)</Link>
-          <Link to="/fpdpb" target="_blank" className="btn-secondary btn-sm"><Globe2 size={13} /> Open FPDPB</Link>
-          <Link to="/admin/disclosure" className="btn-secondary btn-sm">LYDO office documents</Link>
+          <Link to="/fpdpb" target="_blank" className="btn-secondary btn-sm"><Globe2 size={13} /> Open FPDPB (public)</Link>
         </div>
       </div>
 
       <div className="flex gap-2" role="tablist">
-        {([['monitor', 'Monitoring'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`]] as const).map(([k, label]) => (
+        {([['monitor', 'Monitoring (5 documents)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const).map(([k, label]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={cn('rounded-xl border px-4 py-2 text-sm font-semibold', tab === k ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300')}>{label}</button>
+            className={cn('whitespace-nowrap rounded-xl border px-4 py-2 text-sm font-semibold', tab === k ? 'border-primary-700 bg-primary-700 text-white' : 'border-gray-200 bg-white text-gray-700 hover:border-primary-300')}>{label}</button>
         ))}
       </div>
 
@@ -141,6 +143,10 @@ export default function AdminSKCompliancePage() {
             </table>
           </div>
         </>
+      ) : tab === 'other' ? (
+        <AdminSKTrackerPage embedded />
+      ) : tab === 'office' ? (
+        <AdminDisclosurePage embedded />
       ) : (
         <Queue data={queue.data} loading={queue.isLoading} onOpen={r => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: r.category, year: r.year })} />
       )}
@@ -211,7 +217,7 @@ function DetailModal({ barangay_id, barangay, category, year, onClose }: { baran
           </ul>
         )}
         {(category === 'cbydp' || category === 'abyip' || category === 'annual_budget') && (
-          <p className="mt-4 text-xs text-gray-500">This document is uploaded in the existing SK Requirements module. <Link to="/admin/sk-tracker" className="font-semibold text-primary-700 hover:underline">Open the SK Requirements tracker</Link></p>
+          <p className="mt-4 text-xs text-gray-500">The SK uploads this document in the SK Requirements page of their account. You can also record it for them under <Link to="/admin/sk-compliance?tab=other" onClick={onClose} className="font-semibold text-primary-700 hover:underline">Other requirements</Link>.</p>
         )}
       </div>
     </div>
