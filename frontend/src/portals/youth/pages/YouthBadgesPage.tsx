@@ -2,7 +2,8 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Award, Lock, ArrowLeft, AlertCircle, RefreshCw,
+  Award, Lock, ArrowLeft, AlertCircle, RefreshCw, GraduationCap, Landmark, Briefcase, Rocket, Star,
+  Flame, Trophy, Crown, Footprints, Medal, Sparkles, Users, Target, BookOpenCheck,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDate, cn } from '@/utils'
@@ -30,6 +31,47 @@ const CATEGORY_LABELS: Record<string, string> = {
   internship: 'Internship',
   project:    'Projects',
   special:    'Special',
+}
+
+// Every category has its own colours. Earned badges glow in them; locked ones show a dark shadow of the same badge.
+interface Theme { a: string; b: string; glow: string; soft: string; ink: string }
+const THEMES: Record<string, Theme> = {
+  course:     { a: '#0ea5e9', b: '#2563eb', glow: '#7dd3fc', soft: '#e0f2fe', ink: '#075985' },
+  governance: { a: '#fbbf24', b: '#d97706', glow: '#fde68a', soft: '#fef3c7', ink: '#92400e' },
+  internship: { a: '#34d399', b: '#059669', glow: '#a7f3d0', soft: '#d1fae5', ink: '#065f46' },
+  project:    { a: '#a78bfa', b: '#7c3aed', glow: '#ddd6fe', soft: '#ede9fe', ink: '#5b21b6' },
+  special:    { a: '#fb7185', b: '#e11d48', glow: '#fecdd3', soft: '#ffe4e6', ink: '#9f1239' },
+}
+const DEFAULT_THEME = THEMES.course
+const themeOf = (category: string): Theme => THEMES[category] ?? DEFAULT_THEME
+
+const CATEGORY_ICON: Record<string, React.ElementType> = {
+  course: GraduationCap, governance: Landmark, internship: Briefcase, project: Rocket, special: Star,
+}
+
+/** A fitting emblem for each badge, found from its name, falling back to its category emblem. */
+function emblemFor(badge: Badge): React.ElementType {
+  const n = badge.name.toLowerCase()
+  if (n.includes('streak')) return Flame
+  if (n.includes('leaderboard') || n.includes('top')) return Trophy
+  if (n.includes('champion')) return Crown
+  if (n.includes('first step')) return Footprints
+  if (n.includes('graduate')) return BookOpenCheck
+  if (n.includes('builder') || n.includes('community')) return Users
+  if (n.includes('leader')) return Target
+  if (n.includes('star')) return Star
+  if (n.includes('completer')) return Medal
+  return CATEGORY_ICON[badge.category] ?? Award
+}
+
+const HEX = 'polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%)'
+
+function levelOf(pct: number) {
+  if (pct >= 100) return 'Legend'
+  if (pct >= 70) return 'Champion'
+  if (pct >= 40) return 'Achiever'
+  if (pct >= 10) return 'Rising star'
+  return 'Newcomer'
 }
 
 const toArray = <T,>(d: any): T[] =>
@@ -84,42 +126,52 @@ export default function YouthBadgesPage() {
   return (
     <div className="space-y-8">
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 text-white p-8 sm:p-10">
-        <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
-          style={{
-            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
-            backgroundSize: '24px 24px',
-          }}
-        />
-        <div aria-hidden className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-accent-400/20 blur-2xl" />
+      <style>{`
+        @keyframes badge-shine { 0% { transform: translateX(-120%) skewX(-20deg); } 55%, 100% { transform: translateX(260%) skewX(-20deg); } }
+        @keyframes badge-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+        @media (prefers-reduced-motion: reduce) { .badge-anim { animation: none !important; } }
+      `}</style>
+      <header className="relative overflow-hidden rounded-3xl text-white p-8 sm:p-10" style={{ background: 'linear-gradient(120deg,#0a2a7a 0%,#1b3fbf 45%,#7c3aed 100%)' }}>
+        <div className="absolute inset-0 opacity-[0.08] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+        <div aria-hidden className="absolute -top-24 -left-16 w-72 h-72 rounded-full blur-3xl" style={{ background: 'rgba(56,189,248,0.35)' }} />
+        <div aria-hidden className="absolute -bottom-24 right-10 w-80 h-80 rounded-full blur-3xl" style={{ background: 'rgba(251,191,36,0.30)' }} />
+        <Trophy aria-hidden size={190} strokeWidth={1.2} className="absolute -right-6 -top-6 text-white/10 rotate-12 hidden sm:block" />
         <div className="relative grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-end">
           <div>
             <Link to="/learn" className="inline-flex items-center gap-1.5 eyebrow-on-dark mb-4 hover:text-accent-200 transition-colors">
               <ArrowLeft size={12} /> Back to Learn
             </Link>
             <h1 className="font-display font-extrabold text-4xl sm:text-5xl tracking-tighter2 leading-[1.05] mb-3">
-              Your badge collection.
+              Your badge collection<span style={{ color: '#fbbf24' }}>.</span>
             </h1>
-            <p className="text-primary-100 text-lg max-w-xl leading-relaxed">
-              Earn badges by completing courses, attending events, and contributing to youth programs across Lucena.
+            <p className="text-blue-100 text-lg max-w-xl leading-relaxed">
+              Earn badges by completing courses, attending events, and contributing to youth programs across Lucena. Collect them all!
             </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold backdrop-blur"><Sparkles size={13} className="text-amber-300" /> Level: {levelOf(completionPct)}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1.5 text-xs font-bold backdrop-blur"><Medal size={13} className="text-sky-300" /> {earnedCount} of {totalCount} collected</span>
+            </div>
           </div>
 
-          {/* Progress card */}
-          <aside className="bg-white/10 backdrop-blur-md border border-white/15 rounded-3xl p-5 min-w-[240px]">
-            <p className="eyebrow-on-dark mb-2">Progress</p>
-            <div className="flex items-baseline gap-2 mb-3">
-              <span className="font-display font-extrabold text-4xl text-accent-300 tabular-nums">{earnedCount}</span>
-              <span className="text-primary-100/80 text-sm">badges earned</span>
+          {/* Progress ring */}
+          <aside className="flex items-center gap-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-5 min-w-[250px]">
+            <div className="relative h-24 w-24 shrink-0">
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+                <defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#fde047" /><stop offset="1" stopColor="#f97316" /></linearGradient></defs>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="10" />
+                <circle cx="50" cy="50" r="42" fill="none" stroke="url(#ringGrad)" strokeWidth="10" strokeLinecap="round"
+                  strokeDasharray={`${(completionPct / 100) * 263.9} 263.9`} />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="font-display font-extrabold text-2xl tabular-nums leading-none">{completionPct}%</span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-blue-100/80">complete</span>
+              </div>
             </div>
-            <div className="h-2 bg-white/15 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-accent-400 rounded-full transition-all"
-                style={{ width: `${completionPct}%` }}
-              />
+            <div>
+              <p className="eyebrow-on-dark mb-1">Progress</p>
+              <p className="font-display font-extrabold text-4xl tabular-nums leading-none" style={{ color: '#fde047' }}>{earnedCount}</p>
+              <p className="text-blue-100/80 text-sm">badges earned</p>
             </div>
-            <p className="text-[11px] font-semibold text-primary-100/70 mt-2 uppercase tracking-wider">{completionPct}% complete</p>
           </aside>
         </div>
       </header>
@@ -135,7 +187,7 @@ export default function YouthBadgesPage() {
               className={cn(
                 'px-4 py-2 rounded-full text-sm font-semibold transition-colors capitalize',
                 filter === f
-                  ? 'bg-primary-600 text-white'
+                  ? 'text-white shadow-md shadow-blue-500/30 bg-gradient-to-r from-blue-600 to-violet-600'
                   : 'bg-white border border-ink-200 text-ink-700 hover:border-primary-300 hover:text-primary-700',
               )}
             >
@@ -166,10 +218,12 @@ export default function YouthBadgesPage() {
                 className={cn(
                   'px-3 py-1.5 rounded-full text-xs font-semibold transition-colors',
                   category === c
-                    ? 'bg-ink-900 text-white'
+                    ? 'text-white shadow'
                     : 'bg-paper-50 border border-ink-200 text-ink-600 hover:bg-white',
                 )}
+                style={category === c ? { background: `linear-gradient(135deg, ${themeOf(c).a}, ${themeOf(c).b})` } : undefined}
               >
+                <span className="mr-1.5 inline-block h-2 w-2 rounded-full align-middle" style={{ background: themeOf(c).b }} />
                 {CATEGORY_LABELS[c] ?? c}
               </button>
             ))}
@@ -226,57 +280,74 @@ export default function YouthBadgesPage() {
 
 function BadgeCard({ badge, earned }: { badge: Badge; earned?: UserBadge }) {
   const isEarned = !!earned
+  const t = themeOf(badge.category)
+  const Emblem = emblemFor(badge)
   return (
     <article
       className={cn(
-        'bg-white rounded-2xl border p-5 flex flex-col items-center text-center transition-all',
-        isEarned
-          ? 'border-accent-300 shadow-sm hover:shadow-lg hover:-translate-y-0.5'
-          : 'border-ink-100 opacity-70',
+        'group relative overflow-hidden rounded-2xl border bg-white flex flex-col items-center text-center transition-all duration-300',
+        isEarned ? 'hover:-translate-y-1.5 hover:shadow-xl' : 'hover:-translate-y-0.5 hover:shadow-md',
       )}
+      style={{ borderColor: isEarned ? t.a : '#e5e7eb', boxShadow: isEarned ? `0 8px 24px -10px ${t.b}88` : undefined }}
     >
-      <div
-        className={cn(
-          'relative w-20 h-20 rounded-full flex items-center justify-center mb-4 transition-colors',
-          isEarned
-            ? 'bg-gradient-to-br from-accent-400 to-accent-500 shadow-md'
-            : 'bg-ink-100',
-        )}
-      >
-        {badge.icon ? (
-          <img src={badge.icon} alt={badge.name} className="w-12 h-12 object-contain" />
-        ) : (
-          <Award size={32} className={cn(isEarned ? 'text-primary-900' : 'text-ink-400')} />
-        )}
-        {!isEarned && (
-          <span className="absolute -bottom-1 -right-1 inline-flex items-center justify-center w-7 h-7 rounded-full bg-ink-700 text-white border-2 border-white">
-            <Lock size={12} />
-          </span>
-        )}
+      {/* coloured top band */}
+      <div className="relative w-full pt-7 pb-5 flex justify-center overflow-hidden"
+        style={{ background: isEarned ? `linear-gradient(160deg, ${t.soft}, #fff 85%)` : 'linear-gradient(160deg,#f1f5f9,#fff 85%)' }}>
+        {isEarned && <div aria-hidden className="absolute left-1/2 top-9 h-24 w-24 -translate-x-1/2 rounded-full blur-2xl" style={{ background: t.glow, opacity: 0.8 }} />}
+
+        {/* the hexagon medal */}
+        <div className={cn('relative h-24 w-24', isEarned && 'badge-anim')} style={isEarned ? { animation: 'badge-float 3.2s ease-in-out infinite' } : undefined}>
+          <div className="absolute inset-0" style={{ clipPath: HEX, background: isEarned ? `linear-gradient(145deg, ${t.glow}, ${t.a} 40%, ${t.b})` : 'linear-gradient(145deg,#94a3b8,#475569)' }} />
+          <div className="absolute inset-[5px]" style={{ clipPath: HEX, background: isEarned ? `linear-gradient(160deg, ${t.b}, ${t.a})` : 'linear-gradient(160deg,#334155,#1e293b)' }} />
+          <div className="absolute inset-[9px] border border-white/30" style={{ clipPath: HEX }} />
+          <div className="absolute inset-0 flex items-center justify-center">
+            {badge.icon ? (
+              <img src={badge.icon} alt={badge.name} className={cn('h-11 w-11 object-contain', !isEarned && 'grayscale opacity-60')} />
+            ) : (
+              <Emblem size={38} strokeWidth={2.2} className={isEarned ? 'text-white drop-shadow' : 'text-slate-500'} />
+            )}
+          </div>
+          {isEarned && (
+            <div aria-hidden className="absolute inset-0 overflow-hidden" style={{ clipPath: HEX }}>
+              <div className="badge-anim absolute inset-y-0 w-1/3 bg-white/40 blur-[2px]" style={{ animation: 'badge-shine 3.6s ease-in-out infinite' }} />
+            </div>
+          )}
+          {!isEarned && (
+            <span className="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-slate-800 text-white border-2 border-white shadow">
+              <Lock size={12} />
+            </span>
+          )}
+        </div>
+        {isEarned && <Sparkles aria-hidden size={16} className="absolute right-6 top-5" style={{ color: t.b }} />}
       </div>
 
-      <span className={cn('chip text-[10px] uppercase mb-2', isEarned ? 'bg-accent-100 text-accent-800' : 'bg-ink-100 text-ink-600')}>
-        {CATEGORY_LABELS[badge.category] ?? badge.category}
-      </span>
+      <div className="flex flex-1 flex-col items-center px-5 pb-5 w-full">
+        <span className="mb-2 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          style={isEarned ? { background: t.soft, color: t.ink } : { background: '#f1f5f9', color: '#64748b' }}>
+          {CATEGORY_LABELS[badge.category] ?? badge.category}
+        </span>
 
-      <h3 className="font-display font-bold text-base text-ink-900 leading-tight mb-1.5">
-        {badge.name}
-      </h3>
+        <h3 className={cn('font-display font-bold text-base leading-tight mb-1.5', isEarned ? 'text-ink-900' : 'text-ink-700')}>
+          {badge.name}
+        </h3>
 
-      <p className="text-xs text-ink-600 leading-relaxed line-clamp-3 mb-3">
-        {badge.description}
-      </p>
-
-      {isEarned ? (
-        <p className="text-[11px] font-semibold text-accent-700 uppercase tracking-wider mt-auto pt-2">
-          Earned · {formatDate(earned!.earned_at)}
+        <p className="text-xs text-ink-600 leading-relaxed line-clamp-3 mb-3">
+          {badge.description}
         </p>
-      ) : badge.criteria ? (
-        <p className="text-[11px] text-ink-500 leading-relaxed mt-auto pt-2 border-t border-ink-100 w-full">
-          <span className="font-semibold uppercase tracking-wider text-ink-400 block mb-0.5">How to earn</span>
-          {badge.criteria}
-        </p>
-      ) : null}
+
+        {isEarned ? (
+          <p className="mt-auto w-full rounded-lg py-1.5 text-[11px] font-bold uppercase tracking-wider text-white"
+            style={{ background: `linear-gradient(90deg, ${t.a}, ${t.b})` }}>
+            Earned · {formatDate(earned!.earned_at)}
+          </p>
+        ) : badge.criteria ? (
+          <p className="mt-auto w-full rounded-lg border border-dashed px-2 py-2 text-[11px] leading-relaxed text-ink-600"
+            style={{ borderColor: t.a + '99', background: t.soft + '66' }}>
+            <span className="mb-0.5 block text-[10px] font-extrabold uppercase tracking-wider" style={{ color: t.ink }}>How to earn</span>
+            {badge.criteria}
+          </p>
+        ) : null}
+      </div>
     </article>
   )
 }
