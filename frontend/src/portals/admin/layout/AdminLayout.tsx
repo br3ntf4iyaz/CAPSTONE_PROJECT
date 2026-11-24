@@ -159,7 +159,9 @@ const NAV_ITEMS = [
   { label: 'Programs',          icon: FolderOpen,     to: '/admin/programs' },
   { label: 'Project Monitoring', icon: CheckCheck,   to: '/admin/projects' },
   { label: 'Youth Orgs / YORP', icon: Users,          to: '/admin/yorp' },
+  { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
   { label: 'SK Officials',     icon: Users,           to: '/admin/sk-officials' },
+  { label: 'SK Compliance Monitoring', icon: Landmark, to: '/admin/sk-compliance' },
   { label: 'Analytics',        icon: BarChart3,       to: '/admin/analytics' },
   { label: 'Reports',          icon: FileText,        to: '/admin/reports' },
   { label: 'Calendar',         icon: CalendarDays,    to: '/admin/calendar' },
@@ -174,8 +176,6 @@ const NAV_ITEMS = [
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
-  { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
-  { label: 'SK Compliance Monitoring', icon: Landmark, to: '/admin/sk-compliance' },
   { label: 'Policies',         icon: Scale,           to: '/admin/policies' },
   { label: 'Audit Log',        icon: History,         to: '/admin/audit-log' },
 ]
