@@ -7,7 +7,7 @@ import {
   Library, MessageSquareWarning, User, LogOut, Bell, Menu, X,
   MessageCircle, FileText, Building2, ChevronDown, HandHeart, Newspaper,
   CheckCheck, ShieldCheck, ShieldAlert, ChevronRight, ChevronLeft, CreditCard,
-  Mail, Paperclip, ClipboardCheck,
+  Mail, Paperclip, ClipboardCheck, Landmark,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
@@ -58,6 +58,7 @@ const TABS: Tab[] = [
   { label: 'YORP Registration', icon: Building2,        to: '/yorp-registration', roles: ['youth_org_leader'] },
   { label: 'Submissions',       icon: FileText,         to: '/submissions',       roles: ['sk', 'youth_org_leader'] },
   { label: 'SK Requirements',   icon: ClipboardCheck,   to: '/sk-requirements',   roles: ['sk'] },
+  { label: 'SK Compliance',     icon: Landmark,         to: '/sk-compliance',     roles: ['sk'] },
   { label: 'Feedback Inbox',    icon: MessageCircle,    to: '/sk-inbox',          roles: ['sk'] },
 ]
 

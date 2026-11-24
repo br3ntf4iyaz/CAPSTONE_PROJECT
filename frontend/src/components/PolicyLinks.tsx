@@ -10,7 +10,7 @@ export default function PolicyLinks({ className, linkClassName, disclosure = fal
       <Link to="/terms" className={cls}>Terms of Use</Link>
       <Link to="/privacy" className={cls}>Privacy Policy</Link>
       <Link to="/cookies" className={cls}>Cookie Policy</Link>
-      {disclosure && <Link to="/transparency" className={cls}>Public Disclosure</Link>}
+      {disclosure && <Link to="/fpdpb" className={cls}>FPDPB</Link>}
       <button type="button" onClick={openCookieSettings} className={cls}>Cookie settings</button>
     </nav>
   )

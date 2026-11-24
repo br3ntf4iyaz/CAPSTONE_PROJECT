@@ -222,3 +222,69 @@ class DisclosureSubmission(models.Model):
 
     def __str__(self):
         return f'{self.title} ({self.year}{f" Q{self.quarter}" if self.quarter else ""}) - {self.status}'
+
+
+# ─── SK Compliance Monitoring System: verification and publication layer ──────
+
+def sk_record_upload_path(instance, filename):
+    ext = os.path.splitext(filename or '')[1].lower()
+    return f'sk_compliance/{instance.barangay_id}/{instance.category}/{uuid.uuid4().hex}{ext}'
+
+
+class SKComplianceRecord(models.Model):
+    """One submission of one SK compliance document, with its review and publication state.
+
+    This is a MONITORING layer. The five categories use the same codes as sk_requirements.SKRequirement:
+      cbydp, abyip, annual_budget      -> reference the EXISTING SKRequirement row (and the file stored there). Nothing is copied:
+                                          `source_file_name` only remembers which stored file was submitted, so the file that was
+                                          verified stays the file that is published even if the SK later uploads a newer one.
+      quarterly_cash (RCB), monthly_pr (MIL) -> new documents with a reporting quarter or month, uploaded here (`file`).
+    Records are never overwritten: every submission is a row, so the full history stays.
+    """
+    STATUS_CHOICES = [
+        ('submitted', 'Submitted'),
+        ('under_verification', 'Under Verification'),
+        ('returned', 'Returned for Correction'),
+        ('verified', 'Verified'),
+        ('published', 'Published'),
+    ]
+
+    barangay = models.ForeignKey('sk_requirements.SKBarangay', on_delete=models.PROTECT, related_name='compliance_records')
+    category = models.CharField(max_length=30)  # a code from sk_requirements REQUIREMENT_CHOICES
+    year = models.PositiveSmallIntegerField()
+    period_end_year = models.PositiveSmallIntegerField(null=True, blank=True)  # CBYDP is a three-year plan
+    quarter = models.PositiveSmallIntegerField(null=True, blank=True)
+    month = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    requirement = models.ForeignKey('sk_requirements.SKRequirement', null=True, blank=True, on_delete=models.SET_NULL, related_name='compliance_records')
+    source_file_name = models.CharField(max_length=500, blank=True)
+    file = models.FileField(upload_to=sk_record_upload_path, storage=private_storage, null=True, blank=True)
+    original_name = models.CharField(max_length=255, blank=True)
+
+    # MIL only: a formal declaration that there were no purchase requests for the month. Never inferred from a blank upload.
+    is_none_declaration = models.BooleanField(default=False)
+
+    title = models.CharField(max_length=255, blank=True)
+    description = models.TextField(blank=True)  # shown publicly once published
+    total_amount = models.DecimalField(max_digits=16, decimal_places=2, null=True, blank=True)  # approved budget total, when known
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='submitted')
+    submitted_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    submitted_at = models.DateTimeField(default=None, null=True, blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_remarks = models.TextField(blank=True)  # internal: never sent to the public
+    published_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-submitted_at', '-id']
+        indexes = [
+            models.Index(fields=['barangay', 'category', 'year']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f'{self.barangay} - {self.category} {self.year} ({self.status})'

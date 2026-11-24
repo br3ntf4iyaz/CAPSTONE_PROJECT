@@ -394,6 +394,8 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
         req.status = 'submitted'
         req.submitted_at = timezone.now()
         req.save()  # the ledger signal fingerprints the submitted file
+        from apps.compliance.sk_compliance import record_requirement_submission
+        record_requirement_submission(req, request.user)  # SK Compliance Monitoring: index this exact file for verification
         return Response({'id': req.id, 'status': req.status, 'submitted_at': req.submitted_at})
 
     def perform_update(self, serializer):
@@ -436,6 +438,9 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
             requirement.notes = notes
             update_fields.append('notes')
         requirement.save(update_fields=update_fields)
+        if 'file' in update_fields:
+            from apps.compliance.sk_compliance import record_requirement_submission
+            record_requirement_submission(requirement, request.user)  # index the stored file for verification
         # Send notification to SK officers/admins for this barangay
         from apps.accounts.models import User
         from apps.notifications.models import Notification

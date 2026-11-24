@@ -95,12 +95,14 @@ class SKRequirementCompactSerializer(serializers.ModelSerializer):
         fields = ['id', 'key', 'label', 'status', 'file_url', 'submitted_at']
 
     def get_file_url(self, obj):
-        if obj.file:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.file.url)
-            return obj.file.url
-        return None
+        """Public. Only a document that LYDO verified AND published is linked, and only through the FPDPB file endpoint."""
+        from apps.compliance.models import SKComplianceRecord
+        rec = SKComplianceRecord.objects.filter(requirement=obj, status='published').order_by('-published_at').first()
+        if rec is None:
+            return None
+        path = f'/api/compliance/fpdpb/files/{rec.pk}/'
+        request = self.context.get('request')
+        return request.build_absolute_uri(path) if request else path
 
 
 # ---------------------------------------------------------------------------
@@ -279,7 +281,16 @@ class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
-    requirements = SKRequirementSerializer(many=True, read_only=True)
+    requirements = serializers.SerializerMethodField()
+
+    def get_requirements(self, obj):
+        """Administrators get the full rows. Everyone else (the page is public) gets the compact rows: no notes, no reviewer, and a
+        file link only for a document LYDO verified and published."""
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        full = bool(user and user.is_authenticated and getattr(user, 'role', '') in ('lgu_admin', 'super_admin'))
+        cls = SKRequirementSerializer if full else SKRequirementCompactSerializer
+        return cls(obj.requirements.all(), many=True, context=self.context).data
     logo_url = serializers.SerializerMethodField()
     members = SKMemberSerializer(many=True, read_only=True)
 

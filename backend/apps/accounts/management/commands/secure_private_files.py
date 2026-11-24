@@ -5,6 +5,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from apps.applications.models import OpportunityApplication
+from apps.sk_requirements.models import SKRequirement
 from apps.verification.models import IDVerification
 
 
@@ -30,6 +31,9 @@ class Command(BaseCommand):
             if a.document:
                 targets.append(a.document)
 
+        for r in SKRequirement.objects.exclude(file='').exclude(file__isnull=True):
+            targets.append(r.file)  # SK requirement documents are public only after LYDO publishes them
+
         for f in targets:
             rel = f.name
             src, dst = public / rel, private / rel
@@ -51,7 +55,7 @@ class Command(BaseCommand):
         # Old copies no longer linked to any record (e.g. replaced uploads) are just as sensitive.
         # Move them aside instead of deleting, so nothing is lost.
         orphans = 0
-        for folder in ('verification', 'applications'):
+        for folder in ('verification', 'applications', 'sk_requirements'):
             root = public / folder
             if not root.exists():
                 continue

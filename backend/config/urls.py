@@ -35,6 +35,6 @@ urlpatterns = [
     path("api/community/", include("apps.community.urls")),
     # static() is a no-op when DEBUG is off, so serve uploads explicitly.
     # Sensitive folders must never be reachable by URL, even if a copy is still in the public media dir
-    re_path(r"^media/(verification|applications)/", lambda request, *a, **k: HttpResponseNotFound()),
+    re_path(r"^media/(verification|applications|sk_requirements|sk_compliance|disclosure)/", lambda request, *a, **k: HttpResponseNotFound()),
     re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
 ]

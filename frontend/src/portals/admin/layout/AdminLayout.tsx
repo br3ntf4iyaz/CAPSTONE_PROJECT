@@ -176,7 +176,7 @@ const NAV_ITEMS = [
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
   { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
-  { label: 'Public Disclosure', icon: Landmark,        to: '/admin/disclosure' },
+  { label: 'SK Compliance (FPDPB)', icon: Landmark,    to: '/admin/sk-compliance' },
   { label: 'Policies',         icon: Scale,           to: '/admin/policies' },
   { label: 'Audit Log',        icon: History,         to: '/admin/audit-log' },
 ]

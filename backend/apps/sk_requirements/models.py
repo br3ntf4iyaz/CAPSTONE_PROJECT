@@ -1,6 +1,8 @@
 from django.db import models
 from django.conf import settings
 
+from apps.accounts.storage import private_storage
+
 
 class SKRequirementTemplate(models.Model):
     """Defines the standard requirements all SK councils must submit."""
@@ -87,7 +89,8 @@ class SKRequirement(models.Model):
     )
     requirement_type = models.CharField(max_length=30, choices=REQUIREMENT_CHOICES)
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
-    file = models.FileField(upload_to='sk_requirements/', null=True, blank=True)
+    # Private storage: a document is public only once LYDO has verified and published it (see the FPDPB in the compliance app).
+    file = models.FileField(upload_to='sk_requirements/', storage=private_storage, null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)

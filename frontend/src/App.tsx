@@ -97,6 +97,8 @@ const AdminAuditLogPage       = lazy(() => import('@/portals/admin/pages/AdminAu
 const AdminParticipationPage  = lazy(() => import('@/portals/admin/pages/AdminParticipationPage'))
 const AdminProgramsPage       = lazy(() => import('@/portals/admin/pages/AdminProgramsPage'))
 const TransparencyPage        = lazy(() => import('@/portals/youth/pages/TransparencyPage'))
+const SKCompliancePage        = lazy(() => import('@/portals/youth/pages/SKCompliancePage'))
+const AdminSKCompliancePage   = lazy(() => import('@/portals/admin/pages/AdminSKCompliancePage'))
 const AdminDisclosurePage     = lazy(() => import('@/portals/admin/pages/AdminDisclosurePage'))
 const AdminPoliciesPage       = lazy(() => import('@/portals/admin/pages/AdminPoliciesPage'))
 
@@ -166,7 +168,8 @@ export default function App() {
         {/* Survey detail — publicly viewable, submit requires login */}
         <Route path="/surveys/:id"       element={<Wrap><PublicSurveyDetailPage /></Wrap>} />
         {/* Public disclosure: verified documents anyone may read, no sign-in */}
-        <Route path="/transparency"      element={<Wrap><TransparencyPage /></Wrap>} />
+        <Route path="/fpdpb"             element={<Wrap><TransparencyPage /></Wrap>} />
+        <Route path="/transparency"      element={<Navigate to="/fpdpb" replace />} />
       </Route>
 
       {/* ── Auth pages &mdash; standalone (have their own header) ──────────── */}
@@ -230,6 +233,7 @@ export default function App() {
         <Route path="/submissions/new"    element={<SubmissionsGuard><SubmissionWizardPage /></SubmissionsGuard>} />
         <Route path="/submissions/:id"    element={<SubmissionsGuard><SubmissionDetailPage /></SubmissionsGuard>} />
         <Route path="/sk-requirements"    element={<SKGuard><SKRequirementsPage /></SKGuard>} />
+        <Route path="/sk-compliance"      element={<SKGuard><SKCompliancePage /></SKGuard>} />
         <Route path="/yorp-registration"  element={<YORPGuard />} />
       </Route>
 
@@ -259,6 +263,7 @@ export default function App() {
         <Route path="/admin/verification"    element={<Wrap><AdminVerificationPage /></Wrap>} />
         <Route path="/admin/audit-log"       element={<Wrap><AdminAuditLogPage /></Wrap>} />
         <Route path="/admin/participation"   element={<Wrap><AdminParticipationPage /></Wrap>} />
+        <Route path="/admin/sk-compliance"   element={<Wrap><AdminSKCompliancePage /></Wrap>} />
         <Route path="/admin/disclosure"      element={<Wrap><AdminDisclosurePage /></Wrap>} />
         <Route path="/admin/policies"        element={<Wrap><AdminPoliciesPage /></Wrap>} />
       </Route>
