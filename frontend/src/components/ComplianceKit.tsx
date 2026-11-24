@@ -4,14 +4,16 @@ import type { ComplianceStatus } from './ComplianceStatus'
 
 /** Shared look of the SK Compliance Monitoring System, in the platform's colours: PH blue, sun yellow and flag red. */
 
-export type Tone = 'ink' | 'green' | 'yellow' | 'red' | 'blue' | 'orange' | 'teal'
+export type Tone = 'ink' | 'green' | 'yellow' | 'red' | 'blue' | 'sky' | 'violet' | 'orange' | 'teal'
 
 const TONE: Record<Tone, { bar: string; chip: string; value: string }> = {
   ink: { bar: 'bg-ink-300', chip: 'bg-ink-100 text-ink-600', value: 'text-ink-900' },
   green: { bar: 'bg-emerald-500', chip: 'bg-emerald-50 text-emerald-600', value: 'text-emerald-800' },
   yellow: { bar: 'bg-accent-400', chip: 'bg-accent-100 text-accent-700', value: 'text-accent-800' },
   red: { bar: 'bg-alert-500', chip: 'bg-alert-50 text-alert-600', value: 'text-alert-700' },
-  blue: { bar: 'bg-primary-600', chip: 'bg-primary-50 text-primary-700', value: 'text-primary-800' },
+  blue: { bar: 'bg-primary-600', chip: 'bg-primary-100 text-primary-700', value: 'text-primary-800' },
+  sky: { bar: 'bg-sky-400', chip: 'bg-sky-50 text-sky-600', value: 'text-sky-800' },
+  violet: { bar: 'bg-violet-500', chip: 'bg-violet-50 text-violet-600', value: 'text-violet-800' },
   orange: { bar: 'bg-orange-500', chip: 'bg-orange-50 text-orange-600', value: 'text-orange-800' },
   teal: { bar: 'bg-teal-600', chip: 'bg-teal-50 text-teal-700', value: 'text-teal-800' },
 }
@@ -51,10 +53,10 @@ export function CompletionRing({ percent, size = 92 }: { percent: number; size?:
 export const CELL_TINT: Record<ComplianceStatus, string> = {
   not_submitted: 'border-ink-200 bg-paper-50 hover:border-primary-400 hover:bg-primary-50',
   submitted: 'border-sky-200 bg-sky-50 hover:border-sky-400',
-  under_verification: 'border-indigo-200 bg-indigo-50 hover:border-indigo-400',
+  under_verification: 'border-violet-200 bg-violet-50 hover:border-violet-400',
   returned: 'border-orange-200 bg-orange-50 hover:border-orange-400',
   verified: 'border-emerald-200 bg-emerald-50 hover:border-emerald-400',
-  published: 'border-teal-300 bg-teal-50 hover:border-teal-500',
+  published: 'border-primary-300 bg-primary-100/70 hover:border-primary-500',
   overdue: 'border-alert-200 bg-alert-50 hover:border-alert-400',
 }
 

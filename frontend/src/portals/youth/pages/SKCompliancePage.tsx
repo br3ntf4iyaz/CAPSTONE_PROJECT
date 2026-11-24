@@ -59,10 +59,10 @@ export default function SKCompliancePage() {
     { label: 'Completed', value: s.completed, icon: <CheckCircle2 size={16} />, tone: 'green' },
     { label: 'Pending', value: s.pending, icon: <Clock size={16} />, tone: 'yellow' },
     { label: 'Overdue', value: s.overdue, icon: <AlertTriangle size={16} />, tone: 'red' },
-    { label: 'Submitted for verification', value: s.for_verification, icon: <FileCheck2 size={16} />, tone: 'blue' },
+    { label: 'Submitted for verification', value: s.for_verification, icon: <FileCheck2 size={16} />, tone: 'sky' },
     { label: 'Returned for correction', value: s.returned, icon: <RotateCcw size={16} />, tone: 'orange' },
     { label: 'Verified', value: s.verified, icon: <ShieldCheck size={16} />, tone: 'green' },
-    { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'teal' },
+    { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'blue' },
   ]
 
   return (

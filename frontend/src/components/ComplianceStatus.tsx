@@ -7,10 +7,10 @@ export type ComplianceStatus =
 export const STATUS_META: Record<ComplianceStatus, { label: string; cls: string; dot: string; icon: typeof Clock }> = {
   not_submitted: { label: 'Not Yet Submitted', cls: 'bg-gray-100 text-gray-700 border-gray-200', dot: 'bg-gray-400', icon: Clock },
   submitted: { label: 'Submitted', cls: 'bg-sky-50 text-sky-800 border-sky-200', dot: 'bg-sky-500', icon: FileCheck2 },
-  under_verification: { label: 'Under Verification', cls: 'bg-indigo-50 text-indigo-800 border-indigo-200', dot: 'bg-indigo-500', icon: Search },
+  under_verification: { label: 'Under Verification', cls: 'bg-violet-50 text-violet-800 border-violet-200', dot: 'bg-violet-500', icon: Search },
   returned: { label: 'Returned for Correction', cls: 'bg-orange-50 text-orange-900 border-orange-200', dot: 'bg-orange-500', icon: RotateCcw },
   verified: { label: 'Verified', cls: 'bg-emerald-50 text-emerald-800 border-emerald-200', dot: 'bg-emerald-500', icon: CheckCircle2 },
-  published: { label: 'Published', cls: 'bg-teal-50 text-teal-800 border-teal-300', dot: 'bg-teal-600', icon: Globe2 },
+  published: { label: 'Published', cls: 'bg-primary-600 text-white border-primary-700', dot: 'bg-primary-600', icon: Globe2 },
   overdue: { label: 'Overdue', cls: 'bg-red-50 text-red-800 border-red-200', dot: 'bg-red-500', icon: AlertTriangle },
 }
 
