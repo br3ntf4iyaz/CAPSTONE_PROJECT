@@ -4,6 +4,7 @@ import { Newspaper, MapPin, Users } from 'lucide-react'
 import apiClient from '@/api/client'
 import { formatDate, cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
+import NewsCover from '../components/NewsCover'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ const POST_TYPE_LABELS: Record<string, string> = {
 
 function NewsCard({
   image,
+  type,
   label,
   labelColor,
   title,
@@ -85,6 +87,7 @@ function NewsCard({
   to,
 }: {
   image?: string
+  type?: string
   label: string
   labelColor?: string
   title: string
@@ -107,7 +110,7 @@ function NewsCard({
             className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary-700 to-primary-900" />
+          <NewsCover type={type} />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <h3 className="absolute bottom-3 left-3 right-3 text-white font-bold text-sm leading-snug line-clamp-2 drop-shadow-md">
@@ -175,6 +178,7 @@ export default function NewsPage() {
               key={`post-${post.id}`}
               to={`/news/${post.id}`}
               image={post.thumbnail}
+              type={post.post_type}
               label={POST_TYPE_LABELS[post.post_type] ?? post.post_type}
               title={post.title}
               excerpt={post.content}
@@ -196,6 +200,7 @@ export default function NewsPage() {
               key={slide.id}
               to={`/news-feed/${slide.id}`}
               image={slide.image}
+              type="program"
               label={slide.tag}
               title={slide.title}
               excerpt={slide.description}

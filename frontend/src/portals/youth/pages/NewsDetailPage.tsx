@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, CalendarDays, MapPin } from 'lucide-react'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
+import NewsCover from '../components/NewsCover'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -67,6 +68,11 @@ export default function NewsDetailPage() {
     <div className="min-h-screen bg-paper-50">
 
       {/* ── Hero image ─────────────────────────────────────────────────────── */}
+      {!post.thumbnail && (
+        <div className="relative w-full overflow-hidden" style={{ height: '260px' }}>
+          <NewsCover type={post.post_type} />
+        </div>
+      )}
       {post.thumbnail && (
         <div className="relative w-full bg-primary-900 overflow-hidden" style={{ maxHeight: '480px' }}>
           <img
