@@ -258,6 +258,16 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
     def validate_question(self, value):
         return sanitize(value)
 
+    def validate(self, attrs):
+        qtype = attrs.get('question_type', getattr(self.instance, 'question_type', 'multiple_choice'))
+        if qtype == 'multiple_choice':
+            raw = attrs.get('choices', getattr(self.instance, 'choices', [])) or []
+            choices = [sanitize(str(c)).strip() for c in raw if str(c).strip()]
+            if len(choices) < 2:
+                raise serializers.ValidationError({'choices': 'A multiple-choice question needs at least 2 answer choices.'})
+            attrs['choices'] = choices
+        return attrs
+
 
 class SurveySerializer(serializers.ModelSerializer):
     questions = SurveyQuestionSerializer(many=True, read_only=True)

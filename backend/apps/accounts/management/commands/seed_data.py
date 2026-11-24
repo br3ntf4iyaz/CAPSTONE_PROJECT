@@ -1119,7 +1119,7 @@ class Command(BaseCommand):
                 description="Help LYDO shape next year's programs. Takes ~3 minutes.",
                 questions=[
                     ("What's the single biggest issue facing Lucena youth today?", "text"),
-                    ("Which area should LYDO focus on most in 2025?", "multiple_choice"),
+                    ("Which area should LYDO focus on most in 2025?", "multiple_choice"),  # choices are added by: manage.py seed_surveys
                     ("How would you rate LYDO's communication with youth this year?", "rating"),
                 ],
             ),
@@ -1129,7 +1129,7 @@ class Command(BaseCommand):
                 questions=[
                     ("Overall, how would you rate the summit?", "rating"),
                     ("Which session was most valuable to you?", "text"),
-                    ("Would you attend again next year?", "multiple_choice"),
+                    ("Would you attend again next year?", "yes_no"),
                 ],
             ),
         ]

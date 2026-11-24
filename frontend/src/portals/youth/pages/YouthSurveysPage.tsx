@@ -41,7 +41,7 @@ type Answers = Record<string, string | number>
 
 function RatingInput({ value, onChange }: { value?: number; onChange: (v: number) => void }) {
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex items-center gap-2">
       {[1, 2, 3, 4, 5].map(n => (
         <button
           key={n}
@@ -49,7 +49,7 @@ function RatingInput({ value, onChange }: { value?: number; onChange: (v: number
           onClick={() => onChange(n)}
           className={`transition-all ${(value ?? 0) >= n ? 'text-amber-400 scale-110' : 'text-gray-200 hover:text-amber-300'}`}
         >
-          <Star size={32} fill={(value ?? 0) >= n ? 'currentColor' : 'none'} />
+          <Star size={44} fill={(value ?? 0) >= n ? 'currentColor' : 'none'} />
         </button>
       ))}
       {value ? <span className="ml-2 text-sm text-gray-500 font-medium">{value}/5</span> : null}
@@ -66,7 +66,7 @@ function ScaleInput({ value, onChange }: { value?: number; onChange: (v: number)
             key={n}
             type="button"
             onClick={() => onChange(n)}
-            className={`w-10 h-10 rounded-xl text-sm font-semibold border-2 transition-all ${
+            className={`w-12 h-12 rounded-xl text-base font-semibold border-2 transition-all ${
               value === n
                 ? 'bg-primary text-white border-primary scale-110 shadow-md'
                 : 'border-gray-200 text-gray-600 hover:border-primary/50 hover:text-primary'
@@ -92,7 +92,7 @@ function YesNoInput({ value, onChange }: { value?: string; onChange: (v: string)
           key={opt}
           type="button"
           onClick={() => onChange(opt)}
-          className={`flex-1 py-3 rounded-xl text-sm font-semibold border-2 transition-all capitalize ${
+          className={`flex-1 py-4 rounded-2xl text-base font-semibold border-2 transition-all capitalize ${
             value === opt
               ? opt === 'yes'
                 ? 'bg-green-500 text-white border-green-500 shadow-md'
@@ -118,15 +118,16 @@ function MultipleChoiceInput({
   onChange: (v: string) => void
   questionId: number
 }) {
+  if (!choices?.length) return <TextInput value={value} onChange={onChange} />  // never leave a question without a way to answer
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {choices.map(opt => (
         <label
           key={opt}
-          className={`flex items-center gap-3 cursor-pointer p-3 rounded-xl border-2 transition-all ${
+          className={`flex items-center gap-4 cursor-pointer px-5 py-4 rounded-2xl border-2 transition-all ${
             value === opt
-              ? 'border-primary bg-primary/5'
-              : 'border-gray-100 hover:border-gray-200 bg-white'
+              ? 'border-primary bg-primary/5 shadow-sm'
+              : 'border-gray-100 hover:border-gray-300 bg-white'
           }`}
         >
           <input
@@ -135,9 +136,9 @@ function MultipleChoiceInput({
             value={opt}
             checked={value === opt}
             onChange={() => onChange(opt)}
-            className="w-4 h-4 text-primary accent-primary"
+            className="w-5 h-5 text-primary accent-primary"
           />
-          <span className={`text-sm ${value === opt ? 'text-primary font-medium' : 'text-gray-700'}`}>{opt}</span>
+          <span className={`text-base ${value === opt ? 'text-primary font-semibold' : 'text-gray-700'}`}>{opt}</span>
         </label>
       ))}
     </div>
@@ -155,7 +156,7 @@ function NumberInput({ value, onChange }: { value?: number; onChange: (v: number
         if (!isNaN(n)) onChange(n)
       }}
       placeholder="Enter a number…"
-      className="input w-40 text-lg font-semibold text-center"
+      className="input w-48 text-xl font-semibold text-center"
     />
   )
 }
@@ -163,11 +164,11 @@ function NumberInput({ value, onChange }: { value?: number; onChange: (v: number
 function TextInput({ value, onChange }: { value?: string; onChange: (v: string) => void }) {
   return (
     <textarea
-      rows={3}
+      rows={5}
       value={value ?? ''}
       onChange={e => onChange(e.target.value)}
       placeholder="Write your answer here…"
-      className="input w-full resize-none text-sm"
+      className="input w-full resize-none text-base p-4"
     />
   )
 }
@@ -237,7 +238,7 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
 
   if (submitted) {
     return (
-      <div className="space-y-5 max-w-xl mx-auto text-center">
+      <div className="space-y-5 max-w-2xl mx-auto text-center">
         <div className="card p-10 flex flex-col items-center gap-4">
           <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
             <CheckCircle2 size={40} className="text-green-500" />
@@ -255,22 +256,22 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
   const progressPct = total > 0 ? Math.round((currentIdx / total) * 100) : 0
 
   return (
-    <div className="space-y-5 max-w-xl">
+    <div className="space-y-6 max-w-2xl mx-auto">
       {/* Back */}
-      <button onClick={onBack} className="btn-secondary btn-sm">
-        <ArrowLeft size={14} /> Back to Surveys
+      <button onClick={onBack} className="btn-secondary px-4 py-2 text-sm">
+        <ArrowLeft size={15} /> Back to Surveys
       </button>
 
       {/* Header card */}
-      <div className="card p-5">
-        <h2 className="text-lg font-semibold text-gray-800">{survey.title}</h2>
-        {survey.description && <p className="text-sm text-gray-500 mt-1">{survey.description}</p>}
-        <div className="mt-3 space-y-1.5">
-          <div className="flex items-center justify-between text-xs text-gray-500">
+      <div className="card p-6">
+        <h2 className="text-2xl font-bold text-gray-900">{survey.title}</h2>
+        {survey.description && <p className="text-base text-gray-500 mt-1.5">{survey.description}</p>}
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-sm text-gray-500">
             <span>Question {currentIdx + 1} of {total}</span>
             <span>{progressPct}% complete</span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-primary rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%` }}
@@ -281,23 +282,23 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
 
       {/* Current question */}
       {currentQ && (
-        <div className="card p-6 space-y-4">
+        <div className="card p-6 sm:p-8 space-y-6">
           {/* Answered earlier questions (collapsed) */}
           {currentIdx > 0 && (
-            <div className="flex items-center gap-2 text-xs text-green-600 font-medium">
-              <CheckCircle2 size={13} />
+            <div className="flex items-center gap-2 text-sm text-green-600 font-medium">
+              <CheckCircle2 size={15} />
               {currentIdx} question{currentIdx !== 1 ? 's' : ''} answered
             </div>
           )}
 
-          <div className="flex items-start gap-3">
-            <span className="w-8 h-8 rounded-full bg-primary text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
+          <div className="flex items-start gap-4">
+            <span className="w-10 h-10 rounded-full bg-primary text-white text-base font-bold flex items-center justify-center flex-shrink-0">
               {currentIdx + 1}
             </span>
-            <p className="text-base font-medium text-gray-800 leading-snug pt-1">{currentQ.question}</p>
+            <p className="text-xl font-semibold text-gray-900 leading-snug pt-1">{currentQ.question}</p>
           </div>
 
-          <div className="ml-11">
+          <div>
             <QuestionInput
               question={currentQ}
               value={currentAnswer}
@@ -311,8 +312,8 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
       {questions.slice(currentIdx + 1, currentIdx + 3).map((q, offset) => (
         <div key={q.id} className="card p-4 opacity-50 pointer-events-none">
           <div className="flex items-center gap-3 text-gray-400">
-            <Lock size={14} />
-            <span className="text-sm">Question {currentIdx + offset + 2}: {q.question.length > 60 ? q.question.slice(0, 60) + '…' : q.question}</span>
+            <Lock size={16} />
+            <span className="text-base">Question {currentIdx + offset + 2}: {q.question.length > 60 ? q.question.slice(0, 60) + '…' : q.question}</span>
           </div>
         </div>
       ))}
@@ -327,35 +328,35 @@ function SurveyForm({ survey, onBack }: { survey: Survey; onBack: () => void }) 
         <button
           onClick={() => setCurrentIdx(i => Math.max(0, i - 1))}
           disabled={currentIdx === 0}
-          className="btn-secondary btn-sm disabled:opacity-40"
+          className="btn-secondary px-5 py-3 text-base disabled:opacity-40"
         >
-          <ArrowLeft size={14} /> Previous
+          <ArrowLeft size={16} /> Previous
         </button>
 
         {currentIdx < total - 1 ? (
           <button
             onClick={() => { if (hasAnswer) setCurrentIdx(i => i + 1) }}
             disabled={!hasAnswer}
-            className="btn-primary btn-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn-primary px-6 py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
             title={!hasAnswer ? 'Please answer this question first' : ''}
           >
-            Next <ChevronRight size={14} />
+            Next <ChevronRight size={16} />
           </button>
         ) : (
           <button
             onClick={() => submit.mutate()}
             disabled={!hasAnswer || submit.isPending}
-            className="btn-primary btn-sm disabled:opacity-40 disabled:cursor-not-allowed"
+            className="btn-primary px-6 py-3 text-base disabled:opacity-40 disabled:cursor-not-allowed"
             title={!hasAnswer ? 'Please answer this question first' : ''}
           >
-            <Send size={14} />
+            <Send size={16} />
             {submit.isPending ? 'Submitting…' : 'Submit Survey'}
           </button>
         )}
       </div>
 
       {!hasAnswer && (
-        <p className="text-xs text-gray-400 text-center">
+        <p className="text-sm text-gray-400 text-center">
           Answer this question to {currentIdx < total - 1 ? 'continue' : 'submit'}.
         </p>
       )}

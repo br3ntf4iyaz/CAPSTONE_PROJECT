@@ -119,6 +119,7 @@ function MultipleChoiceInput({
 }: {
   choices: string[]; value?: string; onChange: (v: string) => void; questionId: number; disabled?: boolean
 }) {
+  if (!choices?.length) return <TextInput value={value} onChange={onChange} disabled={disabled} />  // never leave a question without a way to answer
   return (
     <div className="flex flex-col gap-2">
       {choices.map(opt => (

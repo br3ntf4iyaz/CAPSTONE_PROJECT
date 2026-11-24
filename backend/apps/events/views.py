@@ -314,14 +314,14 @@ class SurveyViewSet(viewsets.ModelViewSet):
         if not q_text:
             return Response({'detail': 'Question text required.'}, status=status.HTTP_400_BAD_REQUEST)
         order = survey.questions.count()
-        q = SQ.objects.create(
-            survey=survey,
-            question=q_text,
-            question_type=q_type,
-            choices=choices if isinstance(choices, list) else [],
-            order=order,
-        )
         from .serializers import SurveyQuestionSerializer
+        # validated: a multiple-choice question needs at least 2 choices, otherwise nobody could answer it
+        ser = SurveyQuestionSerializer(data={
+            'question': q_text, 'question_type': q_type,
+            'choices': choices if isinstance(choices, list) else [], 'order': order,
+        })
+        ser.is_valid(raise_exception=True)
+        q = ser.save(survey=survey)
         return Response(SurveyQuestionSerializer(q).data, status=status.HTTP_201_CREATED)
 
     @action(
