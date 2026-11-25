@@ -201,6 +201,7 @@ export default function OpportunitiesHubPage() {
             title="Jobs"
             description="Local listings from LYDO partners — government, private sector, and NGOs open to Lucena youth."
             icon={Briefcase}
+            image="/images/icons/jobs.png"
             to="/jobs"
             accent="primary"
             badge={openJobs.length > 0 ? `${openJobs.length} open` : undefined}
@@ -219,6 +220,7 @@ export default function OpportunitiesHubPage() {
             title="School Finder"
             description="Compare colleges, programs, and admission paths in Lucena and nearby cities."
             icon={School}
+            image="/images/icons/school-finder.png"
             to="/schools"
             accent="neutral"
             badge={schools.length > 0 ? `${schools.length} schools` : undefined}
@@ -310,11 +312,12 @@ export default function OpportunitiesHubPage() {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function HubCard({
-  title, description, icon: Icon, to, accent = 'primary', badge, samples,
+  title, description, icon: Icon, image, to, accent = 'primary', badge, samples,
 }: {
   title: string
   description: string
   icon: React.ElementType
+  image?: string  // a picture used in place of the line icon
   to: string
   accent?: 'primary' | 'accent' | 'neutral'
   badge?: string
@@ -334,9 +337,15 @@ function HubCard({
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-accent-400/20 blur-2xl" />
       <div className="relative flex items-start justify-between mb-5">
-        <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', iconCls)}>
-          <Icon size={22} strokeWidth={2.2} />
-        </span>
+        {image ? (
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-md p-1.5">
+            <img src={image} alt="" className="w-full h-full object-contain" />
+          </span>
+        ) : (
+          <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', iconCls)}>
+            <Icon size={22} strokeWidth={2.2} />
+          </span>
+        )}
         {badge && (
           <span className="chip bg-white/15 text-white text-[10px] font-bold uppercase tracking-wide border border-white/30">
             {badge}
