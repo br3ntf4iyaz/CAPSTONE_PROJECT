@@ -282,19 +282,19 @@ export default function LessonPlayerPage() {
 
             {/* ── Requirement before the assessment ───────────────────── */}
             {!completed && !requirementMet && (
-              <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 space-y-3">
-                <p className="font-semibold text-amber-900">
+              <section className="rounded-2xl border border-primary-200 bg-primary-50 p-5 space-y-3">
+                <p className="font-semibold text-primary-900">
                   {hasVideo ? 'Watch the video to unlock the assessment' : 'Read the lesson notes to unlock the assessment'}
                 </p>
                 {trackable ? (
                   <div>
-                    <div className="flex items-center justify-between text-xs font-semibold text-amber-900 mb-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-primary-900 mb-1">
                       <span>Video progress</span><span>{pct}% of {lesson.video_required_percent}% needed</span>
                     </div>
                     <div className="h-2 rounded-full bg-white overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-                      <div className="h-full bg-amber-500 transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
+                      <div className="h-full bg-primary-600 transition-all" style={{ width: `${Math.min(100, pct)}%` }} />
                     </div>
-                    <p className="mt-2 text-xs text-amber-800">Progress counts only while the video plays. Skipping ahead does not count.</p>
+                    <p className="mt-2 text-xs text-primary-800">Progress counts only while the video plays. Skipping ahead does not count.</p>
                   </div>
                 ) : hasVideo ? (
                   <button type="button" className="btn-primary btn-sm" disabled={confirmVideo.isPending} onClick={() => confirmVideo.mutate()}>
@@ -302,7 +302,7 @@ export default function LessonPlayerPage() {
                   </button>
                 ) : (
                   <div className="space-y-2">
-                    <p className="text-sm text-amber-900">
+                    <p className="text-sm text-primary-900">
                       This lesson has no video yet, so it is not marked as watched. Read the notes{(lesson.study_resources ?? []).length ? ' and the study materials' : ''} above, then confirm.
                     </p>
                     <button type="button" className="btn-primary btn-sm" disabled={confirmNotes.isPending} onClick={() => confirmNotes.mutate()}>
