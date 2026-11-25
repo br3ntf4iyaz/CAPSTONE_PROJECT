@@ -63,6 +63,12 @@ interface OrgDetail {
   contact_phone: string
   description: string
   requirements: RequirementRow[]
+  is_active: boolean
+  mission?: string
+  membership_requirements?: string
+  how_to_join?: string
+  facebook_url?: string
+  accepting_members?: boolean
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -100,6 +106,46 @@ function RequirementFiles({ orgId }: { orgId: number }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+/** What the public sees on the organization's profile, and whether it is listed. Nothing private goes here. */
+function PublicProfileEditor({ org }: { org: OrgDetail }) {
+  const qc = useQueryClient()
+  const [f, setF] = useState({
+    mission: org.mission ?? '', membership_requirements: org.membership_requirements ?? '', how_to_join: org.how_to_join ?? '',
+    facebook_url: org.facebook_url ?? '', accepting_members: org.accepting_members ?? true, is_active: org.is_active,
+  })
+  const save = useMutation({
+    mutationFn: () => apiClient.patch(`/youth-orgs/${org.id}/`, f),
+    onSuccess: () => {
+      toast.success('Public profile saved.')
+      qc.invalidateQueries({ queryKey: ['admin-youth-orgs'] })
+      qc.invalidateQueries({ queryKey: ['admin-org-detail', org.id] })
+    },
+    onError: (err: any) => {
+      const d = err?.response?.data
+      toast.error(d?.facebook_url?.[0] ?? d?.detail ?? 'Could not save the public profile.')
+    },
+  })
+  return (
+    <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
+      <p className="font-medium text-gray-700">Public profile</p>
+      <p className="text-xs text-gray-500">Shown to everyone, even visitors without an account. An organization is listed publicly only when it is approved and active.</p>
+      <label className="block"><span className="text-xs text-gray-500">Mission and objectives</span>
+        <textarea className="input mt-1 w-full" rows={2} maxLength={1500} value={f.mission} onChange={e => setF(p => ({ ...p, mission: e.target.value }))} /></label>
+      <label className="block"><span className="text-xs text-gray-500">Membership requirements</span>
+        <textarea className="input mt-1 w-full" rows={2} maxLength={1000} value={f.membership_requirements} onChange={e => setF(p => ({ ...p, membership_requirements: e.target.value }))} /></label>
+      <label className="block"><span className="text-xs text-gray-500">How to join</span>
+        <textarea className="input mt-1 w-full" rows={2} maxLength={1000} value={f.how_to_join} onChange={e => setF(p => ({ ...p, how_to_join: e.target.value }))} /></label>
+      <label className="block"><span className="text-xs text-gray-500">Facebook page (optional, only a link the organization gave)</span>
+        <input className="input mt-1 w-full" value={f.facebook_url} onChange={e => setF(p => ({ ...p, facebook_url: e.target.value }))} placeholder="https://www.facebook.com/..." /></label>
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-gray-700">
+        <label className="flex items-center gap-2"><input type="checkbox" checked={f.accepting_members} onChange={e => setF(p => ({ ...p, accepting_members: e.target.checked }))} /> Accepting new members</label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={f.is_active} disabled={org.status !== 'approved'} onChange={e => setF(p => ({ ...p, is_active: e.target.checked }))} /> Listed publicly {org.status !== 'approved' && <span className="text-xs text-gray-400">(after approval)</span>}</label>
+      </div>
+      <button type="button" onClick={() => save.mutate()} disabled={save.isPending} className="btn-primary btn-sm text-xs">{save.isPending ? 'Saving…' : 'Save public profile'}</button>
+    </div>
   )
 }
 
@@ -150,6 +196,8 @@ function DecisionBox({ orgId }: { orgId: number }) {
         <p><span className="text-gray-400">Phone: </span>{org.contact_phone || '—'}</p>
       </div>
       {org.description && <p className="text-xs text-gray-600 whitespace-pre-line">{org.description}</p>}
+
+      <PublicProfileEditor key={`${org.id}-${org.status}-${org.is_active}`} org={org} />
 
       <label className="block">
         <span className="text-xs text-gray-500">Note to the organization (required when rejecting)</span>

@@ -545,6 +545,7 @@ const DISCOVERY_PATHS = [
   '/resources', '/participate',
   '/programs', '/sk-directory', '/sk-feedback', '/sk-inbox',
   '/schools',  // the school list is public; the courses of each school need an account
+  '/organizations',  // browsing youth organizations is public; applying to join needs an account
 ]
 
 // ── Main Layout ────────────────────────────────────────────────────────────────

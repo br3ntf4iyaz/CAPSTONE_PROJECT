@@ -36,6 +36,12 @@ class YouthOrganization(models.Model):
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)
     logo = models.ImageField(upload_to='org_logos/', null=True, blank=True)
+    # What the organization shows the public (all optional). Nothing here is private.
+    mission = models.TextField(blank=True)
+    membership_requirements = models.TextField(blank=True)
+    how_to_join = models.TextField(blank=True)
+    facebook_url = models.URLField(max_length=300, blank=True)
+    accepting_members = models.BooleanField(default=True)  # shown as the recruitment status
     is_active = models.BooleanField(default=True)
     is_compliant = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -124,3 +130,24 @@ def ensure_default_requirements(org):
         OrgRequirement.objects.bulk_create(
             [OrgRequirement(organization=org, name=n) for n in missing]
         )
+
+
+class OrgMembershipApplication(models.Model):
+    """A signed-in young person asking to join a PUBLIC organization. The organization's submitter or LYDO decides."""
+    STATUS_CHOICES = [('pending', 'Pending'), ('accepted', 'Accepted'), ('declined', 'Not accepted')]
+
+    organization = models.ForeignKey(YouthOrganization, on_delete=models.CASCADE, related_name='membership_applications')
+    applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='org_applications')
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    decision_note = models.TextField(blank=True)  # the applicant reads this
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    decided_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [models.UniqueConstraint(fields=['organization', 'applicant'], name='one_application_per_org_and_person')]
+
+    def __str__(self):
+        return f'{self.applicant} -> {self.organization.name} ({self.status})'

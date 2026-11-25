@@ -12,11 +12,14 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 from apps.notifications.views import create_notification
 
-from .models import OrgAccomplishment, OrgRequirement, YouthOrganization, ensure_default_requirements
+from .models import OrgAccomplishment, OrgMembershipApplication, OrgRequirement, YouthOrganization, ensure_default_requirements
 from .serializers import (
     OrgAccomplishmentSerializer,
     OrgDetailSerializer,
     OrgListSerializer,
+    OrgMembershipApplicationSerializer,
+    OrgPublicDetailSerializer,
+    OrgPublicListSerializer,
     OrgRequirementSerializer,
     OrgSubmissionSerializer,
     sanitize,
@@ -98,16 +101,25 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         if barangay:
             qs = qs.filter(barangay__icontains=barangay)
 
-        # Non-admin users only see active orgs
+        # Everyone who is not an administrator sees only PUBLIC organizations: approved by LYDO and active.
+        # Pending, rejected, inactive (private) organizations are never listed, whatever the account.
         if not (
             self.request.user.is_authenticated
             and IsAdminRole().has_permission(self.request, self)
         ):
-            qs = qs.filter(is_active=True)
+            qs = qs.filter(is_active=True, status='approved')
+        accepting = self.request.query_params.get('accepting')
+        if accepting is not None:
+            qs = qs.filter(accepting_members=accepting.lower() in ('1', 'true', 'yes'))
 
         return qs
 
+    def _is_admin(self):
+        return self.request.user.is_authenticated and IsAdminRole().has_permission(self.request, self)
+
     def get_serializer_class(self):
+        if self.action in ('list', 'retrieve') and not self._is_admin():
+            return OrgPublicListSerializer if self.action == 'list' else OrgPublicDetailSerializer
         if self.action == 'list':
             return OrgListSerializer
         if self.action == 'create' and not (
@@ -145,7 +157,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('create', 'my_submissions', 'upload_requirement'):
+        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -189,6 +201,80 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             'id': req.id, 'name': req.name, 'is_submitted': True,
             'submitted_at': req.submitted_at, 'notes': req.notes,
         })
+
+    # ------------------------------------------------------------------
+    # Membership applications (sign-in required)
+    # ------------------------------------------------------------------
+
+    def _manages(self, user, org):
+        return IsAdminRole().has_permission(self.request, self) or (org.submitted_by_id is not None and org.submitted_by_id == user.id)
+
+    def _audit(self, request, action_name, org, **details):
+        from apps.accounts.models import AuditLog
+        from apps.accounts.views import get_client_ip
+        AuditLog.objects.create(user=request.user, action=action_name, model_name='YouthOrganization', object_id=org.pk,
+                                ip_address=get_client_ip(request), details={'organization': org.name, **details})
+
+    @action(detail=True, methods=['post'], url_path='apply', permission_classes=[IsAuthenticated])
+    def apply(self, request, pk=None):
+        """A signed-in young person asks to join a public organization that is accepting members."""
+        org = self.get_object()  # only public organizations can be reached here by non-admins
+        user = request.user
+        if getattr(user, 'role', '') != 'youth':
+            return Response({'detail': 'Only youth accounts can apply for membership.'}, status=status.HTTP_403_FORBIDDEN)
+        if org.submitted_by_id == user.id:
+            return Response({'detail': 'You already manage this organization.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not org.accepting_members:
+            return Response({'detail': 'This organization is not accepting new members right now.'}, status=status.HTTP_400_BAD_REQUEST)
+        if OrgMembershipApplication.objects.filter(organization=org, applicant=user).exists():
+            return Response({'detail': 'You already applied to this organization.'}, status=status.HTTP_400_BAD_REQUEST)
+        message = sanitize(str(request.data.get('message', '')).strip())[:500]
+        app = OrgMembershipApplication.objects.create(organization=org, applicant=user, message=message)
+        self._audit(request, 'org_membership_applied', org, application=app.pk)
+        if org.submitted_by_id:
+            try:
+                create_notification(org.submitted_by, 'New membership application',
+                                    f'{user.full_name or user.email} applied to join "{org.name}".', 'system', link=f'/organizations?org={org.pk}')
+            except Exception:
+                pass
+        return Response(OrgMembershipApplicationSerializer(app).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
+    def my_applications(self, request):
+        qs = OrgMembershipApplication.objects.filter(applicant=request.user).select_related('organization')
+        return Response(OrgMembershipApplicationSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=['get'], url_path='applications', permission_classes=[IsAuthenticated])
+    def applications(self, request, pk=None):
+        """Membership applications of THIS organization: only the person who registered it, or LYDO."""
+        org = get_object_or_404(YouthOrganization, pk=pk)
+        if not self._manages(request.user, org):
+            return Response({'detail': 'Only the organization leader or LYDO can see the applications.'}, status=status.HTTP_403_FORBIDDEN)
+        qs = org.membership_applications.select_related('applicant', 'organization')
+        return Response(OrgMembershipApplicationSerializer(qs, many=True).data)
+
+    @action(detail=True, methods=['post'], url_path='decide-application', permission_classes=[IsAuthenticated])
+    def decide_application(self, request, pk=None):
+        org = get_object_or_404(YouthOrganization, pk=pk)
+        if not self._manages(request.user, org):
+            return Response({'detail': 'Only the organization leader or LYDO can decide.'}, status=status.HTTP_403_FORBIDDEN)
+        app = get_object_or_404(OrgMembershipApplication, pk=request.data.get('application') or 0, organization=org)
+        new = request.data.get('status')
+        if new not in ('accepted', 'declined'):
+            return Response({'detail': 'Choose accepted or declined.'}, status=status.HTTP_400_BAD_REQUEST)
+        note = sanitize(str(request.data.get('note', '')).strip())[:500]
+        if new == 'declined' and len(note) < 5:
+            return Response({'detail': 'Write a short reason, so the applicant knows why.'}, status=status.HTTP_400_BAD_REQUEST)
+        app.status, app.decision_note, app.decided_by, app.decided_at = new, note, request.user, timezone.now()
+        app.save()
+        self._audit(request, 'org_membership_decided', org, application=app.pk, decision=new)
+        label = 'accepted' if new == 'accepted' else 'not accepted'
+        try:
+            create_notification(app.applicant, f'Membership {label}',
+                                f'Your application to join "{org.name}" was {label}.' + (f' {note}' if note else ''), 'system', link='/organizations')
+        except Exception:
+            pass
+        return Response(OrgMembershipApplicationSerializer(app).data)
 
     # ------------------------------------------------------------------
     # Custom actions
@@ -259,6 +345,9 @@ class OrgAccomplishmentViewSet(viewsets.ModelViewSet):
         qs = OrgAccomplishment.objects.select_related('organization')
         if org_pk:
             qs = qs.filter(organization_id=org_pk)
+        # the public sees the achievements of public organizations only
+        if not (self.request.user.is_authenticated and IsAdminRole().has_permission(self.request, self)):
+            qs = qs.filter(organization__is_active=True, organization__status='approved')
         return qs
 
     def get_permissions(self):

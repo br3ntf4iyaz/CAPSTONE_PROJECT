@@ -2,7 +2,7 @@ import bleach
 from rest_framework import serializers
 from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
-from .models import OrgAccomplishment, OrgRequirement, YouthOrganization
+from .models import OrgAccomplishment, OrgMembershipApplication, OrgRequirement, YouthOrganization
 
 BLEACH_ALLOWED_TAGS = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a']
 BLEACH_ALLOWED_ATTRS = {'a': ['href', 'title', 'rel']}
@@ -117,6 +117,8 @@ class OrgDetailSerializer(serializers.ModelSerializer):
     accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
     requirements = OrgRequirementSerializer(many=True, read_only=True)
 
+    facebook_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # checked and tidied in validate_facebook_url
+
     def get_logo_url(self, obj):
         request = self.context.get('request')
         if obj.logo and request:
@@ -138,6 +140,11 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'contact_phone',
             'logo',
             'logo_url',
+            'mission',
+            'membership_requirements',
+            'how_to_join',
+            'facebook_url',
+            'accepting_members',
             'is_active',
             'is_compliant',
             'status',
@@ -148,6 +155,19 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'requirements',
         ]
         read_only_fields = ['created_at', 'updated_at', 'is_compliant', 'status', 'admin_notes']
+
+    def validate_facebook_url(self, value):
+        from apps.sk_requirements.social import clean_facebook_url
+        return clean_facebook_url(value, 'Facebook')
+
+    def validate_mission(self, value):
+        return sanitize(value)
+
+    def validate_membership_requirements(self, value):
+        return sanitize(value)
+
+    def validate_how_to_join(self, value):
+        return sanitize(value)
 
 
 class OrgSubmissionSerializer(serializers.ModelSerializer):
@@ -183,3 +203,52 @@ class OrgSubmissionSerializer(serializers.ModelSerializer):
 
     def validate_description(self, value):
         return sanitize(value)
+
+
+# ---------------------------------------------------------------------------
+# What the PUBLIC (visitors and ordinary accounts) may read. No admin notes, no uploaded documents, no review status.
+# ---------------------------------------------------------------------------
+
+class OrgPublicListSerializer(serializers.ModelSerializer):
+    logo_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = YouthOrganization
+        fields = [
+            'id', 'name', 'classification', 'sub_classification', 'registration_category', 'barangay', 'description',
+            'contact_person', 'is_compliant', 'accepting_members', 'logo_url', 'created_at',
+        ]
+
+    def get_logo_url(self, obj):
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.logo.url) if obj.logo and request else None
+
+
+class OrgPublicDetailSerializer(OrgPublicListSerializer):
+    accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
+    can_manage = serializers.SerializerMethodField()
+
+    class Meta(OrgPublicListSerializer.Meta):
+        fields = OrgPublicListSerializer.Meta.fields + [
+            'mission', 'membership_requirements', 'how_to_join', 'facebook_url', 'contact_email', 'contact_phone',
+            'accomplishments', 'can_manage',
+        ]
+
+    def get_can_manage(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return bool(user and user.is_authenticated and obj.submitted_by_id == user.id)
+
+
+class OrgMembershipApplicationSerializer(serializers.ModelSerializer):
+    organization_name = serializers.CharField(source='organization.name', read_only=True)
+    applicant_name = serializers.SerializerMethodField()
+    applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
+
+    class Meta:
+        model = OrgMembershipApplication
+        fields = ['id', 'organization', 'organization_name', 'applicant_name', 'applicant_email', 'message', 'status', 'decision_note', 'created_at', 'decided_at']
+        read_only_fields = fields
+
+    def get_applicant_name(self, obj):
+        return obj.applicant.full_name or obj.applicant.email

@@ -10,6 +10,7 @@ import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
 import PolicyLinks from '@/components/PolicyLinks'
+import { peekRememberedNext } from '../components/OrgJoin'
 
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
@@ -22,7 +23,9 @@ export default function YouthLoginPage() {
   const [searchParams] = useSearchParams()
   const rawNext = searchParams.get('next')
   // Only allow safe relative paths — reject external URLs and protocol-relative URLs
-  const redirectTo = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+  const safeNext = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null
+  // no ?next=, e.g. after creating an account and verifying the email: use the organization picked before
+  const redirectTo = safeNext ?? peekRememberedNext()
 
   const login = useLogin({
     allowedRoles: ['youth', 'lgu_admin', 'super_admin'],

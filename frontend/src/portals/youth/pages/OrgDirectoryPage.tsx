@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2, Search, CheckCircle2, XCircle, Mail, Phone,
@@ -11,6 +12,7 @@ import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
 import { QueryError } from '@/components/ui/QueryError'
 import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
+import { JoinFlow, OrgApplicationsPanel, clearRememberedNext } from '../components/OrgJoin'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface YouthOrg {
@@ -23,10 +25,16 @@ interface YouthOrg {
   description: string
   contact_person: string
   is_compliant: boolean
+  accepting_members?: boolean
   logo_url: string | null
 }
 
 interface OrgDetail extends YouthOrg {
+  mission?: string
+  membership_requirements?: string
+  how_to_join?: string
+  facebook_url?: string
+  can_manage?: boolean
   contact_email: string
   contact_phone: string
   is_active: boolean
@@ -82,7 +90,7 @@ const REG_COLORS: Record<string, string> = {
 }
 
 // ── Org Detail Modal ───────────────────────────────────────────────────────────
-function OrgDetailModal({ orgId, onClose }: { orgId: number; onClose: () => void }) {
+function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: () => void; onJoin: (o: { id: number; name: string }) => void }) {
   const { data: org, isLoading } = useQuery<OrgDetail>({
     queryKey: ['org-detail', orgId],
     queryFn: () => apiClient.get(`/youth-orgs/${orgId}/`).then(r => r.data),
@@ -191,6 +199,32 @@ function OrgDetailModal({ orgId, onClose }: { orgId: number; onClose: () => void
                 <p className="text-sm text-ink-700 leading-relaxed">{org.description}</p>
               </div>
             )}
+            {org.mission && (
+              <div className="px-4 pt-4">
+                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Mission and objectives</p>
+                <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{org.mission}</p>
+              </div>
+            )}
+
+            {/* Membership: recruitment status, requirements, how to join, apply */}
+            <div className="px-4 pt-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">Membership</p>
+                <span className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', org.accepting_members === false ? 'border-ink-200 bg-ink-50 text-ink-600' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>
+                  {org.accepting_members === false ? 'Not accepting members now' : 'Accepting members'}
+                </span>
+              </div>
+              {org.membership_requirements && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>Requirements: </strong>{org.membership_requirements}</p>}
+              {org.how_to_join && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>How to join: </strong>{org.how_to_join}</p>}
+              {org.facebook_url && (
+                <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1877F2] hover:underline">Visit their Facebook page</a>
+              )}
+              {!org.can_manage && (
+                <button type="button" disabled={org.accepting_members === false} onClick={() => onJoin({ id: org.id, name: org.name })}
+                  className="btn-primary mt-3 w-full disabled:opacity-50">{org.accepting_members === false ? 'Not accepting members' : 'Join this organization'}</button>
+              )}
+            </div>
+            {org.can_manage && <div className="pt-4"><OrgApplicationsPanel orgId={org.id} /></div>}
 
             {/* Accomplishments / Activities */}
             {org.accomplishments.length > 0 && (
@@ -508,6 +542,10 @@ export default function OrgDirectoryPage() {
   const [classFilter, setClassFilter] = useState('')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [showSubmitForm, setShowSubmitForm] = useState(false)
+  const [joinOrg, setJoinOrg] = useState<{ id: number; name: string } | null>(null)
+  const [barangay, setBarangay] = useState('')
+  const [acceptingOnly, setAcceptingOnly] = useState(false)
+  const [params, setParams] = useSearchParams()
 
   const auth = useAuthStore()
   const { data: verification } = useQuery<{ is_verified: boolean }>({
@@ -526,9 +564,26 @@ export default function OrgDirectoryPage() {
       }),
   })
 
+  // a link such as /organizations?org=5&join=1 (also what the sign-in page returns to) opens that organization,
+  // and the apply form once the person is signed in
+  useEffect(() => {
+    const id = Number(params.get('org'))
+    if (id) {
+      setSelectedId(id)
+      if (auth.isAuthenticated) clearRememberedNext()
+      if (params.get('join') === '1' && auth.isAuthenticated) setJoinOrg({ id, name: orgs.find(o => o.id === id)?.name ?? 'this organization' })
+      if (params.get('join') !== '1' || auth.isAuthenticated) setParams({}, { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, auth.isAuthenticated])
+
+  const barangays = useMemo(() => [...new Set(orgs.map(o => o.barangay).filter(Boolean))].sort(), [orgs])
+
   const filtered = orgs.filter(o => {
     if (o.sub_classification === 'sk_council') return false
     if (classFilter && o.classification !== classFilter) return false
+    if (barangay && o.barangay !== barangay) return false
+    if (acceptingOnly && o.accepting_members === false) return false
     if (!search) return true
     return (
       o.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -538,7 +593,8 @@ export default function OrgDirectoryPage() {
 
   return (
     <div className="space-y-6">
-      {selectedId && <OrgDetailModal orgId={selectedId} onClose={() => setSelectedId(null)} />}
+      {selectedId && <OrgDetailModal orgId={selectedId} onClose={() => setSelectedId(null)} onJoin={o => setJoinOrg(o)} />}
+      {joinOrg && <JoinFlow org={joinOrg} onClose={() => setJoinOrg(null)} />}
       {showSubmitForm && <SubmitOrgModal onClose={() => setShowSubmitForm(false)} />}
 
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -600,6 +656,18 @@ export default function OrgDirectoryPage() {
             ))}
           </div>
 
+          <div className="flex flex-wrap items-center gap-3">
+            {barangays.length > 1 && (
+              <select className="input w-auto text-sm" value={barangay} onChange={e => setBarangay(e.target.value)} aria-label="Filter by barangay">
+                <option value="">All barangays</option>
+                {barangays.map(b => <option key={b} value={b}>{b}</option>)}
+              </select>
+            )}
+            <label className="flex items-center gap-2 text-sm text-ink-700">
+              <input type="checkbox" checked={acceptingOnly} onChange={e => setAcceptingOnly(e.target.checked)} /> Accepting members now
+            </label>
+          </div>
+
           <p className="text-xs text-ink-500">
             {isLoading ? 'Loading…' : `${filtered.length} organization${filtered.length !== 1 ? 's' : ''} found`}
           </p>
@@ -618,10 +686,13 @@ export default function OrgDirectoryPage() {
           ) : (
             <div className="space-y-3">
               {filtered.map(org => (
-                <button
+                <div
                   key={org.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedId(org.id)}
-                  className="w-full card p-4 hover:shadow-md hover:border-primary-200 transition-all text-left group"
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(org.id) } }}
+                  className="w-full card p-4 hover:shadow-md hover:border-primary-200 transition-all text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
@@ -655,11 +726,22 @@ export default function OrgDirectoryPage() {
                         {org.description && (
                           <p className="text-xs text-ink-500 mt-2 line-clamp-1">{org.description}</p>
                         )}
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-primary-200 px-3 py-1 text-[11px] font-semibold text-primary-700">View Organization</span>
+                          <button
+                            type="button"
+                            disabled={org.accepting_members === false}
+                            onClick={e => { e.stopPropagation(); setJoinOrg({ id: org.id, name: org.name }) }}
+                            className="rounded-full bg-primary-700 px-3 py-1 text-[11px] font-semibold text-white hover:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-500"
+                          >
+                            {org.accepting_members === false ? 'Not accepting members' : 'Join'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                     <ChevronRight size={16} className="text-ink-300 group-hover:text-primary-500 transition-colors flex-shrink-0 mt-1" />
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

@@ -529,7 +529,7 @@ class Command(BaseCommand):
         ]
         self._orgs = {}
         for d in orgs:
-            org, _ = YouthOrganization.objects.get_or_create(name=d["name"], defaults=d)
+            org, _ = YouthOrganization.objects.get_or_create(name=d["name"], defaults={**d, "status": "approved"})
             self._orgs[d["name"]] = org
 
         accomplishments = [
