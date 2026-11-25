@@ -31,17 +31,19 @@ interface Slot { label: string; deadline: string | null; status: ComplianceStatu
 interface Detail { barangay: { id: number; name: string }; category: string; year: number; label: string; description: string; slots: Slot[] }
 interface QueueRow extends Rec { barangay: string; barangay_id: number; category: string; category_short: string; period: string; waiting_days: number }
 
-/** A white pill on a coloured tile: always readable. */
+/** A soft status pill: tinted background, strong coloured text, readable on white. */
+const PILL: Record<ComplianceStatus, string> = {
+  not_submitted: 'bg-amber-50 text-amber-800 border-amber-200',
+  submitted: 'bg-sky-50 text-sky-800 border-sky-200',
+  under_verification: 'bg-violet-50 text-violet-800 border-violet-200',
+  returned: 'bg-orange-50 text-orange-800 border-orange-200',
+  verified: 'bg-emerald-50 text-emerald-800 border-emerald-200',
+  published: 'bg-primary-600 text-white border-primary-700',
+  overdue: 'bg-red-100 text-red-800 border-red-200',
+}
 function TileChip({ status }: { status: ComplianceStatus }) {
   const m = STATUS_META[status]
-  return <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-ink-900 shadow-sm"><m.icon size={12} /> {m.label}</span>
-}
-
-/** Bars under a quarterly or monthly tile: white = handed in, dark = overdue, faded = still waiting. */
-function periodDot(status: ComplianceStatus): string {
-  if (status === 'overdue') return 'bg-black/35'
-  if (status === 'not_submitted' || status === 'returned') return 'bg-white/45'
-  return 'bg-white'
+  return <span className={cn('inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-bold', PILL[status])}><m.icon size={12} /> {m.label}</span>
 }
 
 export default function AdminSKCompliancePage() {
@@ -161,7 +163,7 @@ export default function AdminSKCompliancePage() {
           <p className="-mt-2 flex items-center gap-1.5 text-xs text-ink-500"><MousePointerClick size={13} /> Click any cell to open that barangay's document, review it, and see its history.</p>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-bold text-ink-800">{o.rows.length} barangay{o.rows.length === 1 ? '' : 's'} <span className="ml-2 text-xs font-medium text-ink-500">Small bars: white = handed in, dark = overdue, faded = still waiting</span></p>
+            <p className="text-sm font-bold text-ink-800">{o.rows.length} barangay{o.rows.length === 1 ? '' : 's'} <span className="ml-2 text-xs font-medium text-ink-500">Small bars show each quarter or month</span></p>
             <label className="flex items-center gap-2 text-xs font-semibold text-ink-600">
               Sort by
               <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="input w-auto py-1 text-xs">
@@ -176,14 +178,14 @@ export default function AdminSKCompliancePage() {
             <table className="w-full min-w-[1080px] border-separate border-spacing-x-2 border-spacing-y-2 px-2 text-sm">
               <thead>
                 <tr className="text-left text-xs font-extrabold uppercase tracking-wide">
-                  <th className="sticky left-0 z-10 rounded-xl bg-primary-100 px-4 py-3 text-primary-900">Barangay</th>
+                  <th className="sticky left-0 z-10 rounded-xl bg-primary-50 px-4 py-3 text-primary-900">Barangay</th>
                   {o.categories.map(c => (
-                    <th key={c.key} className="rounded-xl bg-primary-100 px-3 py-3 align-bottom text-primary-900" title={`${c.label}: ${c.description}`}>
+                    <th key={c.key} className="rounded-xl bg-primary-50 px-3 py-3 align-bottom text-primary-900" title={`${c.label}: ${c.description}`}>
                       <span className="block">{c.short}</span>
                       <span className="mt-0.5 block max-w-[150px] text-[10px] font-semibold normal-case leading-tight tracking-normal text-primary-700">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
                     </th>
                   ))}
-                  <th className="rounded-xl bg-primary-100 px-4 py-3 text-right text-primary-900">Compliance</th>
+                  <th className="rounded-xl bg-primary-50 px-4 py-3 text-right text-primary-900">Compliance</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,21 +220,21 @@ export default function AdminSKCompliancePage() {
                           <td key={c.key} className="min-w-[150px] p-0 align-middle">
                             <button type="button" title={`Open ${r.barangay} · ${c.short}`} aria-label={`${r.barangay} ${c.short}`}
                               onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
-                              className={cn('group flex h-full w-full items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-px hover:shadow-md hover:brightness-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-1', SEGMENT_TINT[tone])}>
+                              className={cn('group flex h-full w-full items-center justify-between gap-2 rounded-xl border border-l-4 px-3 py-2.5 text-left text-ink-900 transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500', SEGMENT_TINT[tone])}>
                               <span className="min-w-0 flex-1">
                                 {cell.kind === 'single' ? <TileChip status={cell.periods[0].status} /> : (
                                   <>
                                     <span className="flex items-baseline gap-1.5 whitespace-nowrap text-xs">
-                                      <span className="text-sm font-extrabold">{cell.completed}/{cell.total}</span>
-                                      {cell.overdue > 0 && <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-extrabold text-red-700 shadow-sm">{cell.overdue} overdue</span>}
+                                      <span className="text-sm font-bold text-ink-900">{cell.completed}/{cell.total}</span>
+                                      {cell.overdue > 0 && <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">{cell.overdue} overdue</span>}
                                     </span>
                                     <span className="mt-1.5 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${cell.periods.length}, minmax(0, 1fr))` }}>
-                                      {cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-2 rounded-full', periodDot(p.status))} />)}
+                                      {cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-1.5 rounded-full', STATUS_META[p.status].dot)} />)}
                                     </span>
                                   </>
                                 )}
                               </span>
-                              <ChevronRight size={15} className="shrink-0 opacity-70 transition group-hover:translate-x-0.5 group-hover:opacity-100" />
+                              <ChevronRight size={14} className="shrink-0 text-ink-300 transition group-hover:translate-x-0.5 group-hover:text-primary-600" />
                             </button>
                           </td>
                         )
