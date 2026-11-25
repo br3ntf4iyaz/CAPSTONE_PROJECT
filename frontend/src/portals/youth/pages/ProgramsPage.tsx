@@ -21,6 +21,7 @@ import { formatDate, getStatusColor, cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
+import TopicCover from '@/components/ui/TopicCover'
 
 interface Program {
   id: number
@@ -72,19 +73,7 @@ function FeaturedProgramCard({ prog }: { prog: Program }) {
     <div className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col">
       {/* Image block */}
       <div className="relative w-full overflow-hidden flex-shrink-0" style={{ aspectRatio: '4/3' }}>
-        {prog.thumbnail ? (
-          <img
-            src={prog.thumbnail}
-            alt={prog.title}
-            loading="lazy"
-            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <div className={cn(
-            'absolute inset-0 bg-gradient-to-br',
-            CATEGORY_GRADIENT[prog.category] ?? CATEGORY_GRADIENT.other
-          )} />
-        )}
+        <TopicCover image={prog.thumbnail} title={prog.title} category={prog.category} alt={prog.title} labelClass="left-3 top-3" />
 
         {/* Scrim */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -265,13 +254,9 @@ export default function ProgramsPage() {
                     key={prog.id}
                     className="card overflow-hidden hover:shadow-md transition-shadow"
                   >
-                    {prog.thumbnail ? (
-                      <img src={prog.thumbnail} alt={prog.title} className="w-full h-40 object-cover" />
-                    ) : (
-                      <div className="w-full h-40 bg-paper-100 flex items-center justify-center">
-                        <FolderOpen size={40} className="text-primary-400" />
-                      </div>
-                    )}
+                    <div className="relative w-full h-40 overflow-hidden bg-paper-100">
+                      <TopicCover image={prog.thumbnail} title={prog.title} category={prog.category} alt={prog.title} labelClass="left-3 bottom-3" />
+                    </div>
                     <div className="p-4">
                       <div className="flex flex-wrap items-center gap-1.5 mb-2">
                         <span className="badge-blue capitalize">{prog.category.replace('_', ' ')}</span>

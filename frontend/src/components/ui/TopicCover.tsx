@@ -55,6 +55,8 @@ const KEYWORDS: [RegExp, Scene][] = [
 const CATEGORY_SCENE: Record<string, Scene> = {
   social_inclusion: 'inclusion', health: 'health', active_citizenship: 'civic', peace_building: 'peace', education: 'learning',
   environment: 'nature', governance: 'civic', agriculture: 'farm', global_mobility: 'globe', economic: 'livelihood',
+  // categories used by the Programs & Projects page
+  livelihood: 'livelihood', sports: 'festival', arts: 'festival', peace: 'peace', tech: 'learning',
   // news kinds
   news: 'news', update: 'update', youth_info: 'learning', local_event: 'festival', national_event: 'civic',
 }
