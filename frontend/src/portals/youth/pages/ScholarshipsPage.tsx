@@ -323,17 +323,17 @@ function ScholarshipCard({
 
   return (
     <div className={cn(
-      'bg-white rounded-xl border transition-all duration-200 p-5 group relative',
+      'bg-white rounded-2xl border border-l-4 transition-all duration-200 p-5 group relative shadow-sm',
       passed
-        ? 'border-gray-200 opacity-60'
-        : 'border-gray-200 hover:border-primary-300 hover:shadow-md hover:shadow-primary-50',
-      s.is_featured && !passed && 'border-amber-200 bg-amber-50/20',
+        ? 'border-gray-200 border-l-gray-300 opacity-60'
+        : 'border-primary-100 border-l-primary-500 hover:border-primary-300 hover:border-l-primary-600 hover:shadow-lg hover:shadow-primary-600/10 hover:-translate-y-0.5',
+      s.is_featured && !passed && 'border-l-accent-400 bg-gradient-to-r from-accent-50/60 to-white',
       soon && !passed && 'ring-1 ring-amber-300',
     )}>
       <button onClick={onClick} className="w-full text-left">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center">
-            <Award size={20} className="text-primary-600" />
+          <div className={cn('flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center shadow-md', passed ? 'bg-gray-300' : 'bg-gradient-to-br from-primary-500 to-primary-700 shadow-primary-600/30')}>
+            <Award size={20} className="text-white" />
           </div>
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-start justify-between gap-2 mb-1">
@@ -355,23 +355,23 @@ function ScholarshipCard({
                   <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', chip.cls)}>{chip.label}</span>
                   {s.is_sample && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Sample data</span>}
                 </div>
-                <h3 className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-primary-700 transition-colors">
+                <h3 className="font-bold text-primary-900 text-sm leading-snug group-hover:text-primary-700 transition-colors">
                   {s.title}
                 </h3>
               </div>
               <ChevronRight size={16} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0 mt-0.5 transition-colors" />
             </div>
-            <p className="text-xs text-gray-500 mb-1">{s.provider}</p>
-            {s.description && <p className="text-xs text-gray-600 mb-2 line-clamp-2">{s.description}</p>}
-            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
-              <span className="flex items-center gap-1 text-green-700">
+            <p className="text-xs font-semibold text-primary-700 mb-1">{s.provider}</p>
+            {s.description && <p className="text-xs text-ink-700 mb-2.5 line-clamp-2">{s.description}</p>}
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <span className="flex items-center gap-1 rounded-full border border-green-200 bg-green-50 px-2.5 py-0.5 font-medium text-green-800">
                 <DollarSign size={10} /> {s.amount}
               </span>
-              <span className="flex items-center gap-1">
-                <Users size={10} /> {s.slots}
+              <span className="flex items-center gap-1 rounded-full border border-primary-200 bg-primary-50 px-2.5 py-0.5 font-medium text-primary-800">
+                <Users size={10} className="text-primary-500" /> {s.slots}
               </span>
-              <span className={cn('flex items-center gap-1', passed ? 'text-red-500' : soon ? 'text-amber-600 font-medium' : '')}>
-                <Calendar size={10} />
+              <span className={cn('flex items-center gap-1 rounded-full border px-2.5 py-0.5 font-medium', passed ? 'border-red-200 bg-red-50 text-red-600' : soon ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-primary-200 bg-primary-50 text-primary-800')}>
+                <Calendar size={10} className={passed || soon ? '' : 'text-primary-500'} />
                 {passed ? 'Closed'
                   : s.closes_on ? `Apply until ${fmtDate(s.closes_on)}`
                   : soon ? `Closing soon — ${s.deadline}`
@@ -384,11 +384,11 @@ function ScholarshipCard({
       </button>
 
       <div className="mt-3 flex flex-wrap items-center gap-2 pl-[60px]">
-        <button onClick={onClick} className="btn-secondary btn-sm">View Details</button>
+        <button onClick={onClick} className="btn-secondary btn-sm border-primary-200 text-primary-700 hover:bg-primary-50">View Details</button>
         {applied ? (
           <Link to="/my-applications" className="btn-secondary btn-sm text-emerald-700">Applied · Track</Link>
         ) : !passed ? (
-          <button onClick={onApply} className="btn-primary btn-sm">Apply Now</button>
+          <button onClick={onApply} className="btn-primary btn-sm shadow-md shadow-primary-600/20">Apply Now</button>
         ) : null}
       </div>
 
