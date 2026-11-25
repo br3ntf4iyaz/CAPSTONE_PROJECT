@@ -150,9 +150,10 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
             'summary': notify.reaction_summary(post),
         })
 
-    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    @action(detail=True, methods=['get'], permission_classes=[permissions.AllowAny])
     def reactors(self, request, pk=None):
-        """Everyone who reacted to this post (name, photo and account type only, no private details)."""
+        """Everyone who reacted to this post. Public like the feed itself, so visitors who are not signed in can see it too:
+        name, photo and account type only, never an email or any other private detail."""
         post = self.get_object()
         rows = PostReaction.objects.filter(post=post).select_related('user').order_by('-updated_at', '-id')
         people = []

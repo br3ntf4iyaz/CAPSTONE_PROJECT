@@ -123,9 +123,13 @@ class CommunityNotificationTests(APITestCase):
         self.assertEqual(r.data['count'], 2)
         self.assertNotIn('Bob Test', [p['name'] for p in r.data['results']])
 
-    def test_reactors_needs_login(self):
-        self.client.force_authenticate(None)
-        self.assertIn(self.client.get(f'/api/community/posts/{self.post.id}/reactors/').status_code, (401, 403))
+    def test_reactors_list_is_public_and_shows_no_private_data(self):
+        self.act(self.b).post(f'/api/community/posts/{self.post.id}/react/')
+        self.client.force_authenticate(None)  # a visitor who is not signed in
+        r = self.client.get(f'/api/community/posts/{self.post.id}/reactors/')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data['count'], 1)
+        self.assertEqual(set(r.data['results'][0]), {'id', 'name', 'avatar', 'account_type', 'reaction', 'reacted_at'})
 
     # edge: deleted post
     def test_deleting_the_post_removes_its_notifications(self):
