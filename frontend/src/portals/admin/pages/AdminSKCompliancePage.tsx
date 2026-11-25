@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { complianceTile, compliancePercent } from '@/components/ui/ComplianceBadge'
 import { MONTHS, STATUS_META, StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
 import { CompletionRing, KpiCard, SEGMENT_TINT, groupTone, type Tone } from '@/components/ComplianceKit'
 import { apiMessage, downloadWithLogin } from '@/portals/youth/lms'
@@ -36,6 +37,7 @@ export default function AdminSKCompliancePage() {
   const setTab = (t: 'monitor' | 'queue' | 'other' | 'office') => setSearch(t === 'monitor' ? {} : { tab: t }, { replace: true })
   const [f, setF] = useState({ year: '', barangay: '', category: '', quarter: '', month: '', status: '', publication: '' })
   const [open, setOpen] = useState<{ barangay_id: number; barangay: string; category: string; year: number } | null>(null)
+  const [sort, setSort] = useState<'name' | 'behind' | 'best'>('name')
   const params = Object.fromEntries(Object.entries(f).filter(([, v]) => v))
   const q = useQuery({
     queryKey: ['sk-compliance-overview', 'admin', params],
@@ -126,13 +128,13 @@ export default function AdminSKCompliancePage() {
             <div className="mt-3"><StatusLegend /></div>
           </div>
 
-          <details className="group rounded-2xl border border-accent-200 bg-accent-50/70 p-4 text-sm">
-            <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink-900"><Info size={16} className="text-accent-700" /> What do CBYDP, ABYIP, RCB and MIL mean?
+          <details className="group rounded-2xl border border-primary-100 bg-primary-50/60 p-4 text-sm">
+            <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-ink-900"><Info size={16} className="text-primary-600" /> What do CBYDP, ABYIP, RCB and MIL mean?
               <ChevronRight size={15} className="ml-auto text-ink-400 transition-transform group-open:rotate-90" /></summary>
             <dl className="mt-3 grid gap-3 md:grid-cols-2">
               {o.categories.map(c => (
-                <div key={c.key} className="rounded-xl border-l-4 border-accent-400 bg-white p-3 shadow-sm">
-                  <dt className="font-semibold text-ink-900">{c.short} <span className="font-normal text-ink-500">· {c.label}</span></dt>
+                <div key={c.key} className="rounded-xl border border-primary-100 border-l-4 border-l-primary-500 bg-white p-3 shadow-sm">
+                  <dt className="font-semibold text-primary-900">{c.short} <span className="font-normal text-ink-500">· {c.label}</span></dt>
                   <dd className="mt-0.5 text-xs leading-relaxed text-ink-600">{c.description}</dd>
                 </div>
               ))}
@@ -140,44 +142,71 @@ export default function AdminSKCompliancePage() {
           </details>
           <p className="-mt-2 flex items-center gap-1.5 text-xs text-ink-500"><MousePointerClick size={13} /> Click any cell to open that barangay's document, review it, and see its history.</p>
 
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-ink-700">{o.rows.length} barangay{o.rows.length === 1 ? '' : 's'}</p>
+            <label className="flex items-center gap-2 text-xs font-semibold text-ink-600">
+              Sort by
+              <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="input w-auto py-1 text-xs">
+                <option value="name">Barangay name</option>
+                <option value="behind">Most behind first</option>
+                <option value="best">Best compliance first</option>
+              </select>
+            </label>
+          </div>
+
           <div className="overflow-x-auto rounded-2xl border border-primary-100 bg-white shadow-sm">
-            <table className="w-full min-w-[1020px] border-separate border-spacing-y-1.5 text-sm">
-              <thead className="border-b border-primary-100 bg-primary-50 text-left text-xs font-bold uppercase tracking-wide text-primary-800">
-                <tr><th className="px-4 py-3">Barangay</th>{o.categories.map(c => (
-                  <th key={c.key} className="px-3 py-3 align-bottom" title={`${c.label}: ${c.description}`}>
-                    <span className="block">{c.short}</span>
-                    <span className="mt-0.5 block max-w-[150px] text-[10px] font-medium normal-case leading-tight tracking-normal text-primary-600/80">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
-                  </th>))}<th className="px-4 py-3 text-right">Done</th></tr>
+            <table className="w-full min-w-[1080px] border-separate border-spacing-x-2 border-spacing-y-2 px-2 text-sm">
+              <thead>
+                <tr className="text-left text-xs font-bold uppercase tracking-wide text-primary-800">
+                  <th className="sticky left-0 z-10 rounded-xl bg-primary-50 px-4 py-3">Barangay</th>
+                  {o.categories.map(c => (
+                    <th key={c.key} className="rounded-xl bg-primary-50 px-3 py-3 align-bottom" title={`${c.label}: ${c.description}`}>
+                      <span className="block">{c.short}</span>
+                      <span className="mt-0.5 block max-w-[150px] text-[10px] font-medium normal-case leading-tight tracking-normal text-primary-600/80">{c.label.replace(/ \([A-Z]+\)$/, '')}</span>
+                    </th>
+                  ))}
+                  <th className="rounded-xl bg-primary-50 px-4 py-3 text-right">Compliance</th>
+                </tr>
               </thead>
               <tbody>
                 {o.rows.length === 0 && <tr><td colSpan={7} className="px-4 py-10 text-center text-ink-500">No records match these filters.</td></tr>}
-                {o.rows.map(r => {
-                  const pct = r.totals.total ? Math.round((r.totals.completed / r.totals.total) * 100) : 0
+                {[...o.rows].sort((x, y) => {
+                  const px = x.totals.total ? x.totals.completed / x.totals.total : 0
+                  const py = y.totals.total ? y.totals.completed / y.totals.total : 0
+                  if (sort === 'behind') return px - py || y.totals.overdue - x.totals.overdue
+                  if (sort === 'best') return py - px
+                  return x.barangay.localeCompare(y.barangay, undefined, { numeric: true })
+                }).map(r => {
+                  const pct = compliancePercent(r.totals.completed, r.totals.total)
+                  const tile = complianceTile(pct)
                   return (
                     <tr key={r.barangay_id}>
-                      <td className="px-4 py-2.5">
-                        <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-ink-900">
-                          <span className={cn('h-2 w-2 shrink-0 rounded-full', r.totals.overdue > 0 ? 'bg-alert-500' : r.totals.completed === r.totals.total && r.totals.total > 0 ? 'bg-emerald-500' : 'bg-ink-300')} aria-hidden />
-                          {r.barangay}
+                      <td className="sticky left-0 z-10 rounded-xl bg-white px-4 py-2.5 shadow-[6px_0_8px_-8px_rgba(15,23,42,0.25)]">
+                        <span className="flex items-center gap-2.5 whitespace-nowrap font-bold text-ink-900">
+                          <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', tile.bg)} title={`${pct}% compliant`}>
+                            <tile.Icon size={15} className={tile.icon} />
+                          </span>
+                          <span>
+                            {r.barangay}
+                            {r.totals.overdue > 0 && <span className="block text-[11px] font-semibold text-alert-600">{r.totals.overdue} overdue</span>}
+                          </span>
                         </span>
                       </td>
-                      {o.categories.map((c, ci) => {
+                      {o.categories.map(c => {
                         const cell = r.cells[c.key]
-                        // the five documents of a barangay are ONE long strip: joined segments, a thin white line between them, rounded only at the two ends
-                        const ends = cn(ci === 0 && 'rounded-l-xl', ci === o.categories.length - 1 && 'rounded-r-xl')
-                        if (!cell || cell.total === 0) return <td key={c.key} className="min-w-[150px] p-0"><span className={cn('block h-full bg-ink-50 px-3 py-3 text-xs text-ink-300', ends, ci > 0 && 'border-l-2 border-white')}>—</span></td>
+                        if (!cell || cell.total === 0) return <td key={c.key} className="min-w-[150px] p-0"><span className="block rounded-xl bg-ink-50 px-3 py-3 text-xs text-ink-300">&mdash;</span></td>
                         const tone: ComplianceStatus = cell.kind === 'single' ? cell.periods[0].status : groupTone(cell.completed, cell.overdue, cell.total)
                         return (
                           <td key={c.key} className="min-w-[150px] p-0 align-middle">
                             <button type="button" title={`Open ${r.barangay} · ${c.short}`} aria-label={`${r.barangay} ${c.short}`}
                               onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
-                              className={cn('group flex h-full w-full items-center justify-between gap-2 px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500', SEGMENT_TINT[tone], ends, ci > 0 && 'border-l-2 border-white')}>
+                              className={cn('group flex h-full w-full items-center justify-between gap-2 rounded-xl border border-l-4 px-3 py-2.5 text-left shadow-sm transition hover:shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500', SEGMENT_TINT[tone])}>
                               <span className="min-w-0 flex-1">
                                 {cell.kind === 'single' ? <StatusChip status={cell.periods[0].status} /> : (
                                   <>
                                     <span className="flex items-baseline gap-1.5 whitespace-nowrap text-xs">
                                       <span className="font-bold text-ink-900">{cell.completed}/{cell.total}</span>
-                                      {cell.overdue > 0 && <span className="font-semibold text-alert-600">{cell.overdue} overdue</span>}
+                                      {cell.overdue > 0 && <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-[10px] font-bold text-red-700">{cell.overdue} overdue</span>}
                                     </span>
                                     <span className="mt-1.5 grid gap-0.5" style={{ gridTemplateColumns: `repeat(${cell.periods.length}, minmax(0, 1fr))` }}>
                                       {cell.periods.map((p, i) => <span key={i} title={`${p.label}: ${STATUS_META[p.status].label}`} className={cn('h-1.5 rounded-full', STATUS_META[p.status].dot)} />)}
@@ -190,9 +219,10 @@ export default function AdminSKCompliancePage() {
                           </td>
                         )
                       })}
-                      <td className="px-4 py-2 text-right">
-                        <span className="text-xs font-bold tabular-nums text-ink-800">{r.totals.completed}/{r.totals.total}</span>
-                        <span className="ml-auto mt-1 block h-1.5 w-20 overflow-hidden rounded-full bg-ink-100"><span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></span>
+                      <td className="rounded-xl px-4 py-2 text-right">
+                        <span className={cn('text-sm font-extrabold tabular-nums', tile.text)}>{pct}%</span>
+                        <span className="ml-auto mt-1 block text-[11px] tabular-nums text-ink-500">{r.totals.completed}/{r.totals.total} done</span>
+                        <span className="ml-auto mt-1 block h-1.5 w-24 overflow-hidden rounded-full bg-ink-100"><span className={cn('block h-full rounded-full transition-all', tile.bar)} style={{ width: `${pct}%` }} /></span>
                       </td>
                     </tr>
                   )

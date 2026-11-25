@@ -60,15 +60,15 @@ export const CELL_TINT: Record<ComplianceStatus, string> = {
   overdue: 'border-alert-200 bg-alert-50 hover:border-alert-400',
 }
 
-/** A segment of the one long strip a barangay row is made of: solid colour, no border of its own. */
+/** The tile of one document in the monitoring grid: a light tint, a thin border and a coloured left edge. */
 export const SEGMENT_TINT: Record<ComplianceStatus, string> = {
-  not_submitted: 'bg-ink-100 hover:bg-ink-200',
-  submitted: 'bg-sky-100 hover:bg-sky-200',
-  under_verification: 'bg-violet-100 hover:bg-violet-200',
-  returned: 'bg-orange-100 hover:bg-orange-200',
-  verified: 'bg-emerald-100 hover:bg-emerald-200',
-  published: 'bg-primary-100 hover:bg-primary-200',
-  overdue: 'bg-alert-100 hover:bg-alert-200',
+  not_submitted: 'border-ink-200 border-l-ink-300 bg-white hover:bg-ink-50',
+  submitted: 'border-sky-200 border-l-sky-500 bg-sky-50/60 hover:bg-sky-50',
+  under_verification: 'border-violet-200 border-l-violet-500 bg-violet-50/60 hover:bg-violet-50',
+  returned: 'border-orange-200 border-l-orange-500 bg-orange-50/60 hover:bg-orange-50',
+  verified: 'border-emerald-200 border-l-emerald-500 bg-emerald-50/60 hover:bg-emerald-50',
+  published: 'border-primary-200 border-l-primary-600 bg-primary-50/70 hover:bg-primary-50',
+  overdue: 'border-red-200 border-l-red-500 bg-red-50/70 hover:bg-red-50',
 }
 
 /** One tone for a document that has several periods (quarters or months): the most urgent thing wins. */
