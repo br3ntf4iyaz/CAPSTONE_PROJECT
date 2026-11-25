@@ -1011,6 +1011,12 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'feedback', label: 'Youth Feedback' },
 ]
 
+/** Tabs whose names look like one of the ten requirements. They record something different, so say so. */
+const OVERLAP_NOTE: Partial<Record<Tab, string>> = {
+  docs: "the Minutes of Meetings column here is only LYDO's own count. The Minutes document that the SK submits, and its verification, are in Monitoring (10 requirements).",
+  assembly: 'this tab only records whether LYDO knows the assembly was held. The documents the SK submits as proof, and their verification, are in Monitoring (10 requirements), under Conduct of KK Assembly and Conduct of Linggo ng Kabataan.',
+}
+
 export default function AdminSKTrackerPage({ embedded = false }: { embedded?: boolean }) {
   const [activeTab, setActiveTab] = useState<Tab>('me')
   const [year, setYear] = useState(new Date().getFullYear())
@@ -1021,12 +1027,12 @@ export default function AdminSKTrackerPage({ embedded = false }: { embedded?: bo
         <div>
           {embedded ? (
             <>
-              <h2 className="text-lg font-bold text-gray-900">Other SK requirements and records</h2>
-              <p className="text-sm text-gray-500">ME Portal encoding, minutes, SK directory, youth org lists, KK Assembly, Linggo ng Kabataan, DILG requirements and youth feedback.</p>
+              <h2 className="text-lg font-bold text-gray-900">LYDO manual records</h2>
+              <p className="text-sm text-gray-500">LYDO's own log: ME Portal encoding, SK directory, youth org lists, assemblies held, DILG requirements and youth feedback.</p>
             </>
           ) : (
             <>
-              <h1 className="page-title">Other SK requirements and records</h1>
+              <h1 className="page-title">LYDO manual records</h1>
               <p className="page-subtitle">Monitor SK councils' compliance across all 33 Lucena City barangays</p>
             </>
           )}
@@ -1036,6 +1042,15 @@ export default function AdminSKTrackerPage({ embedded = false }: { embedded?: bo
           <span className="text-sm font-semibold w-12 text-center">{year}</span>
           <button onClick={() => setYear(y => y + 1)} className="btn-secondary btn-sm p-1.5"><ChevronRight size={14} /></button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-primary-100 bg-primary-50/70 p-3 text-sm text-primary-900">
+        <p className="font-semibold">This is LYDO&apos;s own manual log, not the official compliance status.</p>
+        <p className="mt-1 text-xs leading-relaxed text-primary-800">
+          A person at LYDO marks each cell here by hand. Nothing is uploaded by the SK, and none of it is counted in the compliance percentage.
+          The official status of <strong>Policies, Minutes of the Meeting, Conduct of KK Assembly and Conduct of Linggo ng Kabataan</strong>, as submitted by the SK and verified by LYDO,
+          is in the <strong>Monitoring (10 requirements)</strong> tab.
+        </p>
       </div>
 
       {/* Tabs */}
@@ -1055,6 +1070,10 @@ export default function AdminSKTrackerPage({ embedded = false }: { embedded?: bo
           </button>
         ))}
       </div>
+
+      {OVERLAP_NOTE[activeTab] && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900"><strong>Same name, different record:</strong> {OVERLAP_NOTE[activeTab]}</p>
+      )}
 
       {/* Tab content */}
       {activeTab === 'me' && <MEPortalTab year={year} />}

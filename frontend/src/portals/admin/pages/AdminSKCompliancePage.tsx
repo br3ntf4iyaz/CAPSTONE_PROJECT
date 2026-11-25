@@ -80,7 +80,7 @@ export default function AdminSKCompliancePage() {
     { label: 'Verified', value: s.verified, icon: <ShieldCheck size={16} />, tone: 'green', hint: 'ready to publish' },
     { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'blue', hint: 'on the public FPDPB' },
   ]
-  const tabs = [['monitor', 'Monitoring (10 requirements)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['setup', 'Deadlines & guidance'], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const
+  const tabs = [['monitor', 'Monitoring (10 requirements)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['setup', 'Deadlines & guidance'], ['other', 'LYDO manual records'], ['office', 'LYDO office documents']] as const
 
   return (
     <div className="space-y-6">
