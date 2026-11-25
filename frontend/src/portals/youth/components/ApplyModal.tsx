@@ -181,7 +181,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
     return (
       <button type="button" disabled={disabled} onClick={() => setCamera(slot)}
         className={cn('group relative flex aspect-[4/3] flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed text-center text-xs transition-colors',
-          f ? 'border-emerald-400 bg-emerald-50' : 'border-gray-300 bg-gray-50 hover:border-primary-400', disabled && 'opacity-50 cursor-not-allowed')}>
+          f ? 'border-emerald-400 bg-emerald-50' : 'border-primary-300 bg-white hover:border-primary-500 hover:bg-primary-50', disabled && 'opacity-50 cursor-not-allowed')}>
         {f ? (
           <>
             <Preview file={f} label={info.title} />
@@ -199,22 +199,26 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={e => { e.stopPropagation(); onClose() }}>
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm p-0 sm:p-4" onClick={e => { e.stopPropagation(); onClose() }}>
       <div
         className="bg-white w-full sm:max-w-lg max-h-[94vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white z-10 flex items-start justify-between gap-3 px-5 pt-5 pb-3 border-b border-gray-100">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-primary-600 uppercase tracking-wide">
-              {resubmit ? 'Send again' : 'Apply'} · {isJob ? 'Job' : 'Scholarship'}
-            </p>
-            <h2 className="font-bold text-gray-900 leading-tight break-words">{title}</h2>
-            {provider && <p className="text-xs text-gray-500 mt-0.5">{provider}</p>}
+        <div className="sticky top-0 z-10">
+          <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white flex items-start justify-between gap-3 px-5 pt-5 pb-4">
+            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+            <div className="relative min-w-0">
+              <p className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold text-primary-50 uppercase tracking-wide">
+                {resubmit ? 'Send again' : 'Apply'} · {isJob ? 'Job' : 'Scholarship'}
+              </p>
+              <h2 className="mt-1.5 text-lg font-extrabold text-white leading-tight break-words">{title}</h2>
+              {provider && <p className="text-xs text-primary-100 mt-0.5">{provider}</p>}
+            </div>
+            <button onClick={onClose} className="relative p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white" aria-label="Close">
+              <X size={18} />
+            </button>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400" aria-label="Close">
-            <X size={18} />
-          </button>
+          <div className="ph-stripe h-1 w-full" />
         </div>
 
         {done ? (
@@ -252,7 +256,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
             />
           </div>
         ) : (
-          <form className="p-5 space-y-5" onSubmit={e => { e.preventDefault(); if (valid) submit.mutate() }}>
+          <form className="p-5 space-y-4" onSubmit={e => { e.preventDefault(); if (valid) submit.mutate() }}>
             {resubmit && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 space-y-1">
                 <p className="flex items-center gap-1.5 font-semibold"><MessageSquare size={14} /> Your last application was not accepted</p>
@@ -264,15 +268,15 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
             )}
 
             {requirements.length > 0 && (
-              <section>
-                <h3 className="text-sm font-semibold text-gray-800 mb-2">1. Requirements: confirm you have each one</h3>
+              <section className="rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+                <h3 className="text-sm font-bold text-primary-900 mb-2 border-l-4 border-primary-500 pl-2">1. Requirements: confirm you have each one</h3>
                 <ul className="space-y-1.5">
                   {requirements.map(r => (
                     <li key={r}>
                       <label
                         className={cn(
                           'flex items-start gap-2.5 rounded-xl border px-3 py-2 text-sm cursor-pointer',
-                          checked.has(r) ? 'border-primary-300 bg-primary-50' : 'border-gray-200',
+                          checked.has(r) ? 'border-primary-400 bg-white ring-1 ring-primary-200' : 'border-primary-100 bg-white',
                         )}
                       >
                         <input type="checkbox" className="mt-0.5" checked={checked.has(r)} onChange={() => toggle(r)} />
@@ -284,8 +288,8 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
               </section>
             )}
 
-            <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-800">{n1 + 1}. Personal identity</h3>
+            <section className="space-y-3 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+              <h3 className="text-sm font-bold text-primary-900 border-l-4 border-primary-500 pl-2">{n1 + 1}. Personal identity</h3>
               <input className="input" placeholder="Full name" value={form.full_name} onChange={set('full_name')} required />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input className="input" type="date" value={form.birthdate} onChange={set('birthdate')} aria-label="Birthdate" />
@@ -302,8 +306,8 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
             </section>
 
             {isJob && (
-              <section className="space-y-3">
-                <h3 className="text-sm font-semibold text-gray-800">
+              <section className="space-y-3 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+                <h3 className="text-sm font-bold text-primary-900 border-l-4 border-primary-500 pl-2">
                   {n1 + 2}. Scan your valid ID and verify your face <span className="text-red-500">*</span>
                 </h3>
                 <p className="text-xs text-gray-500">Use the camera. Scan the <b>front</b>, then the <b>back</b> of your ID, then take a live <b>selfie</b>. Photos from the gallery are not accepted.</p>
@@ -338,14 +342,14 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
               </section>
             )}
 
-            <section className="space-y-3">
-              <h3 className="text-sm font-semibold text-gray-800">
+            <section className="space-y-3 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
+              <h3 className="text-sm font-bold text-primary-900 border-l-4 border-primary-500 pl-2">
                 {n1 + (isJob ? 3 : 2)}. {isJob ? 'Resume' : 'Supporting document'}{' '}
                 {isJob && !(resubmit && existing?.document_url) ? <span className="text-red-500">*</span> : null}{' '}
                 <span className="font-normal text-gray-400">({isJob ? 'PDF, Word or image, max 5 MB' : 'optional, max 5 MB'})</span>
               </h3>
               {resubmit && existing?.document_url && !file && <p className="text-xs text-gray-500">Your earlier resume is kept unless you upload a new one.</p>}
-              <label className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed text-sm cursor-pointer hover:border-primary-400', file ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-gray-300 text-gray-600')}>
+              <label className={cn('flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed text-sm cursor-pointer hover:border-primary-400', file ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : 'border-primary-300 bg-white text-primary-800 font-medium')}>
                 {file ? <CheckCircle2 size={15} /> : <Paperclip size={15} />} <span className="truncate">{file ? file.name : isJob ? (resubmit && existing?.document_url ? 'Upload a new resume (optional)' : 'Upload your resume') : 'Attach PDF or image'}</span>
                 <input type="file" accept=".pdf,.doc,.docx,image/*" className="hidden" onChange={e => setFile(e.target.files?.[0] ?? null)} />
               </label>
@@ -359,7 +363,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
             <button
               type="submit"
               disabled={!valid || submit.isPending}
-              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50"
+              className="btn-primary w-full flex items-center justify-center gap-2 shadow-md shadow-primary-600/20 disabled:opacity-50"
             >
               <Send size={15} /> {submit.isPending ? 'Sending...' : resubmit ? 'Send application again' : 'Submit application'}
             </button>

@@ -130,7 +130,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm px-0 sm:px-4"
       onClick={onClose}
     >
       <div
@@ -138,8 +138,10 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-6 py-4 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
+        <div className="sticky top-0 z-10">
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white px-6 py-4 flex items-start justify-between gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div className="relative flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1.5 flex-wrap">
               {j.is_featured && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
@@ -150,24 +152,26 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
                 {j.job_type_display}
               </span>
             </div>
-            <h2 className="text-lg font-bold text-ink-900 leading-snug">{j.title}</h2>
-            <p className="text-sm text-ink-500 mt-0.5 flex items-center gap-1.5">
+            <h2 className="text-lg font-bold text-white leading-snug">{j.title}</h2>
+            <p className="text-sm text-primary-100 mt-0.5 flex items-center gap-1.5">
               <span>{INDUSTRY_ICONS[j.industry] ?? '📋'}</span>
               {j.company_or_org} · {j.industry_display}
             </p>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <BookmarkButton job={j} size={18} />
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-ink-100 text-ink-400 transition-colors">
+          <div className="relative flex items-center gap-1.5 flex-shrink-0">
+            <span className="inline-flex rounded-lg bg-white/90"><BookmarkButton job={j} size={18} /></span>
+            <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-colors">
               <X size={18} />
             </button>
           </div>
         </div>
+        <div className="ph-stripe h-1 w-full" />
+        </div>
 
         {/* Meta pills */}
-        <div className="px-6 pt-4 pb-3 flex flex-wrap gap-2 border-b border-ink-100">
-          <span className="inline-flex items-center gap-1.5 text-xs text-ink-600 bg-ink-50 px-3 py-1.5 rounded-full border border-ink-200">
-            <MapPin size={11} className="text-ink-400" /> {j.location}
+        <div className="px-6 pt-4 pb-3 flex flex-wrap gap-2 border-b border-primary-100 bg-primary-50/50">
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-800 bg-white px-3 py-1.5 rounded-full border border-primary-200">
+            <MapPin size={11} className="text-primary-500" /> {j.location}
           </span>
           {j.salary_range && (
             <span className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-50 px-3 py-1.5 rounded-full border border-green-200">
@@ -179,7 +183,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
               'inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border',
               dl === 'closed' ? 'text-red-700 bg-red-50 border-red-200' :
               dl === 'soon'   ? 'text-amber-700 bg-amber-50 border-amber-200' :
-                                'text-ink-600 bg-ink-50 border-ink-200'
+                                'text-primary-800 bg-white border-primary-200 font-medium'
             )}>
               <Calendar size={11} />
               {dl === 'closed' ? 'Closed' : dl === 'soon' ? 'Closing soon' : 'Deadline'}: {formatDate(j.application_deadline)}
@@ -191,14 +195,14 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         <div className="px-6 py-5 space-y-5">
           {j.description && (
             <div>
-              <h3 className="text-sm font-semibold text-ink-800 mb-2">About this role</h3>
-              <p className="text-sm text-ink-600 leading-relaxed whitespace-pre-line">{j.description}</p>
+              <h3 className="text-sm font-bold text-primary-900 mb-2 border-l-4 border-primary-500 pl-2">About this role</h3>
+              <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{j.description}</p>
             </div>
           )}
           {j.requirements && (
             <div>
-              <h3 className="text-sm font-semibold text-ink-800 mb-2">Requirements</h3>
-              <p className="text-sm text-ink-600 leading-relaxed whitespace-pre-line">{j.requirements}</p>
+              <h3 className="text-sm font-bold text-primary-900 mb-2 border-l-4 border-primary-500 pl-2">Requirements</h3>
+              <p className="rounded-xl border border-primary-100 bg-primary-50/60 p-3 text-sm text-ink-800 leading-relaxed whitespace-pre-line">{j.requirements}</p>
             </div>
           )}
           {j.contact_email && (
@@ -207,19 +211,19 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
               <a href={`mailto:${j.contact_email}`} className="text-primary hover:underline">{j.contact_email}</a>
             </div>
           )}
-          <div className="text-sm text-ink-500 bg-blue-50 border border-blue-100 rounded-lg px-4 py-3">
+          <div className="text-sm text-primary-900 bg-primary-50 border border-primary-100 border-l-4 border-l-primary-500 rounded-xl px-4 py-3">
             For inquiries and application assistance, please contact the Public Employment Service Office (PESO).
           </div>
         </div>
 
         {/* CTA */}
-        <div className="sticky bottom-0 bg-white border-t border-ink-100 px-6 py-4 space-y-2">
+        <div className="sticky bottom-0 bg-white border-t border-primary-100 px-6 py-4 space-y-2 shadow-[0_-8px_16px_-12px_rgba(0,48,135,0.25)]">
           {dl === 'closed' ? (
             <p className="text-sm text-center text-ink-400 py-1">This position is no longer accepting applications.</p>
           ) : applied ? (
             <AppliedNotice kind="job" objectId={j.id} onResubmit={() => setApplying(true)} />
           ) : (
-            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply</button>
+            <button onClick={() => setApplying(true)} className="btn-primary w-full shadow-md shadow-primary-600/20">Apply</button>
           )}
           {dl !== 'closed' && j.application_link && (
             <a href={j.application_link} target="_blank" rel="noopener noreferrer"
