@@ -515,7 +515,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
                   onClick={() => setGroupZoom(true)}
                   aria-label={`View a larger group picture of the ${barangay.barangay_name} SK council`}
                   title="Click to enlarge"
-                  className={cn('group relative block h-20 w-32 sm:h-24 sm:w-44 cursor-zoom-in overflow-hidden rounded-2xl bg-white/20', tile.ring)}
+                  className={cn('group relative block h-24 w-32 sm:h-28 sm:w-36 cursor-zoom-in overflow-hidden rounded-2xl bg-white/20', tile.ring)}
                 >
                   <img src={barangay.group_photo_url} alt={`${barangay.barangay_name} SK council`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
                   <span className="absolute bottom-1 right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><ZoomIn size={12} /></span>
@@ -751,7 +751,7 @@ function BarangayCard({
               onKeyDown={e => e.stopPropagation()}
               aria-label={`View a larger group picture of the ${b.barangay_name} SK council`}
               title={`Compliance ${pct}% · click to enlarge`}
-              className={cn('group relative block h-14 w-24 sm:h-16 sm:w-28 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-2xl bg-primary-100', tile.ring)}
+              className={cn('group relative block h-16 w-20 sm:h-[4.5rem] sm:w-24 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-2xl bg-primary-100', tile.ring)}
             >
               <img src={b.group_photo_url} alt={`${b.barangay_name} SK council`} loading="lazy" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
             </button>

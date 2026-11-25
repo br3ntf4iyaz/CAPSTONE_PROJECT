@@ -27,6 +27,6 @@ class Command(BaseCommand):
                 continue
             if current:
                 b.group_photo.delete(save=False)
-            b.group_photo.save(f'sample_group_{b.pk}.png', ContentFile(make_group_picture(b)), save=True)
+            b.group_photo.save(f'sample_group_{b.pk}.jpg', ContentFile(make_group_picture(b)), save=True)
             made += 1
         self.stdout.write(self.style.SUCCESS(f'Drew {made} group picture(s); kept {skipped} that already had one.'))
