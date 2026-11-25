@@ -1,5 +1,4 @@
 ﻿import { BookOpen, Award } from 'lucide-react'
-import CertificateSeal from '@/components/ui/CertificateSeal'
 import HubShell, { type HubItem } from './_HubShell'
 
 const ITEMS: HubItem[] = [
@@ -20,7 +19,8 @@ const ITEMS: HubItem[] = [
   {
     title: 'Certifications',
     description: 'Download official certificates for completed courses and verified accomplishments.',
-    icon: CertificateSeal,
+    icon: Award,
+    image: '/images/icons/certificate.png',
     to: '/certificates',
     accent: 'primary',
   },

@@ -12,7 +12,8 @@ import { cn } from '@/utils'
 export interface HubItem {
   title: string
   description: string
-  icon: React.ElementType  // a line icon, or a custom drawing such as the certificate seal
+  icon: React.ElementType
+  image?: string              // a picture used in place of the line icon
   to?: string                 // omit for "coming soon" cards
   badge?: string              // optional eyebrow tag (e.g. "New", "Coming soon")
   external?: boolean
@@ -64,7 +65,7 @@ export default function HubShell({ eyebrow, title, description, items, banner }:
   )
 }
 
-function HubCard({ title, description, icon: Icon, to, badge, accent = 'primary', samples }: HubItem) {
+function HubCard({ title, description, icon: Icon, image, to, badge, accent = 'primary', samples }: HubItem) {
   const accentClasses = {
     primary: 'bg-white text-primary-700 group-hover:bg-primary-50',
     accent:  'bg-accent-400 text-primary-900 group-hover:bg-accent-300',
@@ -78,9 +79,15 @@ function HubCard({ title, description, icon: Icon, to, badge, accent = 'primary'
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-accent-400/20 blur-2xl" />
       <div className="relative flex items-start justify-between mb-5">
-        <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', accentClasses)}>
-          <Icon size={22} strokeWidth={2.2} />
-        </span>
+        {image ? (
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-md p-1.5">
+            <img src={image} alt="" className="w-full h-full object-contain" />
+          </span>
+        ) : (
+          <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', accentClasses)}>
+            <Icon size={22} strokeWidth={2.2} />
+          </span>
+        )}
         {badge && (
           <span className="chip bg-white/15 text-white text-[10px] font-bold uppercase tracking-wider border border-white/30">
             {badge}
