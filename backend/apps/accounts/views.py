@@ -748,8 +748,21 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         return None
 
     def update(self, request, *args, **kwargs):
-        blocked = self._guard_target(request, self.get_object(), "edit")
-        return blocked or super().update(request, *args, **kwargs)
+        target = self.get_object()
+        blocked = self._guard_target(request, target, "edit")
+        if blocked:
+            return blocked
+        old_type = target.youth_type
+        response = super().update(request, *args, **kwargs)
+        if response.status_code == 200 and "youth_type" in request.data:
+            target.refresh_from_db()
+            if target.youth_type != old_type:
+                AuditLog.objects.create(
+                    user=request.user, action="youth_type_changed", model_name="User", object_id=target.pk,
+                    ip_address=get_client_ip(request),
+                    details={"target_email": target.email, "from": old_type, "to": target.youth_type},
+                )
+        return response
 
     def destroy(self, request, *args, **kwargs):
         user = self.get_object()

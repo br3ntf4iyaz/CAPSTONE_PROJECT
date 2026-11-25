@@ -16,6 +16,7 @@ interface AdminUser {
   first_name: string
   last_name: string
   role: string
+  youth_type?: string
   is_active: boolean
   is_verified: boolean
   date_joined: string
@@ -35,6 +36,12 @@ const ROLE_BADGE: Record<string, string> = {
   lgu_admin: 'badge-green',
   super_admin: 'badge-red',
 }
+
+const YOUTH_TYPES = [
+  { value: 'general_youth', label: 'General Youth' },
+  { value: 'sk', label: 'SK Official' },
+  { value: 'youth_org_leader', label: 'Youth Org Leader' },
+]
 
 function apiError(e: any, fallback: string): string {
   const d = e?.response?.data
@@ -71,6 +78,16 @@ export default function AdminUsersPage() {
       toast.success('User status updated')
     },
     onError: (e) => toast.error(apiError(e, 'Failed to update user')),
+  })
+
+  const changeType = useMutation({
+    mutationFn: ({ id, youth_type }: { id: number; youth_type: string }) =>
+      apiClient.patch(`/auth/admin/users/${id}/`, { youth_type }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin-users-full'] })
+      toast.success('Youth type updated')
+    },
+    onError: (e) => toast.error(apiError(e, 'Failed to update the youth type')),
   })
 
   const changeRole = useMutation({
@@ -262,6 +279,26 @@ export default function AdminUsersPage() {
                       </select>
                     ) : (
                       <span className={ROLE_BADGE[u.role] ?? 'badge-gray'}>{ROLE_LABELS[u.role] ?? u.role}</span>
+                    )}
+                    {u.role === 'youth' && (
+                      <select
+                        aria-label={`Youth type of ${u.full_name}`}
+                        value={u.youth_type ?? 'general_youth'}
+                        onChange={async e => {
+                          const youth_type = e.target.value
+                          const label = YOUTH_TYPES.find(t => t.value === youth_type)?.label ?? youth_type
+                          const ok = await confirmDialog({
+                            title: `Change ${u.full_name} to ${label}?`,
+                            description: 'This decides which portal and features the youth account sees. The account, email and password stay the same. A change is recorded in the audit log.',
+                            confirmLabel: 'Change',
+                            tone: 'primary',
+                          })
+                          if (ok) changeType.mutate({ id: u.id, youth_type })
+                        }}
+                        className="mt-1 block text-[11px] rounded border border-gray-200 bg-white px-1 py-0.5 text-gray-600"
+                      >
+                        {YOUTH_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                      </select>
                     )}
                   </td>
                   <td className="text-gray-500 text-xs">{u.profile?.barangay ?? '\u2014'}</td>
