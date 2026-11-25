@@ -3,7 +3,7 @@ export default function CalendarIcon({ date, className = 'hidden sm:flex' }: { d
   const month = date.toLocaleString('en-US', { month: 'long' }).toUpperCase()
   const day = date.getDate()
   return (
-    <span className={`${className} shrink-0 items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 shadow-md shadow-primary-600/30`}>
+    <span className={`${className} shrink-0 items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#a0692f] to-[#5e3b1c] shadow-md shadow-[#5e3b1c]/30`}>
     <svg viewBox="0 0 100 100" className="w-full h-full p-1" role="img" aria-label={`${month} ${day}`} xmlns="http://www.w3.org/2000/svg">
       {/* white page with a soft shadow */}
       <rect x="9" y="17" width="82" height="76" rx="13" fill="#000" opacity="0.08" transform="translate(0 2)" />
