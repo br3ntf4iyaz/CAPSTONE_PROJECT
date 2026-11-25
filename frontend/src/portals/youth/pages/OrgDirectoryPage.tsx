@@ -577,7 +577,16 @@ export default function OrgDirectoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, auth.isAuthenticated])
 
-  const barangays = useMemo(() => [...new Set(orgs.map(o => o.barangay).filter(Boolean))].sort(), [orgs])
+  // every barangay of the city (from the SK directory, which is public), plus any other place an organization named
+  const { data: cityBarangays = [] } = useQuery<string[]>({
+    queryKey: ['barangay-names'],
+    queryFn: () => apiClient.get('/sk-requirements/barangays/').then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? []).map((b: { barangay_name: string }) => b.barangay_name)).catch(() => []),
+    staleTime: 1000 * 60 * 30,
+  })
+  const barangays = useMemo(
+    () => [...new Set([...cityBarangays, ...orgs.map(o => o.barangay)].filter(Boolean))].sort((x, y) => x.localeCompare(y, undefined, { numeric: true })),
+    [cityBarangays, orgs],
+  )
 
   const filtered = orgs.filter(o => {
     if (o.sub_classification === 'sk_council') return false
