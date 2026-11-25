@@ -1,4 +1,6 @@
-import { Facebook, MessageCircle, Mail, Phone, X, ExternalLink, User as UserIcon, Settings2, Megaphone } from 'lucide-react'
+import { useState } from 'react'
+import { Facebook, MessageCircle, Mail, Phone, X, ExternalLink, User as UserIcon, Settings2, Megaphone, ZoomIn } from 'lucide-react'
+import ImageLightbox from '@/components/ui/ImageLightbox'
 import { cn, formatDate } from '@/utils'
 import type { SKSocial } from '@/components/ui/SKSocialEditor'
 
@@ -33,6 +35,7 @@ function ExternalButton({ href, children, primary = false }: { href: string; chi
 export default function SKOfficialProfile({
   o, barangayName, canManage, onManage, onClose,
 }: { o: ProfileOfficial; barangayName: string; canManage: boolean; onManage: () => void; onClose: () => void }) {
+  const [zoom, setZoom] = useState(false)
   const s = o.social
   const profile = safeHref(s?.facebook_profile_url)
   const page = safeHref(s?.facebook_page_url)
@@ -49,9 +52,15 @@ export default function SKOfficialProfile({
         <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-5 pb-5 pt-4 text-white">
           <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"><X size={16} /></button>
           <div className="flex items-center gap-4 pt-4">
-            <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-white/40 bg-white/20 flex items-center justify-center">
-              {o.photo_url ? <img src={o.photo_url} alt={o.name} className="h-full w-full object-cover object-top" /> : <UserIcon size={36} className="text-white/80" />}
-            </div>
+            {o.photo_url ? (
+              <button type="button" onClick={() => setZoom(true)} aria-label={`View a larger picture of ${o.name}`} title="Click to enlarge"
+                className="group relative h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-2xl border-2 border-white/40 bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                <img src={o.photo_url} alt={o.name} className="h-full w-full object-cover object-top transition-transform group-hover:scale-105" />
+                <span className="absolute bottom-1 right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><ZoomIn size={12} /></span>
+              </button>
+            ) : (
+              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-white/40 bg-white/20 flex items-center justify-center"><UserIcon size={36} className="text-white/80" /></div>
+            )}
             <div className="min-w-0">
               <h3 className="font-display text-xl font-extrabold leading-tight break-words">{o.name}</h3>
               <p className="text-sm font-medium text-primary-100">{o.position_display}</p>
@@ -108,6 +117,10 @@ export default function SKOfficialProfile({
           )}
         </div>
       </div>
+      {zoom && o.photo_url && (
+        <div onClick={e => e.stopPropagation()}>
+        <ImageLightbox src={o.photo_url} alt={`${o.name}, ${o.position_display}`} caption={o.name} subcaption={`${o.position_display} · ${barangayName}`} onClose={() => setZoom(false)} />
+      )}
     </div>
   )
 }
