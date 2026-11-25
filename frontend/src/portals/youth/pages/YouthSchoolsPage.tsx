@@ -292,20 +292,20 @@ function SchoolCard({
     <button
       onClick={onClick}
       className={cn(
-        'w-full text-left bg-white rounded-xl border transition-all duration-200 p-4 group',
+        'w-full text-left bg-white rounded-2xl border border-l-4 shadow-sm transition-all duration-200 p-4 group hover:-translate-y-0.5',
         school.is_featured
-          ? 'border-amber-200 bg-gradient-to-r from-amber-50/50 to-white hover:border-amber-300 hover:shadow-md hover:shadow-amber-50'
-          : 'border-gray-200 hover:border-primary-300 hover:shadow-md hover:shadow-primary-100'
+          ? 'border-primary-100 border-l-accent-400 bg-gradient-to-r from-accent-50/60 to-white hover:border-primary-300 hover:shadow-lg hover:shadow-primary-600/10'
+          : 'border-primary-100 border-l-primary-500 hover:border-primary-300 hover:border-l-primary-600 hover:shadow-lg hover:shadow-primary-600/10'
       )}
     >
       <div className="flex items-start gap-3">
         {/* Avatar */}
         {school.logo_url ? (
           <img src={school.logo_url} alt={school.name}
-            className="flex-shrink-0 w-10 h-10 rounded-xl object-cover border border-gray-100" />
+            className="flex-shrink-0 w-11 h-11 rounded-xl object-cover border-2 border-primary-100 bg-white shadow-sm" />
         ) : (
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center">
-            <GraduationCap size={18} className="text-primary-700" />
+          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md shadow-primary-600/30 flex items-center justify-center">
+            <GraduationCap size={20} className="text-white" />
           </div>
         )}
 
@@ -322,33 +322,33 @@ function SchoolCard({
                   {TYPE_LABELS[school.school_type] ?? school.school_type}
                 </span>
               </div>
-              <h3 className="font-semibold text-gray-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
+              <h3 className="font-bold text-primary-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
                 {school.name}
               </h3>
             </div>
             <ChevronRight size={15} className="text-gray-300 group-hover:text-primary-400 flex-shrink-0 mt-0.5 transition-colors" />
           </div>
 
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-400 mt-1">
+          <div className="flex flex-wrap gap-1.5 text-xs mt-1.5">
             {school.municipality && (
-              <span className="flex items-center gap-1">
-                <MapPin size={10} /> {school.municipality}{school.province ? `, ${school.province}` : ''}
+              <span className="flex items-center gap-1 rounded-full border border-primary-200 bg-primary-50 px-2.5 py-0.5 font-medium text-primary-800">
+                <MapPin size={10} className="text-primary-500" /> {school.municipality}{school.province ? `, ${school.province}` : ''}
               </span>
             )}
             {school.program_count > 0 ? (
-              <span className="flex items-center gap-1 text-primary-700 font-medium">
+              <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-800">
                 <BadgeCheck size={10} /> {school.program_count} verified program{school.program_count !== 1 ? 's' : ''}
               </span>
             ) : visitor ? null : (
-              <span className="flex items-center gap-1 text-amber-600 font-medium">
+              <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 font-medium text-amber-700">
                 <AlertCircle size={10} /> Course list not published yet
               </span>
             )}
           </div>
           {school.address && (
-            <p className="text-xs text-gray-400 mt-1 line-clamp-1">{school.address}</p>
+            <p className="text-xs text-ink-600 mt-1.5 line-clamp-1">{school.address}</p>
           )}
-          <span className="inline-flex items-center gap-1 mt-2 text-xs font-semibold text-primary-700">
+          <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary-700">
             {visitor ? <><Lock size={12} /> School details · sign in for courses</> : <><BookOpen size={12} /> View Courses</>}
           </span>
         </div>
@@ -363,8 +363,8 @@ function SchoolCard({
       className={cn(
         'absolute right-3 bottom-3 text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors',
         compared
-          ? 'bg-primary-600 text-white border-primary-600'
-          : 'bg-white text-gray-500 border-gray-200 hover:border-primary-300 hover:text-primary-700 disabled:opacity-40 disabled:hover:border-gray-200 disabled:hover:text-gray-500',
+          ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-600/20'
+          : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50 hover:border-primary-400 disabled:opacity-40 disabled:hover:bg-white',
       )}
     >
       {compared ? '✓ Comparing' : '+ Compare'}
