@@ -1,3 +1,4 @@
+import GradCapIcon from '@/components/ui/GradCapIcon'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -126,8 +127,8 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
             {s.logo_url ? (
               <img src={s.logo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-white/40 bg-white" />
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/30 flex items-center justify-center flex-shrink-0">
-                <GraduationCap size={22} className="text-white" />
+              <div className="w-12 h-12 rounded-xl bg-white border-2 border-white/60 shadow-md flex items-center justify-center flex-shrink-0">
+                <GradCapIcon size={32} />
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -304,8 +305,8 @@ function SchoolCard({
           <img src={school.logo_url} alt={school.name}
             className="flex-shrink-0 w-11 h-11 rounded-xl object-cover border-2 border-primary-100 bg-white shadow-sm" />
         ) : (
-          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md shadow-primary-600/30 flex items-center justify-center">
-            <GraduationCap size={20} className="text-white" />
+          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-white border-2 border-primary-100 shadow-sm flex items-center justify-center">
+            <GradCapIcon size={28} />
           </div>
         )}
 
