@@ -307,6 +307,7 @@ export default function CommunityHubPage() {
             title="SK Directory"
             description="Find your barangay's Sangguniang Kabataan officials and view their programs, projects, and activities."
             icon={Users}
+            image="/images/icons/sk-logo.png"
             to="/sk-directory"
             accent="primary"
             badge={barangays.length > 0 ? `${barangays.length} barangays` : undefined}
@@ -316,6 +317,7 @@ export default function CommunityHubPage() {
             title="Youth Organizations"
             description="Browse recognized youth organizations across Lucena. See what they do, join, or send an inquiry."
             icon={Building2}
+            image="/images/icons/youth-orgs.png"
             to="/organizations"
             accent="accent"
             badge={visibleOrgs.length > 0 ? `${visibleOrgs.length} organizations` : undefined}
@@ -325,6 +327,7 @@ export default function CommunityHubPage() {
             title="SK Feedback"
             description="Send feedback, concerns, or suggestions directly to your barangay's Sangguniang Kabataan."
             icon={MessageSquare}
+            image="/images/icons/sk-feedback.png"
             to="/sk-feedback"
             accent="neutral"
             samples={['Concerns & suggestions', 'Rate your SK', 'Submit anonymously']}
@@ -854,11 +857,12 @@ function PhotoGrid({ images }: { images: CommunityPostImage[] }) {
 }
 
 function HubCard({
-  title, description, icon: Icon, to, accent = 'primary', badge, samples,
+  title, description, icon: Icon, image, to, accent = 'primary', badge, samples,
 }: {
   title: string
   description: string
   icon: React.ElementType
+  image?: string  // a picture used in place of the line icon
   to: string
   accent?: 'primary' | 'accent' | 'neutral'
   badge?: string
@@ -878,9 +882,15 @@ function HubCard({
       <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
       <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-accent-400/20 blur-2xl" />
       <div className="relative flex items-start justify-between mb-5">
-        <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', iconCls)}>
-          <Icon size={22} strokeWidth={2.2} />
-        </span>
+        {image ? (
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-md p-1.5">
+            <img src={image} alt="" className="w-full h-full object-contain" />
+          </span>
+        ) : (
+          <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', iconCls)}>
+            <Icon size={22} strokeWidth={2.2} />
+          </span>
+        )}
         {badge && (
           <span className="chip bg-white/15 text-white text-[10px] font-bold uppercase tracking-wide border border-white/30">
             {badge}
