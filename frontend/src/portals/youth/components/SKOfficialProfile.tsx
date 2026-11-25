@@ -120,6 +120,7 @@ export default function SKOfficialProfile({
       {zoom && o.photo_url && (
         <div onClick={e => e.stopPropagation()}>
         <ImageLightbox src={o.photo_url} alt={`${o.name}, ${o.position_display}`} caption={o.name} subcaption={`${o.position_display} · ${barangayName}`} onClose={() => setZoom(false)} />
+        </div>
       )}
     </div>
   )
