@@ -491,7 +491,7 @@ export default function LibraryPage() {
               )}
             >
               {isAll ? (
-                <span className="inline-flex items-center justify-center w-6 h-6 -ml-1 rounded-lg bg-accent-400 text-primary-900">{cat.icon}</span>
+                <img src="/images/icons/all-materials.png" alt="" className="w-6 h-6 -ml-1 object-contain" />
               ) : cat.icon}
               {cat.label}
               <span className={cn('ml-0.5', isAll ? 'text-primary-100' : 'opacity-70')}>
