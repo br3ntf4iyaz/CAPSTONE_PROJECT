@@ -442,7 +442,7 @@ export default function YouthCalendarPage() {
                 <div aria-hidden className="absolute -bottom-12 -right-12 w-40 h-40 rounded-full bg-accent-400/20 blur-2xl pointer-events-none" />
                 <button onClick={close} aria-label="Close" className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 text-white text-lg leading-none">×</button>
                 <div className="relative flex items-center gap-4 pr-8">
-                  <CalendarIcon date={new Date(ev.start_datetime)} className="shrink-0 w-[68px] h-[68px]" />
+                  <CalendarIcon date={new Date(ev.start_datetime)} className="flex" />
                   <div className="min-w-0">
                     <span className="inline-block mb-1 rounded-full bg-white/15 border border-white/30 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">{ev.event_type.replace('_', ' ')}</span>
                     <h2 className="font-display font-extrabold text-xl leading-tight">{ev.title}</h2>
