@@ -143,8 +143,8 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
         app = self.get_object()
         if app.applicant_id != request.user.id:
             return Response({'detail': 'You can only resubmit your own application.'}, status=http.HTTP_403_FORBIDDEN)
-        if app.kind != 'job' or app.status != 'rejected':
-            return Response({'detail': 'Only an application that was not accepted can be sent again.'}, status=http.HTTP_400_BAD_REQUEST)
+        if app.kind != 'job' or app.status not in ('rejected', 'revoked'):
+            return Response({'detail': 'Only an application that was not accepted, or whose approval was revoked, can be sent again.'}, status=http.HTTP_400_BAD_REQUEST)
         ser = ApplicationSerializer(app, data=request.data, context=self.get_serializer_context())
         ser.is_valid(raise_exception=True)
         data = ser.validated_data
@@ -154,15 +154,18 @@ class ApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMixin, mixins.
             if old:
                 old.delete(save=False)
         note = app.admin_note
+        earlier = {'status': app.status, 'approved_at': app.approved_at.isoformat() if app.approved_at else None,
+                   'revoked_at': app.revoked_at.isoformat() if app.revoked_at else None, 'revocation_reason': app.revocation_reason}
         names = {**(app.file_names or {}), **self._file_names(request)}
         with transaction.atomic():
             updated = ser.save(status='submitted', previous_note=note, admin_note='', reviewed_at=None,
                                resubmit_count=app.resubmit_count + 1, file_names=names,
                                ai_status='pending', ai_results={}, ai_started_at=timezone.now(), ai_completed_at=None, ai_attempts=0,
-                               opened_docs={}, manual_checks={}, ai_override_note='', rejected_items=[], reviewed_by=None)
+                               opened_docs={}, manual_checks={}, ai_override_note='', rejected_items=[], reviewed_by=None,
+                               approved_at=None, approved_by=None, revoked_at=None, revoked_by=None, revocation_reason='')
             AuditLog.objects.create(
                 user=request.user, action='application_resubmitted', model_name='OpportunityApplication', object_id=updated.pk,
-                ip_address=get_client_ip(request), details={'applicant': updated.email, 'title': updated.title, 'times': updated.resubmit_count},
+                ip_address=get_client_ip(request), details={'applicant': updated.email, 'title': updated.title, 'times': updated.resubmit_count, 'earlier_decision': earlier},
             )
             schedule_screening(updated.pk)
         return Response(ApplicationSerializer(updated, context=self.get_serializer_context()).data, status=http.HTTP_200_OK)

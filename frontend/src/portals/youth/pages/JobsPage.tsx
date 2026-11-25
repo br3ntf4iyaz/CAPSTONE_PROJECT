@@ -230,7 +230,7 @@ function JobDetailDrawer({ job, onClose }: { job: Job; onClose: () => void }) {
         </div>
         {applying && (
           <ApplyModal kind="job" objectId={j.id} title={j.title} provider={j.company_or_org}
-            resubmit={applied?.status === 'rejected'}
+            resubmit={applied?.status === 'rejected' || applied?.status === 'revoked'}
             requirements={splitRequirements(j.requirements)} onClose={() => setApplying(false)} />
         )}
       </div>

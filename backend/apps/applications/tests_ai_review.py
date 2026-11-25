@@ -296,3 +296,18 @@ class AIReviewTests(APITestCase):
             app = self.screen(app_id, answer)
         self.assertEqual(app.ai_results['documents']['resume']['status'], 'needs_review')
         self.assertEqual(app.ai_status, 'done')
+
+    def test_an_application_whose_approval_was_revoked_can_be_sent_again(self):
+        app_id = self.apply()
+        OpportunityApplication.objects.filter(pk=app_id).update(status='approved', admin_note='ok')
+        self.client.force_authenticate(self.admin)
+        self.client.post(f'/api/applications/{app_id}/revoke/', {'confirm': True, 'reason': 'The ID photo was not clear'}, format='json')
+        self.client.force_authenticate(self.user)
+        self.assertEqual(self.client.get(f'/api/applications/{app_id}/').data['status'], 'revoked')
+        r = self.client.post(f'/api/applications/{app_id}/resubmit/', {
+            'full_name': 'Juan Dela Cruz', 'contact_number': '0917', 'email': 'a@x.com', 'address': 'Lucena', 'id_type': 'UMID', 'id_number': '1234',
+            'id_document': png('f.png'), 'id_document_back': png('b.png'), 'selfie': png('s.png'), 'face_check': json.dumps(FACE_OK)}, format='multipart')
+        self.assertEqual(r.status_code, 200, r.data)
+        app = OpportunityApplication.objects.get(pk=app_id)
+        self.assertEqual((app.status, app.previous_note, app.revoked_at), ('submitted', 'The ID photo was not clear', None))
+        self.assertEqual(AuditLog.objects.get(action='application_resubmitted', object_id=app_id).details['earlier_decision']['status'], 'revoked')

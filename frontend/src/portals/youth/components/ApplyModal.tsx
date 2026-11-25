@@ -86,7 +86,7 @@ function ApplyForm({ kind, objectId, title, provider, requirements, resubmit = f
     queryFn: () => apiClient.get('/applications/').then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? [])),
   })
   const existing = mine.find(a => a.kind === kind && a.object_id === objectId)
-  const already = !!existing && !(resubmit && existing.status === 'rejected')
+  const already = !!existing && !(resubmit && (existing.status === 'rejected' || existing.status === 'revoked'))
 
   // sending it again: start from what the person wrote before, so only the wrong part needs fixing
   useEffect(() => {

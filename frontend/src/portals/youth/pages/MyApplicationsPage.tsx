@@ -125,11 +125,11 @@ export default function MyApplicationsPage() {
                   <span className="whitespace-pre-wrap break-words"><strong>Note from LYDO:</strong> {a.admin_note}</span>
                 </div>
               )}
-              {a.status === 'rejected' && a.kind === 'job' && (
+              {(a.status === 'rejected' || a.status === 'revoked') && a.kind === 'job' && (
                 <p className="text-xs text-ink-600">Maybe a requirement was sent wrongly. Open the job and choose <b>Fix and send again</b>.</p>
               )}
               <Link to={a.kind === 'job' ? '/jobs' : '/scholarships'} className="text-xs font-semibold text-primary-700 hover:text-primary-800">
-                {a.status === 'rejected' && a.kind === 'job' ? 'Open the job and send again →' : 'View listing →'}
+                {(a.status === 'rejected' || a.status === 'revoked') && a.kind === 'job' ? 'Open the job and send again →' : 'View listing →'}
               </Link>
             </article>
           )

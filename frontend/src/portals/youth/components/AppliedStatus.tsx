@@ -26,14 +26,14 @@ export function AppliedNotice({ kind, objectId, onResubmit }: { kind: 'job' | 's
   const app = useApplied(kind, objectId)
   if (!app) return null
   const st = APPLICATION_STATUS[app.status]
-  if (app.status === 'rejected' && kind === 'job' && onResubmit) {
+  if ((app.status === 'rejected' || app.status === 'revoked') && kind === 'job' && onResubmit) {
     return (
       <div className="space-y-3 rounded-xl border border-red-100 bg-red-50/60 px-4 py-3 text-sm">
         <p className="text-center text-ink-700">Status: <span className={cn('font-semibold px-2 py-0.5 rounded-full text-xs', st.cls)}>{st.label}</span></p>
         {app.admin_note && (
-          <p className="flex gap-2 rounded-lg bg-white p-2.5 text-ink-800"><MessageSquare size={15} className="mt-0.5 shrink-0 text-red-500" /><span className="whitespace-pre-wrap break-words"><strong>Reason from LYDO:</strong> {app.admin_note}</span></p>
+          <p className="flex gap-2 rounded-lg bg-white p-2.5 text-ink-800"><MessageSquare size={15} className="mt-0.5 shrink-0 text-red-500" /><span className="whitespace-pre-wrap break-words"><strong>{app.status === 'revoked' ? 'Why the approval was revoked:' : 'Reason from LYDO:'}</strong> {app.admin_note}</span></p>
         )}
-        <p className="text-xs text-ink-600">Maybe a requirement was sent wrongly. You can fix it and send your application again.</p>
+        <p className="text-xs text-ink-600">{app.status === 'revoked' ? 'LYDO took back the approval. If something was wrong with your requirements, fix it and send your application again for a new review.' : 'Maybe a requirement was sent wrongly. You can fix it and send your application again.'}</p>
         <button type="button" onClick={onResubmit} className="btn-primary w-full inline-flex items-center justify-center gap-2"><RefreshCw size={15} /> Fix and send again</button>
         <Link to="/my-applications" className="block text-center text-xs font-semibold text-primary-700 hover:text-primary-800">Track my applications →</Link>
       </div>
