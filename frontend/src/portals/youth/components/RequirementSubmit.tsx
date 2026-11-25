@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Circle, Clock, Eye, FileUp, Pencil, RotateCcw, Trash2, Upload, X } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, Circle, Clock, Eye, FileUp, Info, Pencil, RotateCcw, ShieldCheck, Trash2, Upload, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { openPrivateFile } from '@/components/ui/SecureImage'
@@ -110,71 +110,92 @@ export function SubmitDocumentModal({ item, onClose }: { item: MyRequirement; on
   const fileName = file?.name ?? (hasDraftFile ? 'The file saved in your draft' : null)
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Submit ${item.label}`} onClick={onClose}>
-      <div className="relative my-auto w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6" onClick={e => e.stopPropagation()}>
-        <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full p-1.5 text-ink-500 hover:bg-ink-100"><X size={16} /></button>
-        <p className="text-[11px] font-bold uppercase tracking-wide text-primary-600">{resubmit ? 'Resubmit' : item.status === 'draft' ? 'Edit draft' : 'Submit document'}</p>
-        <h3 className="pr-8 font-display text-lg font-extrabold text-ink-900">{item.label}</h3>
-        {item.description && <p className="mt-1 text-sm text-ink-600">{item.description}</p>}
-        {item.instructions && (
-          <p className="mt-3 rounded-xl border border-primary-100 bg-primary-50/70 p-3 text-sm text-primary-900"><strong>What to submit:</strong> {item.instructions}</p>
-        )}
-        {resubmit && item.remarks && (
-          <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900"><strong>LYDO asked you to correct:</strong> {item.remarks}</p>
-        )}
+    <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-primary-950/60 p-3 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={`Submit ${item.label}`} onClick={onClose}>
+      <div className="relative my-auto w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* header in the LYDOP blue */}
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-5 pb-5 pt-5 text-white sm:px-6">
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div aria-hidden className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-accent-400/25 blur-2xl" />
+          <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"><X size={16} /></button>
+          <p className="relative inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-50">
+            <FileUp size={12} /> {resubmit ? 'Resubmit' : item.status === 'draft' ? 'Edit draft' : 'Submit document'}
+          </p>
+          <h3 className="relative mt-2 pr-8 font-display text-xl font-extrabold leading-tight">{item.label}</h3>
+          {item.description && <p className="relative mt-1 text-sm text-primary-100">{item.description}</p>}
+        </div>
+        <div className="ph-stripe h-1 w-full" />
 
-        {!review ? (
-          <div className="mt-4 space-y-3">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <label className="block text-sm"><span className="font-semibold text-ink-800">Reporting year</span>
-                <select className="input mt-1" value={year} onChange={e => setYear(e.target.value)}>
-                  {[thisYear + 1, thisYear, thisYear - 1, thisYear - 2].map(y => <option key={y} value={y}>{y}</option>)}
-                </select></label>
-              <label className="block text-sm sm:col-span-2"><span className="font-semibold text-ink-800">Period or details (optional)</span>
-                <input className="input mt-1" maxLength={120} value={label} onChange={e => setLabel(e.target.value)} placeholder="For example: March 2026 regular meeting" /></label>
+        <div className="space-y-4 p-5 sm:p-6">
+          {item.instructions && (
+            <div className="flex gap-3 rounded-2xl border border-primary-100 border-l-4 border-l-primary-500 bg-primary-50 p-3.5">
+              <Info size={18} className="mt-0.5 shrink-0 text-primary-600" />
+              <p className="text-sm leading-relaxed text-primary-900"><strong>What to submit:</strong> {item.instructions}</p>
             </div>
-
-            <input ref={inputRef} type="file" className="sr-only" accept={pdfOnly ? 'application/pdf,.pdf' : '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp'} onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
-            <button type="button" onClick={() => inputRef.current?.click()} className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-primary-200 bg-primary-50/50 px-4 py-4 text-left hover:border-primary-400">
-              <FileUp size={22} className="shrink-0 text-primary-600" />
-              <span className="min-w-0">
-                {fileName ? (<><span className="block truncate text-sm font-semibold text-ink-900">{fileName}</span><span className="text-xs text-ink-500">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · ` : ''}click to choose another</span></>)
-                  : <span className="text-sm font-semibold text-primary-700">Choose the file ({pdfOnly ? 'PDF' : 'PDF, Word or picture'}, up to 10 MB)</span>}
-              </span>
-            </button>
-
-            <label className="block text-sm"><span className="font-semibold text-ink-800">Remarks (optional)</span>
-              <textarea className="input mt-1 resize-none" rows={2} maxLength={500} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Anything LYDO should know about this document" /></label>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <button type="button" disabled={!canSubmit} onClick={() => setReview(true)} className="btn-primary flex-1 disabled:opacity-50"><Upload size={15} /> {resubmit ? 'Review and resubmit' : 'Review and submit'}</button>
-              {!resubmit && (
-                <button type="button" disabled={send.isPending} onClick={() => send.mutate('draft')} className="btn-secondary">Save as draft</button>
-              )}
-              {item.status === 'draft' && (
-                <button type="button" disabled={discard.isPending} onClick={() => { if (window.confirm('Delete this draft and its file?')) discard.mutate() }}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 size={14} /> Delete draft</button>
-              )}
+          )}
+          {resubmit && item.remarks && (
+            <div className="flex gap-3 rounded-2xl border border-amber-200 border-l-4 border-l-amber-500 bg-amber-50 p-3.5">
+              <RotateCcw size={18} className="mt-0.5 shrink-0 text-amber-600" />
+              <p className="text-sm leading-relaxed text-amber-900"><strong>LYDO asked you to correct:</strong> {item.remarks}</p>
             </div>
-            {!canSubmit && <p className="text-xs text-ink-500">Choose the file to submit. You can also save what you have as a draft and finish later.</p>}
-          </div>
-        ) : (
-          <div className="mt-4 space-y-3">
-            <p className="text-sm font-semibold text-ink-900">Check before you send it to LYDO</p>
-            <dl className="space-y-1.5 rounded-xl bg-ink-50 p-3 text-sm">
-              <div className="flex justify-between gap-3"><dt className="text-ink-500">Requirement</dt><dd className="text-right font-medium">{item.label}</dd></div>
-              <div className="flex justify-between gap-3"><dt className="text-ink-500">Reporting year</dt><dd className="font-medium">{year}</dd></div>
-              {label && <div className="flex justify-between gap-3"><dt className="text-ink-500">Period</dt><dd className="text-right font-medium">{label}</dd></div>}
-              <div className="flex justify-between gap-3"><dt className="text-ink-500">File</dt><dd className="min-w-0 truncate text-right font-medium">{fileName}</dd></div>
-              {remarks && <div className="flex justify-between gap-3"><dt className="text-ink-500">Remarks</dt><dd className="text-right font-medium">{remarks}</dd></div>}
-            </dl>
-            <p className="text-xs text-ink-500">After you submit, it waits for LYDO. It counts as completed only after LYDO verifies it.</p>
-            <div className="flex gap-2">
-              <button type="button" disabled={send.isPending} onClick={() => send.mutate('submit')} className="btn-primary flex-1 disabled:opacity-50">{send.isPending ? 'Submitting...' : 'Submit for verification'}</button>
-              <button type="button" onClick={() => setReview(false)} className="btn-secondary">Back</button>
-            </div>
-          </div>
-        )}
+          )}
+
+          {!review ? (
+            <>
+              <div className="grid gap-3 rounded-2xl border border-primary-100 bg-primary-50/40 p-3.5 sm:grid-cols-3">
+                <label className="block text-sm"><span className="flex items-center gap-1.5 font-semibold text-primary-900"><CalendarDays size={14} /> Reporting year</span>
+                  <select className="input mt-1 border-primary-200 bg-white" value={year} onChange={e => setYear(e.target.value)}>
+                    {[thisYear + 1, thisYear, thisYear - 1, thisYear - 2].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select></label>
+                <label className="block text-sm sm:col-span-2"><span className="font-semibold text-primary-900">Period or details <span className="font-normal text-ink-500">(optional)</span></span>
+                  <input className="input mt-1 border-primary-200 bg-white" maxLength={120} value={label} onChange={e => setLabel(e.target.value)} placeholder="For example: March 2026 regular meeting" /></label>
+              </div>
+
+              <input ref={inputRef} type="file" className="sr-only" accept={pdfOnly ? 'application/pdf,.pdf' : '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp'} onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
+              <button type="button" onClick={() => inputRef.current?.click()}
+                className={cn('group flex w-full items-center gap-4 rounded-2xl border-2 border-dashed px-4 py-5 text-left transition-colors',
+                  fileName ? 'border-emerald-300 bg-emerald-50 hover:border-emerald-400' : 'border-primary-300 bg-gradient-to-br from-primary-50 to-white hover:border-primary-500 hover:from-primary-100')}>
+                <span className={cn('inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white shadow-md', fileName ? 'bg-emerald-500' : 'bg-gradient-to-br from-primary-500 to-primary-700')}>
+                  {fileName ? <CheckCircle2 size={24} /> : <FileUp size={24} />}
+                </span>
+                <span className="min-w-0">
+                  {fileName ? (<><span className="block truncate text-sm font-bold text-ink-900">{fileName}</span><span className="text-xs text-emerald-800">{file ? `${(file.size / 1024 / 1024).toFixed(2)} MB · ` : ''}ready. Click to choose another.</span></>)
+                    : (<><span className="block text-sm font-bold text-primary-800">Choose the file</span><span className="text-xs text-ink-500">{pdfOnly ? 'PDF' : 'PDF, Word or picture'}, up to 10 MB</span></>)}
+                </span>
+              </button>
+
+              <label className="block text-sm"><span className="font-semibold text-primary-900">Remarks <span className="font-normal text-ink-500">(optional)</span></span>
+                <textarea className="input mt-1 resize-none border-primary-200" rows={2} maxLength={500} value={remarks} onChange={e => setRemarks(e.target.value)} placeholder="Anything LYDO should know about this document" /></label>
+
+              <div className="flex flex-wrap gap-2 border-t border-primary-100 pt-4">
+                <button type="button" disabled={!canSubmit} onClick={() => setReview(true)} className="btn-primary flex-1 shadow-md shadow-primary-600/20 disabled:opacity-50"><Upload size={15} /> {resubmit ? 'Review and resubmit' : 'Review and submit'}</button>
+                {!resubmit && (
+                  <button type="button" disabled={send.isPending} onClick={() => send.mutate('draft')} className="inline-flex items-center gap-1.5 rounded-xl border-2 border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 hover:border-primary-400 hover:bg-primary-50"><Pencil size={14} /> Save as draft</button>
+                )}
+                {item.status === 'draft' && (
+                  <button type="button" disabled={discard.isPending} onClick={() => { if (window.confirm('Delete this draft and its file?')) discard.mutate() }}
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"><Trash2 size={14} /> Delete draft</button>
+                )}
+              </div>
+              {!canSubmit && <p className="text-xs text-ink-500">Choose the file to submit. You can also save what you have as a draft and finish later.</p>}
+            </>
+          ) : (
+            <>
+              <p className="flex items-center gap-2 text-sm font-bold text-primary-900"><ShieldCheck size={16} className="text-primary-600" /> Check before you send it to LYDO</p>
+              <dl className="divide-y divide-primary-100 overflow-hidden rounded-2xl border border-primary-100 bg-primary-50/40 text-sm">
+                {([
+                  ['Requirement', item.label], ['Reporting year', year], ['Period', label], ['File', fileName], ['Remarks', remarks],
+                ] as [string, string | null][]).filter(([, v]) => v).map(([k, v]) => (
+                  <div key={k} className="flex justify-between gap-4 px-3.5 py-2.5"><dt className="text-ink-500">{k}</dt><dd className="min-w-0 break-words text-right font-semibold text-ink-900">{v}</dd></div>
+                ))}
+              </dl>
+              <p className="text-xs text-ink-500">After you submit, it waits for LYDO. It counts as completed only after LYDO verifies it.</p>
+              <div className="flex gap-2">
+                <button type="button" disabled={send.isPending} onClick={() => send.mutate('submit')} className="btn-primary flex-1 shadow-md shadow-primary-600/20 disabled:opacity-50">{send.isPending ? 'Submitting...' : 'Submit for verification'}</button>
+                <button type="button" onClick={() => setReview(false)} className="inline-flex items-center rounded-xl border-2 border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-primary-700 hover:bg-primary-50">Back</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
