@@ -141,12 +141,16 @@ export default function YouthCalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="page-title">Calendar &amp; Events</h1>
-          <p className="page-subtitle">Stay updated on upcoming events and activities</p>
+      {/* Hero, in the same banner style as the other pages */}
+      <header className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-700 to-primary-900 text-white p-8 sm:p-10">
+        <div className="absolute inset-0 opacity-[0.07] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div aria-hidden className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-accent-400/20 blur-2xl pointer-events-none" />
+        <div className="relative max-w-3xl">
+          <p className="eyebrow-on-dark mb-3">Events</p>
+          <h1 className="font-display font-extrabold text-4xl sm:text-5xl tracking-tighter2 leading-[1.05] mb-3">Calendar &amp; Events</h1>
+          <p className="text-primary-100 text-lg leading-relaxed">Stay updated on upcoming events and activities across Lucena City.</p>
         </div>
-      </div>
+      </header>
 
       {/* Verification banner */}
       {!isVerified && (
@@ -175,10 +179,10 @@ export default function YouthCalendarPage() {
             key={key}
             onClick={() => setTab(key as any)}
             className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+              'px-4 py-2 rounded-xl text-sm font-semibold transition-colors',
               tab === key
-                ? 'bg-primary-100 text-primary-700 border border-primary-200'
-                : 'bg-white text-ink-600 border border-ink-200 hover:bg-paper-50'
+                ? 'bg-primary-600 text-white border border-primary-600 shadow-md shadow-primary-600/20'
+                : 'bg-white text-primary-700 border border-primary-200 hover:bg-primary-50'
             )}
           >
             {label}
@@ -193,8 +197,8 @@ export default function YouthCalendarPage() {
           className={cn(
             'px-3 py-1 rounded-full text-xs font-medium transition-colors border',
             typeFilter === 'all'
-              ? 'bg-ink-800 text-white border-ink-800'
-              : 'bg-white text-ink-500 border-ink-200 hover:border-ink-400'
+              ? 'bg-primary-600 text-white border-primary-600'
+              : 'bg-white text-primary-700 border-primary-200 hover:border-primary-400 hover:bg-primary-50'
           )}
         >
           All Types
@@ -207,7 +211,7 @@ export default function YouthCalendarPage() {
               'px-3 py-1 rounded-full text-xs font-medium transition-colors border capitalize',
               typeFilter === type
                 ? 'bg-primary-600 text-white border-primary-600'
-                : 'bg-white text-ink-500 border-ink-200 hover:border-primary-300'
+                : 'bg-white text-primary-700 border-primary-200 hover:border-primary-400 hover:bg-primary-50'
             )}
           >
             {type.replace('_', ' ')}
@@ -252,6 +256,10 @@ export default function YouthCalendarPage() {
 
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-4">
+                    <div className={cn('hidden sm:flex shrink-0 flex-col items-center justify-center w-16 h-16 rounded-2xl text-center shadow-md', isPast ? 'bg-gray-200 text-gray-600' : 'bg-gradient-to-br from-primary-600 to-primary-800 text-white shadow-primary-600/30')}>
+                      <span className={cn('text-[10px] font-extrabold uppercase tracking-wider', isPast ? 'text-gray-500' : 'text-accent-300')}>{new Date(event.start_datetime).toLocaleString('en-US', { month: 'short' })}</span>
+                      <span className="text-2xl font-extrabold leading-none tabular-nums">{new Date(event.start_datetime).getDate()}</span>
+                    </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
                         <h3 className={cn('text-lg font-bold', isPast ? 'text-ink-700' : 'text-primary-900')}>{event.title}</h3>
