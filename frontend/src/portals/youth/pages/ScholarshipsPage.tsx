@@ -332,8 +332,8 @@ function ScholarshipCard({
     )}>
       <button onClick={onClick} className="w-full text-left">
         <div className="flex items-start gap-4">
-          <div className={cn('flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center shadow-md', passed ? 'bg-gray-300' : 'bg-gradient-to-br from-primary-500 to-primary-700 shadow-primary-600/30')}>
-            <Award size={20} className="text-white" />
+          <div className={cn('flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center shadow-md', passed ? 'bg-gray-300' : 'bg-accent-400 shadow-accent-500/40')}>
+            <Award size={20} className={passed ? 'text-white' : 'text-primary-900'} />
           </div>
           <div className="flex-1 min-w-0 pr-8">
             <div className="flex items-start justify-between gap-2 mb-1">
