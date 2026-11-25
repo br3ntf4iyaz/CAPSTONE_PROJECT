@@ -8,6 +8,7 @@ import { formatDateTime, cn, toArray } from '@/utils'
 import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
+import CalendarIcon from '@/components/ui/CalendarIcon'
 
 interface Event {
   id: number
@@ -256,10 +257,7 @@ export default function YouthCalendarPage() {
 
                 <div className="p-6">
                   <div className="flex items-start justify-between gap-4">
-                    <div className={cn('hidden sm:flex shrink-0 flex-col items-center justify-center w-16 h-16 rounded-2xl text-center shadow-md', isPast ? 'bg-gray-200 text-gray-600' : 'bg-gradient-to-br from-primary-600 to-primary-800 text-white shadow-primary-600/30')}>
-                      <span className={cn('text-[10px] font-extrabold uppercase tracking-wider', isPast ? 'text-gray-500' : 'text-accent-300')}>{new Date(event.start_datetime).toLocaleString('en-US', { month: 'short' })}</span>
-                      <span className="text-2xl font-extrabold leading-none tabular-nums">{new Date(event.start_datetime).getDate()}</span>
-                    </div>
+                    <CalendarIcon date={new Date(event.start_datetime)} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
                         <h3 className={cn('text-lg font-bold', isPast ? 'text-ink-700' : 'text-primary-900')}>{event.title}</h3>
