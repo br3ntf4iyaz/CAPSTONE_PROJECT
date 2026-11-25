@@ -13,6 +13,13 @@ export interface CommunityComment {
   author_avatar: string | null
   is_own: boolean
   created_at: string
+  author_account_type?: string
+  parent_id?: number | null
+  is_hidden?: boolean
+  is_deleted?: boolean
+  can_delete?: boolean
+  can_hide?: boolean
+  hidden_label?: string
 }
 
 export interface CommunityPost {
@@ -28,6 +35,8 @@ export interface CommunityPost {
   author_avatar: string | null
   like_count: number
   is_liked: boolean
+  my_reaction?: string | null
+  reaction_summary?: { type: string; count: number }[]
   comment_count: number
   is_own: boolean
 }
@@ -70,8 +79,10 @@ export const communityApi = {
 
   delete: (id: number) => apiClient.delete<void>(`/community/posts/${id}/`),
 
-  react: (id: number) =>
-    apiClient.post<{ liked: boolean; count: number }>(`/community/posts/${id}/react/`).then(r => r.data),
+  react: (id: number, reaction: string) =>
+    apiClient
+      .post<{ liked: boolean; reaction: string | null; count: number; summary: { type: string; count: number }[] }>(`/community/posts/${id}/react/`, { reaction })
+      .then(r => r.data),
 
   reactors: (id: number) =>
     apiClient.get<{ count: number; results: CommunityReactor[] }>(`/community/posts/${id}/reactors/`).then(r => r.data),
@@ -85,8 +96,14 @@ export const communityApi = {
   listComments: (postId: number) =>
     apiClient.get<CommunityComment[]>(`/community/posts/${postId}/comments/`).then(r => r.data),
 
-  createComment: (postId: number, content: string) =>
-    apiClient.post<CommunityComment>(`/community/posts/${postId}/comments/`, { content }).then(r => r.data),
+  createComment: (postId: number, content: string, parent?: number | null) =>
+    apiClient.post<CommunityComment>(`/community/posts/${postId}/comments/`, { content, ...(parent ? { parent } : {}) }).then(r => r.data),
+
+  hideComment: (postId: number, commentId: number) =>
+    apiClient.post<CommunityComment>(`/community/posts/${postId}/comments/${commentId}/hide/`).then(r => r.data),
+
+  restoreComment: (postId: number, commentId: number) =>
+    apiClient.post<CommunityComment>(`/community/posts/${postId}/comments/${commentId}/restore/`).then(r => r.data),
 
   deleteComment: (postId: number, commentId: number) =>
     apiClient.delete<void>(`/community/posts/${postId}/comments/${commentId}/`),

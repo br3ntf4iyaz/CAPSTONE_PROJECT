@@ -1,5 +1,6 @@
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 
 
 class CommunityPost(models.Model):
@@ -32,6 +33,12 @@ class CommunityPostImage(models.Model):
         ordering = ['order']
 
 
+REACTION_TYPES = [
+    ('like', 'Like'), ('love', 'Love'), ('care', 'Care'), ('haha', 'Haha'),
+    ('wow', 'Wow'), ('sad', 'Sad'), ('angry', 'Angry'),
+]
+
+
 class PostReaction(models.Model):
     post = models.ForeignKey(
         CommunityPost, on_delete=models.CASCADE, related_name='reactions'
@@ -39,7 +46,10 @@ class PostReaction(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE
     )
+    # One row per user per post; choosing another reaction changes this row, it never adds one
+    reaction_type = models.CharField(max_length=10, choices=REACTION_TYPES, default='like')
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         unique_together = [('post', 'user')]
@@ -54,6 +64,14 @@ class CommunityComment(models.Model):
     )
     content = models.TextField(max_length=1000)
     created_at = models.DateTimeField(auto_now_add=True)
+    # A reply points at the comment it answers
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    # Moderation: a hidden comment is kept in the database but not shown publicly
+    is_hidden = models.BooleanField(default=False)
+    hidden_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    hidden_at = models.DateTimeField(null=True, blank=True)
+    # A deleted comment that still has replies stays as an empty placeholder so the thread is not broken
+    is_deleted = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['created_at']

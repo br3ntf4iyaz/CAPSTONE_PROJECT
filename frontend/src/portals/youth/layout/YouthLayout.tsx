@@ -172,7 +172,10 @@ interface Notification {
   actor_name?: string
   actor_avatar?: string | null
   post_id?: number | null
+  reaction_type?: string
 }
+
+const REACTION_EMOJI: Record<string, string> = { like: '👍', love: '❤️', care: '🥰', haha: '😆', wow: '😮', sad: '😢', angry: '😡' }
 
 const NOTIF_TYPE_ROUTE: Record<string, string> = {
   course:       '/lms',
@@ -356,8 +359,13 @@ function NotificationPanel() {
                           <span className="mt-1.5 flex-shrink-0 w-2 h-2 rounded-full bg-primary-500" />
                         )}
                         {n.actor_name && (
-                          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 overflow-hidden inline-flex items-center justify-center text-xs font-bold text-primary-700">
-                            {n.actor_avatar ? <img src={n.actor_avatar} alt="" className="w-full h-full object-cover" /> : n.actor_name[0]}
+                          <span className="relative flex-shrink-0 w-8 h-8">
+                            <span className="w-8 h-8 rounded-full bg-primary-100 overflow-hidden inline-flex items-center justify-center text-xs font-bold text-primary-700">
+                              {n.actor_avatar ? <img src={n.actor_avatar} alt="" className="w-full h-full object-cover" /> : n.actor_name[0]}
+                            </span>
+                            {n.notification_type === 'community_reaction' && n.reaction_type && (
+                              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-white ring-1 ring-white flex items-center justify-center text-[10px] leading-none">{REACTION_EMOJI[n.reaction_type]}</span>
+                            )}
                           </span>
                         )}
                         <div className={cn('flex-1 min-w-0', n.is_read && !n.actor_name && 'pl-4.5')}>

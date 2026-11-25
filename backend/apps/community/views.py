@@ -3,7 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from django.db import models
-from .models import CommunityPost, CommunityPostImage, PostReaction, CommunityComment
+from .models import CommunityPost, CommunityPostImage, PostReaction, CommunityComment, REACTION_TYPES
 from .serializers import CommunityPostSerializer, CommunityCommentSerializer
 from . import notify
 
@@ -52,21 +52,24 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
     def get_queryset(self):
-        from django.db.models import Count, Exists, OuterRef, Value, BooleanField
+        from django.db.models import Count, Exists, OuterRef, Value, BooleanField, Q, Subquery, CharField
         user = self.request.user
         reactions_for_user = PostReaction.objects.filter(
             post=OuterRef('pk'), user_id=user.pk
         )
+        my_reaction = PostReaction.objects.filter(post=OuterRef('pk'), user_id=user.pk).values('reaction_type')[:1]
         qs = CommunityPost.objects \
             .select_related('author', 'author__profile') \
-            .prefetch_related('images') \
+            .prefetch_related('images', 'reactions') \
             .annotate(
                 pin_order=models.Case(
                     models.When(is_pinned=True, then=0), default=1,
                     output_field=models.IntegerField(),
                 ),
                 like_count=Count('reactions', distinct=True),
-                comment_count=Count('comments', distinct=True),
+                # only comments everybody can see: hidden and emptied ones are not counted
+                comment_count=Count('comments', filter=Q(comments__is_hidden=False, comments__is_deleted=False), distinct=True),
+                my_reaction=Subquery(my_reaction, output_field=CharField()) if user.is_authenticated else Value(None, output_field=CharField()),
                 is_liked=Exists(reactions_for_user) if user.is_authenticated else Value(False, output_field=BooleanField()),
             ) \
             .order_by('pin_order', '-created_at')
@@ -113,22 +116,45 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], permission_classes=[IsVerifiedOrAdmin])
     def react(self, request, pk=None):
+        """
+        React with one of the seven reactions. One row per user per post:
+          no reaction yet        -> it is added                (post owner is notified)
+          a different reaction   -> the same row is changed    (count unchanged)
+          the same reaction again-> it is removed
+        With no body the old behaviour (a plain like, toggled) is kept.
+        """
         post = self.get_object()
+        wanted = (request.data.get('reaction') or 'like')
+        if wanted not in dict(REACTION_TYPES):
+            return Response({'detail': 'Unknown reaction.'}, status=status.HTTP_400_BAD_REQUEST)
+        from django.utils import timezone
         reaction, created = PostReaction.objects.get_or_create(
-            post=post, user=request.user
+            post=post, user=request.user, defaults={'reaction_type': wanted},
         )
-        if not created:
+        if created:
+            mine, bump = wanted, True
+        elif reaction.reaction_type == wanted:
             reaction.delete()
-        # grouped notification to the post owner (nothing for their own reaction; quiet update on removal)
-        notify.sync_reaction_notification(post, bump=created)
-        count = PostReaction.objects.filter(post=post).count()
-        return Response({'liked': created, 'count': count})
+            mine, bump = None, False
+        else:
+            reaction.reaction_type = wanted
+            reaction.updated_at = timezone.now()
+            reaction.save(update_fields=['reaction_type', 'updated_at'])
+            mine, bump = wanted, False
+        # grouped notification to the post owner (nothing for their own reaction; quiet update on change/removal)
+        notify.sync_reaction_notification(post, bump=bump)
+        return Response({
+            'liked': mine is not None,
+            'reaction': mine,
+            'count': PostReaction.objects.filter(post=post).count(),
+            'summary': notify.reaction_summary(post),
+        })
 
     @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
     def reactors(self, request, pk=None):
         """Everyone who reacted to this post (name, photo and account type only, no private details)."""
         post = self.get_object()
-        rows = PostReaction.objects.filter(post=post).select_related('user').order_by('-created_at', '-id')
+        rows = PostReaction.objects.filter(post=post).select_related('user').order_by('-updated_at', '-id')
         people = []
         for r in rows:
             u = r.user
@@ -138,8 +164,8 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
                 'name': notify.name_of(u),
                 'avatar': avatar,
                 'account_type': notify.account_type(u),
-                'reaction': 'heart',
-                'reacted_at': r.created_at,
+                'reaction': r.reaction_type,
+                'reacted_at': r.updated_at,
             })
         return Response({'count': len(people), 'results': people})
 
@@ -161,7 +187,10 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
     def comments(self, request, pk=None):
         post = self.get_object()
         if request.method == 'GET':
-            qs = post.comments.select_related('author').order_by('created_at')
+            qs = post.comments.select_related('author', 'post').order_by('created_at')
+            if not self._can_moderate(request.user, post):
+                # everybody else never sees hidden comments (or replies written under one)
+                qs = qs.filter(is_hidden=False).exclude(parent__is_hidden=True)
             serializer = CommunityCommentSerializer(qs, many=True, context={'request': request})
             return Response(serializer.data)
         if not request.user.is_authenticated:
@@ -171,8 +200,20 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Content is required.'}, status=status.HTTP_400_BAD_REQUEST)
         if len(content) > 1000:
             return Response({'detail': 'Comment too long (max 1000 characters).'}, status=status.HTTP_400_BAD_REQUEST)
-        comment = CommunityComment.objects.create(post=post, author=request.user, content=content)
-        notify.notify_comment(post, comment, request.user)
+        parent = None
+        parent_id = request.data.get('parent')
+        if parent_id:
+            parent = post.comments.filter(pk=parent_id, is_deleted=False, is_hidden=False).first()
+            if parent is None:
+                return Response({'detail': 'The comment you are replying to is no longer available.'}, status=status.HTTP_400_BAD_REQUEST)
+        comment = CommunityComment.objects.create(post=post, author=request.user, content=content, parent=parent)
+        if parent is not None:
+            notify.notify_reply(post, comment, parent, request.user)
+            # the post owner still hears about it, unless they are the one being answered
+            if post.author_id != parent.author_id:
+                notify.notify_comment(post, comment, request.user)
+        else:
+            notify.notify_comment(post, comment, request.user)
         serializer = CommunityCommentSerializer(comment, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -192,6 +233,45 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         if comment.author_id != request.user.id and role not in ('lgu_admin', 'super_admin'):
             raise PermissionDenied("You can only delete your own comments.")
         comment_id = comment.pk
-        comment.delete()
+        if comment.replies.exists():
+            # keep the thread together: the replies stay under an emptied placeholder
+            comment.is_deleted = True
+            comment.content = ''
+            comment.save(update_fields=['is_deleted', 'content'])
+        else:
+            comment.delete()
         notify.forget_comment(comment_id)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @staticmethod
+    def _can_moderate(user, post):
+        """The post owner and LYDO admins may hide and restore comments on this post."""
+        return bool(user and user.is_authenticated) and (
+            post.author_id == user.id or getattr(user, 'role', '') in ('lgu_admin', 'super_admin'))
+
+    @action(detail=True, methods=['post'], url_path=r'comments/(?P<comment_id>[^/.]+)/hide',
+            permission_classes=[IsVerifiedOrAdmin])
+    def hide_comment(self, request, pk=None, comment_id=None):
+        return self._set_hidden(request, comment_id, True)
+
+    @action(detail=True, methods=['post'], url_path=r'comments/(?P<comment_id>[^/.]+)/restore',
+            permission_classes=[IsVerifiedOrAdmin])
+    def restore_comment(self, request, pk=None, comment_id=None):
+        return self._set_hidden(request, comment_id, False)
+
+    def _set_hidden(self, request, comment_id, hidden):
+        """Hiding keeps the comment in the database; only the post owner or an admin can hide or restore it."""
+        from django.utils import timezone
+        post = self.get_object()
+        if not self._can_moderate(request.user, post):
+            raise PermissionDenied('Only the post owner or a LYDO admin can hide comments.')
+        comment = post.comments.filter(pk=comment_id).first()
+        if comment is None:
+            return Response({'detail': 'Comment not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if hidden and comment.author_id == request.user.id and post.author_id == request.user.id:
+            return Response({'detail': 'You cannot hide your own comment; delete it instead.'}, status=status.HTTP_400_BAD_REQUEST)
+        comment.is_hidden = hidden
+        comment.hidden_by = request.user if hidden else None
+        comment.hidden_at = timezone.now() if hidden else None
+        comment.save(update_fields=['is_hidden', 'hidden_by', 'hidden_at'])
+        return Response(CommunityCommentSerializer(comment, context={'request': request}).data)

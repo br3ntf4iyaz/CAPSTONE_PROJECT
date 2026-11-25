@@ -6,11 +6,12 @@ import toast from 'react-hot-toast'
 import {
   Users, Building2, ArrowRight, MapPin, CheckCircle2,
   TrendingUp, Shield, Heart, Pin, ImagePlus, X, MessageSquare,
-  ChevronLeft, ChevronRight, Trash2, Trophy,
+  ChevronLeft, ChevronRight, Trash2, Trophy, MoreVertical, EyeOff, Eye, CornerDownRight,
 } from 'lucide-react'
 import { compliancePercent, complianceTile } from '@/components/ui/ComplianceBadge'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
+import { LikeButton, ReactionSummary, REACTIONS, REACTION_BY_KEY, type ReactionKey } from '../../components/Reactions'
 import type { CommunityPost, CommunityPostImage, CommunityPostPage, CommunityComment, CommunityReactor } from '@/api/community'
 import { useAuthStore } from '@/store/authStore'
 import { cn, toArray, timeAgo } from '@/utils'
@@ -190,54 +191,18 @@ export default function CommunityHubPage() {
   })
 
   const likeMutation = useMutation({
-    mutationFn: (id: number) => communityApi.react(id),
-    onMutate: async (id: number) => {
-      await queryClient.cancelQueries({ queryKey: ['community-posts', selectedBarangay] })
-      const prev = queryClient.getQueryData(['community-posts', selectedBarangay])
-      queryClient.setQueryData(
-        ['community-posts', selectedBarangay],
-        (old: any) => {
-          if (!old) return old
-          return {
-            ...old,
-            pages: old.pages.map((page: CommunityPostPage) => ({
-              ...page,
-              results: page.results.map((p: CommunityPost) =>
-                p.id === id
-                  ? { ...p, is_liked: !p.is_liked, like_count: p.is_liked ? p.like_count - 1 : p.like_count + 1 }
-                  : p
-              ),
-            })),
-          }
-        }
-      )
-      return { prev }
+    mutationFn: ({ id, reaction }: { id: number; reaction: ReactionKey }) => communityApi.react(id, reaction),
+    onSuccess: (data, { id }) => {
+      const patch = (p: CommunityPost): CommunityPost =>
+        p.id === id ? { ...p, is_liked: data.liked, my_reaction: data.reaction, like_count: data.count, reaction_summary: data.summary } : p
+      queryClient.setQueriesData({ queryKey: ['community-posts'] }, (old: any) => {
+        if (!old?.pages) return old
+        return { ...old, pages: old.pages.map((page: CommunityPostPage) => ({ ...page, results: page.results.map(patch) })) }
+      })
+      queryClient.setQueryData(['community-post', id], (old: CommunityPost | undefined) => (old ? patch(old) : old))
+      queryClient.invalidateQueries({ queryKey: ['post-reactors', id] })
     },
-    onError: (_err, _id, ctx) => {
-      if (ctx?.prev !== undefined) {
-        queryClient.setQueryData(['community-posts', selectedBarangay], ctx.prev)
-      }
-    },
-    onSettled: (_d, _e, id) => { queryClient.invalidateQueries({ queryKey: ['community-post', id] }) },
-    onSuccess: (data, id) => {
-      queryClient.setQueryData(
-        ['community-posts', selectedBarangay],
-        (old: any) => {
-          if (!old) return old
-          return {
-            ...old,
-            pages: old.pages.map((page: CommunityPostPage) => ({
-              ...page,
-              results: page.results.map((p: CommunityPost) =>
-                p.id === id
-                  ? { ...p, is_liked: data.liked, like_count: data.count }
-                  : p
-              ),
-            })),
-          }
-        }
-      )
-    },
+    onError: (e) => toast.error(serverMsg(e, 'Could not save your reaction.')),
   })
 
   const editPostMutation = useMutation({
@@ -654,36 +619,33 @@ export default function CommunityHubPage() {
 
                   <PhotoGrid images={post.images} />
 
-                  {/* Like + Comment buttons */}
-                  <div className="mt-3 flex items-center gap-4">
-                    <button
-                      onClick={() => { if (auth.user) likeMutation.mutate(post.id) }}
-                      className={cn(
-                        'flex items-center gap-1.5 text-xs font-medium transition-colors',
-                        post.is_liked ? 'text-red-500' : 'text-ink-400',
-                        auth.user ? 'hover:text-red-400 cursor-pointer' : 'cursor-default'
+                  {/* Reaction summary (opens the list of people) and comment count */}
+                  {(post.like_count > 0 || post.comment_count > 0) && (
+                    <div className="mt-3 flex items-center justify-between min-h-[20px]">
+                      <ReactionSummary summary={post.reaction_summary ?? []} total={post.like_count} onOpen={() => setReactorsPostId(post.id)} />
+                      {post.comment_count > 0 && (
+                        <button onClick={() => toggleComments(post.id)} className="text-xs text-ink-500 hover:text-primary-700 hover:underline">
+                          {post.comment_count} {post.comment_count === 1 ? 'comment' : 'comments'}
+                        </button>
                       )}
-                    >
-                      <Heart size={14} className={post.is_liked ? 'fill-red-500' : ''} />
-                    </button>
-                    {post.like_count > 0 && (
-                      <button
-                        onClick={() => setReactorsPostId(post.id)}
-                        aria-label={'See who reacted (' + post.like_count + ')'}
-                        className="-ml-2.5 text-xs font-medium text-ink-500 hover:text-primary-700 hover:underline transition-colors"
-                      >
-                        {post.like_count}
-                      </button>
-                    )}
+                    </div>
+                  )}
+
+                  {/* Like (hover or long-press for all seven reactions) + Comment */}
+                  <div className="mt-2 pt-2 border-t border-ink-100 flex items-center gap-5">
+                    <LikeButton
+                      value={post.my_reaction}
+                      disabled={!auth.user}
+                      onPick={reaction => { if (auth.user) likeMutation.mutate({ id: post.id, reaction }) }}
+                    />
                     <button
                       onClick={() => toggleComments(post.id)}
                       className={cn(
-                        'flex items-center gap-1.5 text-xs font-medium transition-colors',
-                        openCommentIds.has(post.id) ? 'text-primary-600' : 'text-ink-400 hover:text-primary-500'
+                        'flex items-center gap-1.5 text-xs font-semibold rounded-lg px-1.5 py-1 transition-colors hover:bg-primary-50',
+                        openCommentIds.has(post.id) ? 'text-primary-600' : 'text-ink-500 hover:text-primary-600'
                       )}
                     >
-                      <MessageSquare size={14} />
-                      {post.comment_count > 0 && <span>{post.comment_count}</span>}
+                      <MessageSquare size={15} /> Comment
                     </button>
                   </div>
 
@@ -968,8 +930,9 @@ function HubCard({
   )
 }
 
-/** Everyone who reacted to one post: photo, name and account type, newest first. */
+/** Everyone who reacted to one post: photo, name, account type and reaction, with a filter per reaction. */
 function ReactorsModal({ postId, onClose }: { postId: number; onClose: () => void }) {
+  const [filter, setFilter] = useState<'all' | ReactionKey>('all')
   const { data, isLoading, isError } = useQuery<{ count: number; results: CommunityReactor[] }>({
     queryKey: ['post-reactors', postId],
     queryFn: () => communityApi.reactors(postId),
@@ -980,6 +943,10 @@ function ReactorsModal({ postId, onClose }: { postId: number; onClose: () => voi
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
+  const all = data?.results ?? []
+  const counts: Record<string, number> = {}
+  all.forEach(r => { counts[r.reaction] = (counts[r.reaction] ?? 0) + 1 })
+  const shown = filter === 'all' ? all : all.filter(r => r.reaction === filter)
   return createPortal(
     <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm p-0 sm:p-4" onMouseDown={onClose}>
       <div
@@ -990,30 +957,48 @@ function ReactorsModal({ postId, onClose }: { postId: number; onClose: () => voi
         <div className="flex items-center justify-between px-5 py-4 border-b border-ink-100">
           <div>
             <h3 className="font-display font-bold text-ink-900">People who reacted</h3>
-            <p className="text-xs text-ink-500 mt-0.5 flex items-center gap-1">
-              <Heart size={12} className="fill-red-500 text-red-500" /> {data?.count ?? 0} {(data?.count ?? 0) === 1 ? 'reaction' : 'reactions'}
-            </p>
+            <p className="text-xs text-ink-500 mt-0.5">{data?.count ?? 0} {(data?.count ?? 0) === 1 ? 'reaction' : 'reactions'}</p>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full text-ink-500 hover:bg-ink-100"><X size={16} className="mx-auto" /></button>
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto px-4 py-2.5 border-b border-ink-100 no-scrollbar">
+          {([{ key: 'all', emoji: '', label: 'All' }, ...REACTIONS] as { key: 'all' | ReactionKey; emoji: string; label: string }[]).map(t => {
+            const n = t.key === 'all' ? all.length : counts[t.key] ?? 0
+            if (t.key !== 'all' && n === 0 && filter !== t.key) return null
+            return (
+              <button
+                key={t.key}
+                onClick={() => setFilter(t.key)}
+                className={cn(
+                  'shrink-0 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition-colors',
+                  filter === t.key ? 'bg-primary-600 text-white border-primary-600' : 'bg-white text-primary-700 border-primary-200 hover:bg-primary-50',
+                )}
+              >
+                {t.emoji && <span className="text-sm leading-none">{t.emoji}</span>}{t.label} <span className="opacity-80">{n}</span>
+              </button>
+            )
+          })}
         </div>
         <div className="overflow-y-auto divide-y divide-ink-50">
           {isLoading ? (
             <div className="p-6 text-center text-sm text-ink-500">Loading…</div>
           ) : isError ? (
             <div className="p-6 text-center text-sm text-red-600">Could not load the list. Please try again.</div>
-          ) : (data?.results.length ?? 0) === 0 ? (
-            <div className="p-6 text-center text-sm text-ink-500">No reactions yet.</div>
+          ) : shown.length === 0 ? (
+            <div className="p-6 text-center text-sm text-ink-500">No reactions here yet.</div>
           ) : (
-            data!.results.map(p => (
+            shown.map(p => (
               <div key={p.id} className="flex items-center gap-3 px-5 py-3">
-                <span className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 inline-flex items-center justify-center font-semibold text-primary-700">
-                  {p.avatar ? <img src={p.avatar} alt="" className="w-full h-full object-cover" /> : p.name[0]}
+                <span className="relative w-10 h-10 flex-shrink-0">
+                  <span className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden inline-flex items-center justify-center font-semibold text-primary-700">
+                    {p.avatar ? <img src={p.avatar} alt="" className="w-full h-full object-cover" /> : p.name[0]}
+                  </span>
+                  <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white ring-2 ring-white flex items-center justify-center text-[12px] leading-none">{REACTION_BY_KEY[p.reaction]?.emoji}</span>
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-ink-900 truncate">{p.name}</p>
                   <p className="text-xs text-ink-500">{p.account_type}</p>
                 </div>
-                <Heart size={16} className="fill-red-500 text-red-500 flex-shrink-0" aria-label="Heart" />
               </div>
             ))
           )}
@@ -1027,7 +1012,10 @@ function ReactorsModal({ postId, onClose }: { postId: number; onClose: () => voi
 function CommentsSection({ postId, currentUser, showList, highlightCommentId = null }: { postId: number; currentUser: any; showList: boolean; highlightCommentId?: number | null }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
+  const [replyTo, setReplyTo] = useState<{ id: number; name: string } | null>(null)
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null)
+  const [commentToHide, setCommentToHide] = useState<number | null>(null)
+  const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null)
 
   const { data: comments = [], isLoading } = useQuery<CommunityComment[]>({
     queryKey: ['comments', postId],
@@ -1036,28 +1024,112 @@ function CommentsSection({ postId, currentUser, showList, highlightCommentId = n
     refetchInterval: showList ? 10000 : false,
   })
 
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['comments', postId] })
+    queryClient.invalidateQueries({ queryKey: ['community-posts'] })
+    queryClient.invalidateQueries({ queryKey: ['community-post', postId] })
+  }
+
   const addComment = useMutation({
-    mutationFn: (content: string) => communityApi.createComment(postId, content),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] })
-      queryClient.invalidateQueries({ queryKey: ['community-posts'] })
-      setText('')
-    },
+    mutationFn: ({ content, parent }: { content: string; parent: number | null }) => communityApi.createComment(postId, content, parent),
+    onSuccess: () => { refresh(); setText(''); setReplyTo(null) },
     onError: (e) => toast.error(serverMsg(e, 'Could not post comment.')),
   })
 
   const deleteComment = useMutation({
     mutationFn: (commentId: number) => communityApi.deleteComment(postId, commentId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['comments', postId] })
-      queryClient.invalidateQueries({ queryKey: ['community-posts'] })
-      toast.success('Comment deleted.')
-    },
-    onError: () => toast.error('Could not delete comment.'),
+    onSuccess: () => { refresh(); toast.success('Comment deleted successfully.') },
+    onError: (e) => toast.error(serverMsg(e, 'Could not delete the comment.')),
     onSettled: () => setCommentToDelete(null),
   })
 
+  const hideComment = useMutation({
+    mutationFn: (commentId: number) => communityApi.hideComment(postId, commentId),
+    onSuccess: () => { refresh(); toast.success('Comment hidden successfully.') },
+    onError: (e) => toast.error(serverMsg(e, 'Could not hide the comment.')),
+    onSettled: () => setCommentToHide(null),
+  })
+
+  const restoreComment = useMutation({
+    mutationFn: (commentId: number) => communityApi.restoreComment(postId, commentId),
+    onSuccess: () => { refresh(); toast.success('Comment restored.') },
+    onError: (e) => toast.error(serverMsg(e, 'Could not restore the comment.')),
+  })
+
+  // top-level comments, each followed by every reply under it (oldest first)
+  const byId = new Map(comments.map(c => [c.id, c]))
+  const rootOf = (c: CommunityComment): CommunityComment | null => {
+    let cur: CommunityComment | undefined = c
+    for (let i = 0; i < 50 && cur; i++) {
+      if (!cur.parent_id) return cur
+      cur = byId.get(cur.parent_id)
+    }
+    return null // its parent is not visible to this person, so neither is the reply
+  }
+  const roots = comments.filter(c => !c.parent_id)
+  const repliesOf = (root: CommunityComment) => comments.filter(c => c.parent_id && rootOf(c)?.id === root.id)
+
   if (!currentUser && !showList) return null
+
+  const row = (c: CommunityComment, isReply: boolean) => (
+    <div key={c.id} id={'comment-' + c.id} className={cn('group flex gap-2 rounded-xl', isReply && 'ml-9', c.id === highlightCommentId && 'bg-primary-50 ring-1 ring-primary-200 p-1 -m-1')}>
+      <div className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">
+        {c.author_avatar
+          ? <img src={c.author_avatar} alt="" className="w-full h-full object-cover" />
+          : <div className="w-full h-full flex items-center justify-center text-primary-600 font-semibold text-[10px]">{c.author_name[0]}</div>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start gap-1">
+          <div className={cn('rounded-2xl px-3 py-2 min-w-0', c.is_hidden ? 'bg-amber-50 border border-dashed border-amber-300' : 'bg-ink-50')}>
+            <p className="text-xs font-semibold text-ink-800 flex flex-wrap items-center gap-1.5">
+              {c.author_name}
+              {c.author_account_type && c.author_account_type !== 'General Youth' && (
+                <span className="rounded-full bg-primary-100 text-primary-700 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide">{c.author_account_type}</span>
+              )}
+            </p>
+            {c.is_deleted
+              ? <p className="text-xs italic text-ink-400 mt-0.5">This comment was deleted.</p>
+              : <p className="text-xs text-ink-700 mt-0.5 whitespace-pre-wrap">{c.content}</p>}
+            {c.is_hidden && (
+              <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700"><EyeOff size={10} /> {c.hidden_label || 'Hidden by post owner'}</p>
+            )}
+          </div>
+          {(c.can_delete || c.can_hide) && (
+            <button
+              type="button"
+              aria-label="Comment options"
+              aria-haspopup="menu"
+              onClick={e => {
+                if (menu?.id === c.id) { setMenu(null); return }
+                const r = e.currentTarget.getBoundingClientRect()
+                setMenu({ id: c.id, top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) })
+              }}
+              className={cn(
+                'mt-1 w-7 h-7 shrink-0 inline-flex items-center justify-center rounded-full text-ink-500 hover:bg-primary-100 hover:text-primary-700 transition-all',
+                'sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100',
+                menu?.id === c.id && 'sm:opacity-100 bg-primary-100 text-primary-700',
+              )}
+            >
+              <MoreVertical size={15} />
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 px-1">
+          <span className="text-[10px] text-ink-400">{timeAgo(c.created_at)}</span>
+          {currentUser && !c.is_deleted && !c.is_hidden && (
+            <button onClick={() => setReplyTo({ id: c.id, name: c.author_name })} className="text-[10px] font-semibold text-ink-500 hover:text-primary-700">Reply</button>
+          )}
+          {c.is_hidden && c.can_hide && (
+            <button onClick={() => restoreComment.mutate(c.id)} disabled={restoreComment.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary-600 hover:text-primary-800 disabled:opacity-50">
+              <Eye size={10} /> Restore
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  const menuComment = menu ? byId.get(menu.id) : undefined
 
   return (
     <div className="mt-3 border-t border-ink-100 pt-3 space-y-2">
@@ -1069,46 +1141,49 @@ function CommentsSection({ postId, currentUser, showList, highlightCommentId = n
           </div>
         ) : (
           <div className="space-y-2">
-            {comments.length === 0 && (
+            {roots.length === 0 && (
               <p className="text-xs text-ink-400 text-center py-1">No comments yet. Be the first!</p>
             )}
-            {comments.map(c => (
-              <div key={c.id} id={'comment-' + c.id} className={cn('flex gap-2 rounded-xl', c.id === highlightCommentId && 'bg-primary-50 ring-1 ring-primary-200 p-1 -m-1')}>
-                <div className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">
-                  {c.author_avatar
-                    ? <img src={c.author_avatar} alt="" className="w-full h-full object-cover" />
-                    : <div className="w-full h-full flex items-center justify-center text-primary-600 font-semibold text-[10px]">{c.author_name[0]}</div>
-                  }
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="bg-ink-50 rounded-2xl px-3 py-2">
-                    <p className="text-xs font-semibold text-ink-800">{c.author_name}</p>
-                    <p className="text-xs text-ink-700 mt-0.5 whitespace-pre-wrap">{c.content}</p>
-                  </div>
-                  <div className="flex items-center gap-3 mt-0.5 px-1">
-                    <span className="text-[10px] text-ink-400">{timeAgo(c.created_at)}</span>
-                    {c.is_own && (
-                      <button
-                        onClick={() => setCommentToDelete(c.id)}
-                        disabled={deleteComment.isPending}
-                        className="text-[10px] text-ink-400 hover:text-red-500 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                </div>
+            {roots.map(root => (
+              <div key={root.id} className="space-y-2">
+                {row(root, false)}
+                {repliesOf(root).map(r => row(r, true))}
               </div>
             ))}
           </div>
         )
       )}
 
+      {/* Options of one comment (rendered on the page body so nothing clips it) */}
+      {menu && menuComment && createPortal(
+        <div>
+          <div className="fixed inset-0 z-[60]" onMouseDown={() => setMenu(null)} />
+          <div role="menu" className="fixed z-[61] min-w-[11rem] rounded-xl bg-white border border-ink-100 shadow-xl py-1" style={{ top: menu.top, right: menu.right }}>
+            {menuComment.can_hide && !menuComment.is_hidden && (
+              <button role="menuitem" onClick={() => { setCommentToHide(menuComment.id); setMenu(null) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-ink-700 hover:bg-primary-50">
+                <EyeOff size={14} /> Hide comment
+              </button>
+            )}
+            {menuComment.can_hide && menuComment.is_hidden && (
+              <button role="menuitem" onClick={() => { restoreComment.mutate(menuComment.id); setMenu(null) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-ink-700 hover:bg-primary-50">
+                <Eye size={14} /> Restore comment
+              </button>
+            )}
+            {menuComment.can_delete && (
+              <button role="menuitem" onClick={() => { setCommentToDelete(menuComment.id); setMenu(null) }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50">
+                <Trash2 size={14} /> Delete comment
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
+
       {commentToDelete !== null && (
         <ConfirmDeleteDialog
-          id={`delete-comment-${postId}`}
-          title="Are you sure you want to delete this comment?"
-          description="This action cannot be undone. Once deleted, this comment will be permanently removed."
+          id={'delete-comment-' + postId}
+          title="Delete comment?"
+          description="Are you sure you want to delete this comment? This action cannot be undone."
           confirmLabel="Delete Comment"
           pending={deleteComment.isPending}
           onCancel={() => setCommentToDelete(null)}
@@ -1116,32 +1191,52 @@ function CommentsSection({ postId, currentUser, showList, highlightCommentId = n
         />
       )}
 
+      {commentToHide !== null && (
+        <ConfirmDeleteDialog
+          id={'hide-comment-' + postId}
+          title="Hide this comment?"
+          description="This comment will no longer be visible in the public discussion. Authorized moderators and the post owner may still review it."
+          confirmLabel="Hide Comment"
+          pending={hideComment.isPending}
+          onCancel={() => setCommentToHide(null)}
+          onConfirm={() => hideComment.mutate(commentToHide)}
+        />
+      )}
+
       {/* Input — always visible for logged-in users */}
       {currentUser && (
-        <div className="flex gap-2 items-center">
-          <div className="w-7 h-7 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center text-primary-600 font-semibold text-[10px]">
-            {currentUser.first_name?.[0] ?? '?'}
+        <div>
+          {replyTo && (
+            <p className="mb-1 ml-9 flex items-center gap-1 text-[11px] text-ink-500">
+              <CornerDownRight size={11} /> Replying to <span className="font-semibold text-ink-700">{replyTo.name}</span>
+              <button onClick={() => setReplyTo(null)} className="ml-1 text-ink-400 hover:text-red-500" aria-label="Cancel reply"><X size={11} /></button>
+            </p>
+          )}
+          <div className="flex gap-2 items-center">
+            <div className="w-7 h-7 rounded-full bg-primary-100 flex-shrink-0 flex items-center justify-center text-primary-600 font-semibold text-[10px]">
+              {currentUser.first_name?.[0] ?? '?'}
+            </div>
+            <input
+              type="text"
+              value={text}
+              onChange={e => setText(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey && text.trim()) {
+                  e.preventDefault()
+                  addComment.mutate({ content: text.trim(), parent: replyTo?.id ?? null })
+                }
+              }}
+              placeholder={replyTo ? 'Write a reply… (Enter to post)' : 'Write a comment… (Enter to post)'}
+              className="flex-1 rounded-full border border-ink-200 px-3 py-1.5 text-xs focus:outline-none focus:border-primary-400"
+            />
+            <button
+              onClick={() => { if (text.trim()) addComment.mutate({ content: text.trim(), parent: replyTo?.id ?? null }) }}
+              disabled={!text.trim() || addComment.isPending}
+              className="text-xs font-semibold text-primary-600 hover:text-primary-800 disabled:opacity-40 flex-shrink-0"
+            >
+              Post
+            </button>
           </div>
-          <input
-            type="text"
-            value={text}
-            onChange={e => setText(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey && text.trim()) {
-                e.preventDefault()
-                addComment.mutate(text.trim())
-              }
-            }}
-            placeholder="Write a comment… (Enter to post)"
-            className="flex-1 rounded-full border border-ink-200 px-3 py-1.5 text-xs focus:outline-none focus:border-primary-400"
-          />
-          <button
-            onClick={() => { if (text.trim()) addComment.mutate(text.trim()) }}
-            disabled={!text.trim() || addComment.isPending}
-            className="text-xs font-semibold text-primary-600 hover:text-primary-800 disabled:opacity-40 flex-shrink-0"
-          >
-            Post
-          </button>
         </div>
       )}
     </div>

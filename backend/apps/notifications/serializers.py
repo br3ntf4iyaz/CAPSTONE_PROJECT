@@ -27,6 +27,7 @@ class NotificationSerializer(serializers.ModelSerializer):
             'actor_avatar',
             'post_id',
             'comment_id',
+            'reaction_type',
         ]
         read_only_fields = ['is_read', 'read_at', 'created_at']
 

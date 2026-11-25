@@ -13,6 +13,7 @@ class Notification(models.Model):
         ('system', 'System'),
         ('community_comment', 'Community comment'),
         ('community_reaction', 'Community reaction'),
+        ('community_reply', 'Community reply'),
     ]
 
     user = models.ForeignKey(
@@ -35,6 +36,7 @@ class Notification(models.Model):
     )
     post_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
     comment_id = models.PositiveIntegerField(null=True, blank=True)
+    reaction_type = models.CharField(max_length=10, blank=True)
 
     class Meta:
         ordering = ['-created_at']

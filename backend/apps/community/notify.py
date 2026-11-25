@@ -13,6 +13,14 @@ from apps.notifications.models import Notification
 
 COMMENT = 'community_comment'
 REACTION = 'community_reaction'
+REPLY = 'community_reply'
+
+# how a single reaction reads in a notification: '<name> <verb> your photo.'
+REACTION_VERBS = {
+    'like': 'liked', 'love': 'loved', 'care': 'cared about',
+    'haha': 'laughed at', 'wow': 'reacted with Wow to',
+    'sad': 'reacted with Sad to', 'angry': 'reacted with Angry to',
+}
 
 ACCOUNT_TYPES = {
     'general_youth': 'General Youth',
@@ -66,14 +74,35 @@ def notify_comment(post, comment, actor):
     )
 
 
+def notify_reply(post, comment, parent, actor):
+    """Tell the author of the comment that was answered. Not for replying to yourself."""
+    if parent.author_id == actor.id:
+        return None
+    preview = comment.content.strip()
+    preview = preview if len(preview) <= 100 else preview[:97] + '…'
+    recent = Notification.objects.filter(
+        user_id=parent.author_id, notification_type=REPLY, actor=actor, post_id=post.id,
+        message=preview, created_at__gte=timezone.now() - timedelta(seconds=10),
+    )
+    if recent.exists():
+        return None
+    return Notification.objects.create(
+        user_id=parent.author_id, actor=actor,
+        title=f'{name_of(actor)} replied to your comment.',
+        message=preview, notification_type=REPLY,
+        link=post_link(post.id, comment.id), post_id=post.id, comment_id=comment.id,
+    )
+
+
 def _reaction_title(post, reactors) -> str:
     """'A reacted…', 'A and B…', 'A, B and 8 others…' (reactors: newest first)."""
     names = [name_of(u) for u in reactors[:2]]
     total = len(reactors)
     noun = _noun(post)
     if total == 1:
-        who = names[0]
-    elif total == 2:
+        verb = REACTION_VERBS.get(getattr(reactors[0], '_reaction', 'like'), 'reacted to')
+        return f'{names[0]} {verb} your {noun}.'
+    if total == 2:
         who = f'{names[0]} and {names[1]}'
     else:
         who = f'{names[0]}, {names[1]} and {total - 2} other{"s" if total - 2 != 1 else ""}'
@@ -92,8 +121,11 @@ def sync_reaction_notification(post, actor=None, bump=False):
     from .models import PostReaction
 
     reactions = (PostReaction.objects.filter(post=post).exclude(user_id=post.author_id)
-                 .select_related('user').order_by('-created_at', '-id'))
-    reactors = [r.user for r in reactions]
+                 .select_related('user').order_by('-updated_at', '-id'))
+    reactors = []
+    for r in reactions:
+        r.user._reaction = r.reaction_type  # remembered for the one-reactor wording
+        reactors.append(r.user)
     existing = Notification.objects.filter(user_id=post.author_id, notification_type=REACTION, post_id=post.id).first()
 
     if not reactors:
@@ -103,11 +135,13 @@ def sync_reaction_notification(post, actor=None, bump=False):
 
     title = _reaction_title(post, reactors)
     latest = reactors[0]
+    latest_type = latest._reaction
     if existing:
         existing.title = title
         existing.actor = latest
         existing.link = post_link(post.id)
-        fields = ['title', 'actor', 'link']
+        existing.reaction_type = latest_type
+        fields = ['title', 'actor', 'link', 'reaction_type']
         if bump:
             existing.is_read = False
             existing.read_at = None
@@ -120,14 +154,23 @@ def sync_reaction_notification(post, actor=None, bump=False):
         return None
     return Notification.objects.create(
         user_id=post.author_id, actor=latest, title=title, message='',
-        notification_type=REACTION, link=post_link(post.id), post_id=post.id,
+        notification_type=REACTION, link=post_link(post.id), post_id=post.id, reaction_type=latest_type,
     )
+
+
+def reaction_summary(post):
+    """[{type, count}] of the reactions actually used, most used first."""
+    from django.db.models import Count
+    from .models import PostReaction
+    rows = (PostReaction.objects.filter(post=post).values('reaction_type')
+            .annotate(n=Count('id')).order_by('-n', 'reaction_type'))
+    return [{'type': r['reaction_type'], 'count': r['n']} for r in rows]
 
 
 def forget_post(post_id):
     """The post was deleted: drop its notifications so no link is left pointing nowhere."""
-    Notification.objects.filter(post_id=post_id, notification_type__in=[COMMENT, REACTION]).delete()
+    Notification.objects.filter(post_id=post_id, notification_type__in=[COMMENT, REACTION, REPLY]).delete()
 
 
 def forget_comment(comment_id):
-    Notification.objects.filter(comment_id=comment_id, notification_type=COMMENT).delete()
+    Notification.objects.filter(comment_id=comment_id, notification_type__in=[COMMENT, REPLY]).delete()

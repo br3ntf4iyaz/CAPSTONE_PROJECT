@@ -62,7 +62,7 @@ class CommunityNotificationTests(APITestCase):
     def test_reaction_notifies_owner(self):
         self.act(self.b).post(f'/api/community/posts/{self.post.id}/react/')
         n = self.notes('community_reaction').get()
-        self.assertEqual(n.title, 'Bob Test reacted to your post.')
+        self.assertEqual(n.title, 'Bob Test liked your post.')
         self.assertEqual(n.actor, self.b)
 
     def test_own_reaction_does_not_notify(self):
@@ -96,7 +96,7 @@ class CommunityNotificationTests(APITestCase):
         self.act(self.c).post(f'/api/community/posts/{self.post.id}/react/')  # c removes
         n.refresh_from_db()
         self.assertTrue(n.is_read)
-        self.assertEqual(n.title, 'Bob Test reacted to your post.')
+        self.assertEqual(n.title, 'Bob Test liked your post.')
         self.act(self.b).post(f'/api/community/posts/{self.post.id}/react/')  # last one removes
         self.assertEqual(self.notes('community_reaction').count(), 0)
 
