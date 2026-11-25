@@ -14,6 +14,7 @@ import { communityApi } from '@/api/community'
 import type { CommunityPost } from '@/api/community'
 import { useMe } from '@/hooks/useAuth'
 import { formatDate, cn } from '@/utils'
+import CalendarIcon from '@/components/ui/CalendarIcon'
 import { PageSpinner } from '@/components/ui/Spinner'
 import OpportunitiesTracker from './home/OpportunitiesTracker'
 
@@ -554,12 +555,7 @@ export default function YouthDashboardPage() {
             <ul className="space-y-3">
               {visibleEvents.map(event => (
                 <li key={event.id} className="group flex items-start gap-4 p-3 -mx-3 rounded-xl hover:bg-primary-50/60 transition-colors">
-                  <div className="flex-shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary-100 text-primary-700 font-display font-bold leading-none">
-                    <span className="text-[10px] uppercase tracking-wider mt-0.5">
-                      {new Date(event.start_datetime).toLocaleDateString('en-US', { month: 'short' })}
-                    </span>
-                    <span className="text-lg">{new Date(event.start_datetime).getDate()}</span>
-                  </div>
+                  <CalendarIcon date={new Date(event.start_datetime)} className="flex" />
                   <div className="flex-1 min-w-0">
                     <span className="chip-primary text-[10px] mb-1.5">
                       {event.event_type.replace(/_/g, ' ')}
