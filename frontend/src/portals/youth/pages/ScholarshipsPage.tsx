@@ -152,7 +152,7 @@ function ScholarshipDetailDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm px-0 sm:px-4"
       onClick={onClose}
     >
       <div
@@ -160,8 +160,10 @@ function ScholarshipDetailDrawer({
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
+        <div className="sticky top-0 z-10">
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white px-6 py-4 flex items-start justify-between gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div className="relative flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               {s.is_featured && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
@@ -172,39 +174,39 @@ function ScholarshipDetailDrawer({
                 {TYPE_LABELS[s.provider_type] ?? s.provider_type}
               </span>
             </div>
-            <h2 className="text-base font-bold text-gray-900 leading-snug">{s.title}</h2>
-            <p className="text-sm text-gray-500 mt-0.5">{s.provider}</p>
+            <h2 className="text-lg font-bold text-white leading-snug">{s.title}</h2>
+            <p className="text-sm text-primary-100 mt-0.5">{s.provider}</p>
           </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="relative flex items-center gap-1.5 flex-shrink-0">
             <button
               onClick={onToggleSave}
               title={isSaved ? 'Remove from saved' : 'Save for later'}
               className={cn(
-                'p-1.5 rounded-lg transition-colors',
-                isSaved
-                  ? 'text-primary-600 bg-primary-50 hover:bg-primary-100'
-                  : 'text-gray-400 hover:text-primary-600 hover:bg-gray-100'
+                'p-1.5 rounded-lg transition-colors bg-white/90 hover:bg-white',
+                isSaved ? 'text-primary-700 ring-2 ring-accent-400' : 'text-primary-700'
               )}
             >
               {isSaved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
             </button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+            <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white">
               <X size={18} />
             </button>
           </div>
         </div>
+        <div className="ph-stripe h-1 w-full" />
+        </div>
 
         {/* Meta grid */}
-        <div className="px-6 py-4 border-b border-gray-100 grid grid-cols-2 gap-3">
-          <div className="bg-green-50 rounded-xl p-3">
+        <div className="px-6 py-4 border-b border-primary-100 bg-primary-50/50 grid grid-cols-2 gap-3">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3">
             <p className="text-[10px] font-semibold text-green-700 uppercase tracking-wider mb-1">Coverage</p>
             <p className="text-sm font-semibold text-green-800">{s.coverage}</p>
             <p className="text-xs text-green-700 mt-0.5">{s.amount}</p>
           </div>
-          <div className="bg-blue-50 rounded-xl p-3">
-            <p className="text-[10px] font-semibold text-blue-700 uppercase tracking-wider mb-1">Slots</p>
-            <p className="text-sm font-semibold text-blue-800">{s.slots}</p>
-            <p className={cn('text-xs mt-0.5', passed ? 'text-red-600' : isSoon(s) ? 'text-amber-600 font-medium' : 'text-blue-700')}>
+          <div className="bg-white border border-primary-200 rounded-xl p-3">
+            <p className="text-[10px] font-bold text-primary-700 uppercase tracking-wider mb-1">Slots</p>
+            <p className="text-sm font-bold text-primary-900">{s.slots}</p>
+            <p className={cn('text-xs mt-0.5', passed ? 'text-red-600' : isSoon(s) ? 'text-amber-600 font-medium' : 'text-primary-700')}>
               {passed ? (s.application_status === 'not_yet_open' ? `Opens ${fmtDate(s.opens_on)}` : 'Applications closed')
                 : s.closes_on ? `Apply until ${fmtDate(s.closes_on)}` : s.deadline ? `Deadline: ${s.deadline}` : 'Open for applications'}
             </p>
@@ -215,7 +217,7 @@ function ScholarshipDetailDrawer({
         <div className="px-6 py-5 space-y-5">
           {s.description && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-primary-900 mb-2 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                 <BookOpen size={14} className="text-primary-600" /> About this scholarship
               </h3>
               <p className="text-sm text-gray-600 leading-relaxed">{s.description}</p>
@@ -228,18 +230,18 @@ function ScholarshipDetailDrawer({
           )}
           {(s.eligibility?.length ?? 0) > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-primary-900 mb-2 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                 <Users size={14} className="text-primary-600" /> Eligibility
               </h3>
-              <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600">
+              <ul className="list-disc rounded-xl border border-primary-100 bg-primary-50/50 py-3 pl-8 pr-3 space-y-1 text-sm text-ink-800">
                 {s.eligibility!.map((e, i) => <li key={i}>{e}</li>)}
               </ul>
             </div>
           )}
           {(s.document_requirements?.length ?? 0) > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">Required documents</h3>
-              <ul className="space-y-1 text-sm text-gray-600">
+              <h3 className="text-sm font-bold text-primary-900 mb-2 border-l-4 border-primary-500 pl-2">Required documents</h3>
+              <ul className="space-y-2 rounded-xl border border-primary-100 bg-primary-50/50 p-3 text-sm text-ink-800">
                 {s.document_requirements!.map(d => (
                   <li key={d.key} className="flex items-start gap-2">
                     <span className={cn('mt-0.5 shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase', d.required ? 'bg-primary-100 text-primary-700' : 'bg-ink-100 text-ink-500')}>
@@ -253,13 +255,13 @@ function ScholarshipDetailDrawer({
           )}
           {s.instructions && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2">How to apply</h3>
+              <h3 className="text-sm font-bold text-primary-900 mb-2 border-l-4 border-primary-500 pl-2">How to apply</h3>
               <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{s.instructions}</p>
             </div>
           )}
           {s.requirements.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-800 mb-2 flex items-center gap-1.5">
+              <h3 className="text-sm font-bold text-primary-900 mb-2 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                 <Users size={14} className="text-primary-600" /> Requirements
               </h3>
               <ul className="space-y-1.5">
@@ -277,13 +279,13 @@ function ScholarshipDetailDrawer({
         </div>
 
         {/* CTA */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 space-y-2">
+        <div className="sticky bottom-0 bg-white border-t border-primary-100 px-6 py-4 space-y-2 shadow-[0_-8px_16px_-12px_rgba(0,48,135,0.25)]">
           {passed ? (
             <p className="text-sm text-center text-gray-500">Applications for this scholarship are closed.</p>
           ) : applied ? (
             <AppliedNotice kind="scholarship" objectId={s.id} />
           ) : (
-            <button onClick={() => setApplying(true)} className="btn-primary w-full">Apply Now</button>
+            <button onClick={() => setApplying(true)} className="btn-primary w-full shadow-md shadow-primary-600/20">Apply Now</button>
           )}
           {s.application_url && (
             <a href={s.application_url} target="_blank" rel="noopener noreferrer"

@@ -255,16 +255,20 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
     ))
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center bg-black/50 sm:p-4" role="dialog" aria-modal="true" aria-label={`Apply for ${s.title}`}>
+    <div className="fixed inset-0 z-[60] flex items-stretch sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm sm:p-4" role="dialog" aria-modal="true" aria-label={`Apply for ${s.title}`}>
       <div className="bg-white w-full sm:max-w-2xl sm:rounded-2xl shadow-2xl flex flex-col max-h-full sm:max-h-[94vh]">
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-ink-100 px-5 py-4">
-          <div className="min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-primary-700">Scholarship application</p>
-            <h2 className="font-bold text-ink-900 leading-snug break-words">{s.title}</h2>
-            <p className="text-xs text-ink-500">{s.provider}</p>
+        <div className="shrink-0 overflow-hidden sm:rounded-t-2xl">
+          <div className="relative flex items-start justify-between gap-3 bg-gradient-to-br from-primary-600 to-primary-800 px-5 py-4 text-white">
+            <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+            <div className="relative min-w-0">
+              <p className="inline-flex rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-primary-50">Scholarship application</p>
+              <h2 className="mt-1.5 text-lg font-extrabold text-white leading-snug break-words">{s.title}</h2>
+              <p className="text-xs text-primary-100">{s.provider}</p>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="relative p-1.5 rounded-lg bg-white/15 text-white hover:bg-white/25"><X size={18} /></button>
           </div>
-          <button onClick={onClose} aria-label="Close" className="p-1.5 rounded-lg text-ink-400 hover:bg-ink-50"><X size={18} /></button>
+          <div className="ph-stripe h-1 w-full" />
         </div>
 
         {reference ? (
@@ -281,15 +285,15 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
         ) : (
           <>
             {/* Progress */}
-            <ol className="flex items-center gap-1 px-5 py-3 border-b border-ink-50 overflow-x-auto" aria-label="Application steps">
+            <ol className="flex items-center gap-1 px-5 py-3 border-b border-primary-100 bg-primary-50/60 overflow-x-auto" aria-label="Application steps">
               {STEPS.map((label, i) => (
                 <li key={label} className="flex items-center gap-1 shrink-0" aria-current={i === step ? 'step' : undefined}>
                   <span className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold',
-                    i < step ? 'bg-primary-600 text-white' : i === step ? 'bg-primary-100 text-primary-800 ring-2 ring-primary-500' : 'bg-ink-100 text-ink-400')}>
+                    i < step ? 'bg-primary-600 text-white' : i === step ? 'bg-white text-primary-800 ring-2 ring-primary-500' : 'bg-white text-primary-400 border border-primary-200')}>
                     {i < step ? <Check size={13} /> : i + 1}
                   </span>
-                  <span className={cn('text-xs font-semibold', i === step ? 'text-ink-900' : 'text-ink-400', i !== step && 'hidden sm:inline')}>{label}</span>
-                  {i < STEPS.length - 1 && <span className="mx-1 h-px w-4 bg-ink-200" />}
+                  <span className={cn('text-xs font-semibold', i === step ? 'text-primary-900 font-bold' : 'text-primary-400', i !== step && 'hidden sm:inline')}>{label}</span>
+                  {i < STEPS.length - 1 && <span className="mx-1 h-px w-4 bg-primary-200" />}
                 </li>
               ))}
             </ol>
@@ -304,8 +308,8 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
 
               {step < 3 && (
                 <>
-                  <h3 className="font-semibold text-ink-900">{['Personal information', 'Educational background', 'Family and financial information'][step]}</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
+                  <h3 className="font-bold text-primary-900 border-l-4 border-primary-500 pl-2">{['Personal information', 'Educational background', 'Family and financial information'][step]}</h3>
+                  <div className="grid gap-3 sm:grid-cols-2 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
                     {sections[step].defs.map(d => (
                       <FieldInput key={d.key} d={d} value={sections[step].v[d.key] ?? ''} error={errors[d.key]} onChange={v => setField(step)(d.key, v)} />
                     ))}
@@ -315,7 +319,7 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
 
               {step === 3 && (
                 <>
-                  <h3 className="font-semibold text-ink-900">Documentary requirements</h3>
+                  <h3 className="font-bold text-primary-900 border-l-4 border-primary-500 pl-2">Documentary requirements</h3>
                   <p className="text-xs text-ink-500">Upload PDF, JPG or PNG files, up to 5 MB each. Items marked * are required for this scholarship.</p>
                   {s.document_requirements.length === 0 && (
                     <p className="text-sm text-ink-600 rounded-xl bg-ink-50 p-4">This scholarship does not ask for documents. You can continue.</p>
@@ -333,7 +337,7 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
 
               {step === 4 && (
                 <>
-                  <h3 className="font-semibold text-ink-900">Review your application</h3>
+                  <h3 className="font-bold text-primary-900 border-l-4 border-primary-500 pl-2">Review your application</h3>
                   <p className="text-xs text-ink-500">Check everything. Use Edit to fix anything before you submit.</p>
                   {[
                     { title: 'Personal information', idx: 0, rows: summaryRows(PERSONAL, personal) },
@@ -383,14 +387,14 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between gap-2 border-t border-ink-100 px-5 py-3">
+            <div className="flex items-center justify-between gap-2 border-t border-primary-100 bg-primary-50/40 px-5 py-3 sm:rounded-b-2xl">
               <button type="button" onClick={() => { setErrors({}); step === 0 ? onClose() : setStep(step - 1) }} className="btn-secondary gap-1.5">
                 <ArrowLeft size={14} /> {step === 0 ? 'Cancel' : 'Back'}
               </button>
               {step < 4 ? (
-                <button type="button" onClick={next} className="btn-primary gap-1.5">Next <ArrowRight size={14} /></button>
+                <button type="button" onClick={next} className="btn-primary gap-1.5 shadow-md shadow-primary-600/20">Next <ArrowRight size={14} /></button>
               ) : (
-                <button type="button" onClick={trySubmit} disabled={submit.isPending} className="btn-primary px-6">
+                <button type="button" onClick={trySubmit} disabled={submit.isPending} className="btn-primary px-6 shadow-md shadow-primary-600/20">
                   {submit.isPending ? 'Submitting...' : 'Submit Application'}
                 </button>
               )}
