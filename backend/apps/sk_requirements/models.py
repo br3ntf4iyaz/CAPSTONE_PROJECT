@@ -34,6 +34,7 @@ STATUS_CHOICES = [
     ('submitted', 'Submitted'),
     ('pending', 'Pending'),
     ('overdue', 'Overdue'),
+    ('draft', 'Draft'),
 ]
 
 
@@ -95,6 +96,8 @@ class SKRequirement(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    period_year = models.PositiveSmallIntegerField(null=True, blank=True)  # the reporting year the SK says the document is for
+    period_label = models.CharField(max_length=120, blank=True)  # the applicable period, in the SK's words (for example "Q1 meeting, March 2026")
     sk_remarks = models.TextField(blank=True)  # what the SK wrote when submitting
     review_remarks = models.TextField(blank=True)  # what LYDO wrote when approving or returning it
     reviewed_by = models.ForeignKey(
@@ -196,3 +199,43 @@ class SKPublicActivity(models.Model):
 
     class Meta:
         ordering = ['-activity_date', '-created_at']
+
+
+class SKRequirementConfig(models.Model):
+    """The central definition of one of the ten SK requirements: what it is, what to submit, and who owes it.
+    Shared by every barangay. A barangay's own progress lives in its SKRequirement row and its compliance records."""
+    code = models.CharField(max_length=30, unique=True, choices=REQUIREMENT_CHOICES)
+    description = models.TextField(blank=True)
+    instructions = models.TextField(blank=True)  # shown on the submission form; LYDO can edit it
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveSmallIntegerField(default=0)
+    applies_to_all = models.BooleanField(default=True)
+    barangays = models.ManyToManyField(SKBarangay, blank=True, related_name='configured_requirements')  # used when applies_to_all is off
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.get_code_display()
+
+
+class SKDeadline(models.Model):
+    """An OFFICIAL deadline set by LYDO. A requirement is overdue only when such a deadline exists and has passed. None is ever assumed."""
+    code = models.CharField(max_length=30, choices=REQUIREMENT_CHOICES)
+    year = models.PositiveSmallIntegerField()
+    quarter = models.PositiveSmallIntegerField(null=True, blank=True)  # RCB
+    month = models.PositiveSmallIntegerField(null=True, blank=True)  # MIL
+    deadline = models.DateField()
+    is_active = models.BooleanField(default=True)
+    applies_to_all = models.BooleanField(default=True)
+    barangays = models.ManyToManyField(SKBarangay, blank=True, related_name='deadlines')
+    note = models.CharField(max_length=200, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['year', 'code', 'quarter', 'month', 'deadline']
+        indexes = [models.Index(fields=['code', 'year'])]
+
+    def __str__(self):
+        return f'{self.get_code_display()} {self.year}: {self.deadline}'

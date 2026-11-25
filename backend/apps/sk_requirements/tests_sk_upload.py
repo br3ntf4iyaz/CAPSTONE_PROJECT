@@ -107,9 +107,13 @@ class SKRequirementUploadTests(TestCase):
 
     def test_overdue_pending_items_show_as_overdue(self):
         self.mine(self.sk1)
-        SKRequirement.objects.filter(barangay=self.b1, requirement_type='abyip').update(due_date='2020-01-01')
+        from django.utils import timezone
+        from .models import SKDeadline
         statuses = {x['type']: x['status'] for x in self.mine(self.sk1).data['requirements']}
-        self.assertEqual(statuses['abyip'], 'overdue')
+        self.assertNotEqual(statuses['annex_h'], 'overdue')  # no official deadline: never overdue
+        SKDeadline.objects.create(code='annex_h', year=timezone.localdate().year, deadline='2020-01-01')  # an official deadline that passed
+        statuses = {x['type']: x['status'] for x in self.mine(self.sk1).data['requirements']}
+        self.assertEqual(statuses['annex_h'], 'overdue')
 
     def test_admin_endpoints_remain_admin_only(self):
         self.api.force_authenticate(self.sk1)

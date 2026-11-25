@@ -51,6 +51,7 @@ export function CompletionRing({ percent, size = 92 }: { percent: number; size?:
 
 /** The tinted cell of the barangay x document table. */
 export const CELL_TINT: Record<ComplianceStatus, string> = {
+  draft: 'bg-yellow-50',
   not_submitted: 'border-ink-200 bg-paper-50 hover:border-primary-400 hover:bg-primary-50',
   submitted: 'border-sky-200 bg-sky-50 hover:border-sky-400',
   under_verification: 'border-violet-200 bg-violet-50 hover:border-violet-400',
@@ -62,6 +63,7 @@ export const CELL_TINT: Record<ComplianceStatus, string> = {
 
 /** The tile of one document in the monitoring grid: a clean white card with a coloured edge. The colour says the status; the text stays dark. */
 export const SEGMENT_TINT: Record<ComplianceStatus, string> = {
+  draft: 'border-ink-200 border-l-yellow-400 bg-white hover:bg-yellow-50/60',
   not_submitted: 'border-ink-200 border-l-amber-400 bg-white hover:bg-amber-50/40',
   submitted: 'border-ink-200 border-l-sky-500 bg-white hover:bg-sky-50/50',
   under_verification: 'border-ink-200 border-l-violet-500 bg-white hover:bg-violet-50/50',

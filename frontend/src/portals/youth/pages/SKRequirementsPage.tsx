@@ -51,18 +51,27 @@ export default function SKRequirementsPage() {
       <div className="card p-5">
         <div className="flex items-baseline justify-between gap-3 mb-2">
           <p className="font-semibold text-ink-900">{/^barangay/i.test(barangay.name) ? barangay.name : `Barangay ${barangay.name}`}</p>
-          <p className="text-sm text-ink-500">{summary.completed} of {summary.total} verified</p>
+          <p className="text-sm font-bold text-ink-800">{pct}% compliance</p>
         </div>
         <div className="h-2 bg-ink-100 rounded-full overflow-hidden" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
           <div className="h-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} />
         </div>
-        <p className="text-sm text-ink-500 mt-3">
-          {summary.awaiting > 0 && <span className="mr-3 font-semibold text-sky-700">{summary.awaiting} waiting for LYDO</span>}
-          {summary.returned > 0 && <span className="mr-3 font-semibold text-amber-700">{summary.returned} returned for correction</span>}
-          {summary.overdue > 0 && <span className="font-semibold text-red-700">{summary.overdue} overdue</span>}
-          {summary.awaiting + summary.returned + summary.overdue === 0 && summary.completed < summary.total && 'Nothing submitted yet for the rest.'}
-          {summary.completed === summary.total && 'All requirements are verified. Thank you!'}
-        </p>
+        <dl className="mt-4 grid grid-cols-2 gap-2 text-center sm:grid-cols-5">
+          {[
+            ['Total', summary.total, 'text-ink-900'],
+            ['Verified', summary.completed, 'text-emerald-700'],
+            ['Waiting for LYDO', summary.awaiting, 'text-sky-700'],
+            ['Need correction', summary.returned, 'text-amber-700'],
+            ['Not yet submitted', summary.not_submitted, 'text-ink-600'],
+          ].map(([label, value, cls]) => (
+            <div key={label as string} className="rounded-xl bg-ink-50 px-2 py-2.5">
+              <dd className={`text-xl font-extrabold tabular-nums ${cls}`}>{value}</dd>
+              <dt className="text-[11px] font-semibold text-ink-500">{label}</dt>
+            </div>
+          ))}
+        </dl>
+        {summary.drafts > 0 && <p className="mt-3 text-xs font-semibold text-yellow-700">{summary.drafts} draft{summary.drafts === 1 ? '' : 's'} saved. Drafts are not sent to LYDO and do not count.</p>}
+        {summary.overdue > 0 && <p className="mt-1 text-xs font-semibold text-red-700">{summary.overdue} past an official deadline.</p>}
       </div>
 
       <ul className="space-y-3">
@@ -72,15 +81,17 @@ export default function SKRequirementsPage() {
               <div className="min-w-0">
                 <p className="font-semibold text-sm text-ink-900">{r.label}</p>
                 <p className="text-xs text-ink-500 mt-0.5">
-                  {r.detail ? `${r.detail} · ` : ''}
+                  {r.detail ? `${r.detail} · ` : ''}{r.period_year ? `For ${r.period_year}${r.period_label ? `, ${r.period_label}` : ''} · ` : ''}
                   {r.submitted_at && (r.status === 'submitted' || r.status === 'verified')
                     ? `Submitted ${formatDate(r.submitted_at)}`
-                    : r.due_date ? `Due ${formatDate(r.due_date)}` : 'No due date set'}
+                    : r.due_date ? `Deadline ${formatDate(r.due_date)}` : 'No deadline has been set yet'}
                 </p>
               </div>
               <StateBadge state={r.status} />
             </div>
 
+            {r.description && <p className="text-xs text-ink-600">{r.description}</p>}
+            {r.instructions && r.status !== 'verified' && <p className="rounded-lg bg-primary-50/70 px-3 py-2 text-xs text-primary-900"><strong>What to submit:</strong> {r.instructions}</p>}
             {r.status === 'returned' && r.remarks && (
               <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"><strong>LYDO asked you to correct:</strong> {r.remarks}</p>
             )}

@@ -19,8 +19,8 @@ interface Cell { periods: Period[]; kind: 'single' | 'quarterly' | 'monthly'; co
 interface Row { barangay_id: number; barangay: string; cells: Record<string, Cell>; totals: { total: number; completed: number; overdue: number } }
 interface Overview {
   year: number; years: number[]; percent: number; rows: Row[]
-  summary: { total: number; completed: number; pending: number; overdue: number; for_verification: number; returned: number; verified: number; published: number }
-  categories: { key: string; short: string; label: string; kind: string; description: string }[]
+  summary: { total: number; completed: number; pending: number; overdue: number; for_verification: number; returned: number; verified: number; published: number; not_submitted: number }
+  categories: { key: string; short: string; label: string; kind: string; description: string; other?: boolean }[]
   barangays: { id: number; name: string }[]; statuses: { key: string; label: string }[]
 }
 interface Rec {
@@ -34,6 +34,7 @@ interface QueueRow extends Rec { barangay: string; barangay_id: number; category
 
 /** A soft status pill: tinted background, strong coloured text, readable on white. */
 const PILL: Record<ComplianceStatus, string> = {
+  draft: 'bg-yellow-50 text-yellow-800 border-yellow-300',
   not_submitted: 'bg-amber-50 text-amber-800 border-amber-200',
   submitted: 'bg-sky-50 text-sky-800 border-sky-200',
   under_verification: 'bg-violet-50 text-violet-800 border-violet-200',
@@ -49,10 +50,11 @@ function TileChip({ status }: { status: ComplianceStatus }) {
 
 export default function AdminSKCompliancePage() {
   const [search, setSearch] = useSearchParams()
-  const tab = (['monitor', 'queue', 'other', 'office'].includes(search.get('tab') ?? '') ? search.get('tab') : 'monitor') as 'monitor' | 'queue' | 'other' | 'office'
-  const setTab = (t: 'monitor' | 'queue' | 'other' | 'office') => setSearch(t === 'monitor' ? {} : { tab: t }, { replace: true })
+  const tab = (['monitor', 'queue', 'other', 'office', 'setup'].includes(search.get('tab') ?? '') ? search.get('tab') : 'monitor') as 'monitor' | 'queue' | 'other' | 'office' | 'setup'
+  const setTab = (t: 'monitor' | 'queue' | 'other' | 'office' | 'setup') => setSearch(t === 'monitor' ? {} : { tab: t }, { replace: true })
   const [f, setF] = useState({ year: '', barangay: '', category: '', quarter: '', month: '', status: '', publication: '' })
   const [open, setOpen] = useState<{ barangay_id: number; barangay: string; category: string; year: number } | null>(null)
+  const [otherOpen, setOtherOpen] = useState<{ barangay: string; label: string; id: number | null; status: ComplianceStatus } | null>(null)
   const [sort, setSort] = useState<'name' | 'behind' | 'best'>('name')
   const params = Object.fromEntries(Object.entries(f).filter(([, v]) => v))
   const q = useQuery({
@@ -71,14 +73,14 @@ export default function AdminSKCompliancePage() {
   const kpis: { label: string; value: number; icon: React.ReactNode; tone: Tone; hint?: string }[] = [
     { label: 'Total required', value: s.total, icon: <FileText size={16} />, tone: 'ink' },
     { label: 'Completed', value: s.completed, icon: <CheckCircle2 size={16} />, tone: 'green' },
-    { label: 'Pending', value: s.pending, icon: <Clock size={16} />, tone: 'yellow' },
+    { label: 'Drafts in progress', value: s.pending, icon: <Clock size={16} />, tone: 'yellow', hint: 'saved by the SK, not sent yet' },
     { label: 'Overdue', value: s.overdue, icon: <AlertTriangle size={16} />, tone: 'red' },
     { label: 'Submitted for verification', value: s.for_verification, icon: <FileCheck2 size={16} />, tone: 'sky' },
     { label: 'Returned for correction', value: s.returned, icon: <RotateCcw size={16} />, tone: 'orange' },
     { label: 'Verified', value: s.verified, icon: <ShieldCheck size={16} />, tone: 'green', hint: 'ready to publish' },
     { label: 'Published', value: s.published, icon: <Globe2 size={16} />, tone: 'blue', hint: 'on the public FPDPB' },
   ]
-  const tabs = [['monitor', 'Monitoring (5 documents)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const
+  const tabs = [['monitor', 'Monitoring (10 requirements)'], ['queue', `Verification queue${waiting ? ` (${waiting})` : ''}`], ['setup', 'Deadlines & guidance'], ['other', 'Other requirements'], ['office', 'LYDO office documents']] as const
 
   return (
     <div className="space-y-6">
@@ -139,7 +141,7 @@ export default function AdminSKCompliancePage() {
           </div>
 
           <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-sm">
-            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-600"><span>Compliance for the selected filters</span><span className="text-primary-700">{o.percent}%</span></div>
+            <div className="mb-2 flex items-center justify-between text-xs font-semibold text-ink-600"><span>Compliance for the selected filters</span><span className="text-primary-700">{o.percent}% · {s.completed} of {s.total} requirements verified · {s.not_submitted} not yet submitted</span></div>
             <div className="h-2.5 overflow-hidden rounded-full bg-ink-100"><div className="h-full rounded-full bg-gradient-to-r from-primary-600 to-emerald-500 transition-all duration-700" style={{ width: `${o.percent}%` }} /></div>
             <div className="mt-3"><StatusLegend /></div>
           </div>
@@ -220,7 +222,7 @@ export default function AdminSKCompliancePage() {
                         return (
                           <td key={c.key} className="min-w-[150px] p-0 align-middle">
                             <button type="button" title={`Open ${r.barangay} · ${c.short}`} aria-label={`${r.barangay} ${c.short}`}
-                              onClick={() => setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
+                              onClick={() => c.other ? setOtherOpen({ barangay: r.barangay, label: c.label, id: cell.periods[0]?.record_id ?? null, status: cell.periods[0]?.status ?? 'not_submitted' }) : setOpen({ barangay_id: r.barangay_id, barangay: r.barangay, category: c.key, year: o.year })}
                               className={cn('group flex h-full w-full items-center justify-between gap-2 rounded-xl border border-l-4 px-3 py-2.5 text-left text-ink-900 transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500', SEGMENT_TINT[tone])}>
                               <span className="min-w-0 flex-1">
                                 {cell.kind === 'single' ? <TileChip status={cell.periods[0].status} /> : (
@@ -252,6 +254,8 @@ export default function AdminSKCompliancePage() {
             </table>
           </div>
         </>
+      ) : tab === 'setup' ? (
+        <SetupPanel barangays={o.barangays} />
       ) : tab === 'other' ? (
         <AdminSKTrackerPage embedded />
       ) : tab === 'office' ? (
@@ -261,12 +265,155 @@ export default function AdminSKCompliancePage() {
       )}
 
       {open && <DetailModal {...open} onClose={() => setOpen(null)} />}
+      {otherOpen && <OtherCellModal {...otherOpen} onClose={() => setOtherOpen(null)} />}
     </div>
   )
 }
 
 function Sel({ label, value, onChange, children }: { label: string; value: string; onChange: (v: string) => void; children: React.ReactNode }) {
   return <label className="text-xs font-bold uppercase tracking-wide text-primary-800">{label}<select className="input mt-1 bg-white py-2 text-sm font-normal normal-case tracking-normal text-ink-900" value={value} onChange={e => onChange(e.target.value)}>{children}</select></label>
+}
+
+/** One of the five documents reviewed on the requirement itself: open the file, then verify or return it. */
+function OtherCellModal({ barangay, label, id, status, onClose }: { barangay: string; label: string; id: number | null; status: ComplianceStatus; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [remarks, setRemarks] = useState('')
+  const [returning, setReturning] = useState(false)
+  const decide = useMutation({
+    mutationFn: (v: { decision: 'approve' | 'return' }) => apiClient.post(`/sk-requirements/requirements/${id}/review/`, { decision: v.decision, remarks }),
+    onSuccess: () => { toast.success('Saved. The SK was notified.'); qc.invalidateQueries({ queryKey: ['sk-compliance-overview'] }); qc.invalidateQueries({ queryKey: ['sk-other-awaiting'] }); onClose() },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not save.')),
+  })
+  const hasFile = status === 'submitted' || status === 'verified' || status === 'returned'
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label={`${barangay} ${label}`} onClick={onClose}>
+      <div className="relative w-full max-w-md space-y-3 rounded-2xl bg-white p-5 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 rounded-full p-1.5 text-gray-500 hover:bg-gray-100"><X size={16} /></button>
+        <h3 className="pr-8 text-base font-bold text-gray-900">{barangay}: {label}</h3>
+        <StatusChip status={status} />
+        {status === 'not_submitted' && <p className="text-sm text-gray-600">The SK has not submitted this document yet.</p>}
+        {status === 'draft' && <p className="text-sm text-gray-600">The SK saved a draft. It has not been sent to LYDO.</p>}
+        {status === 'overdue' && <p className="text-sm text-gray-600">An official deadline passed and nothing is waiting for review.</p>}
+        {hasFile && id && (
+          <button type="button" className="btn-secondary btn-sm" onClick={() => openPrivateFile(`/api/sk-requirements/requirements/${id}/file/`).catch(() => toast.error('Could not open the file'))}>Open file</button>
+        )}
+        {status === 'submitted' && id && (
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <button type="button" className="btn-primary btn-sm" disabled={decide.isPending} onClick={() => decide.mutate({ decision: 'approve' })}>Verify</button>
+              <button type="button" className="btn-secondary btn-sm text-amber-700" onClick={() => setReturning(r => !r)}>Return</button>
+            </div>
+            {returning && (
+              <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <textarea className="input resize-none text-sm" rows={2} maxLength={1000} placeholder="What must the SK correct? They will read this." value={remarks} onChange={e => setRemarks(e.target.value)} />
+                <button type="button" disabled={remarks.trim().length < 5 || decide.isPending} onClick={() => decide.mutate({ decision: 'return' })} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Return to the SK</button>
+              </div>
+            )}
+          </div>
+        )}
+        <p className="text-[11px] text-gray-500">Every review is recorded in the audit log.</p>
+      </div>
+    </div>
+  )
+}
+
+interface ReqConfig { id: number; code: string; label: string; description: string; instructions: string; is_active: boolean; applies_to_all: boolean; barangays: number[] }
+interface DeadlineRow { id: number; code: string; label: string; year: number; quarter: number | null; month: number | null; deadline: string; is_active: boolean; applies_to_all: boolean; barangays: number[]; note: string }
+
+function BarangayPicker({ all, ids, options, onChange }: { all: boolean; ids: number[]; options: { id: number; name: string }[]; onChange: (all: boolean, ids: number[]) => void }) {
+  return (
+    <div className="space-y-1.5 text-sm">
+      <label className="flex items-center gap-2"><input type="checkbox" checked={all} onChange={e => onChange(e.target.checked, ids)} /> Applies to all barangays</label>
+      {!all && (
+        <div className="grid max-h-36 grid-cols-2 gap-x-3 gap-y-1 overflow-y-auto rounded-lg border border-gray-200 p-2 sm:grid-cols-3">
+          {options.map(b => (
+            <label key={b.id} className="flex items-center gap-1.5 text-xs"><input type="checkbox" checked={ids.includes(b.id)} onChange={e => onChange(false, e.target.checked ? [...ids, b.id] : ids.filter(x => x !== b.id))} /> {b.name}</label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** LYDO sets up the ten requirements (guidance, who owes them) and their OFFICIAL deadlines. Nothing is overdue unless a deadline is set here. */
+function SetupPanel({ barangays }: { barangays: { id: number; name: string }[] }) {
+  const qc = useQueryClient()
+  const cfgs = useQuery({ queryKey: ['sk-config'], queryFn: () => apiClient.get('/sk-requirements/config/').then(r => r.data as ReqConfig[]) })
+  const dls = useQuery({ queryKey: ['sk-deadlines'], queryFn: () => apiClient.get('/sk-requirements/deadlines/').then(r => r.data as DeadlineRow[]) })
+  const refresh = () => { qc.invalidateQueries({ queryKey: ['sk-compliance-overview'] }); qc.invalidateQueries({ queryKey: ['sk-config'] }); qc.invalidateQueries({ queryKey: ['sk-deadlines'] }) }
+  const err = (e: any) => toast.error(String(e?.response?.data?.detail ?? Object.values(e?.response?.data ?? {}).flat()[0] ?? 'Could not save.'))
+  const saveCfg = useMutation({ mutationFn: (c: ReqConfig) => apiClient.patch(`/sk-requirements/config/${c.id}/`, { description: c.description, instructions: c.instructions, is_active: c.is_active, applies_to_all: c.applies_to_all, barangays: c.barangays }), onSuccess: () => { toast.success('Saved'); refresh() }, onError: err })
+  const addDl = useMutation({ mutationFn: (d: Record<string, unknown>) => apiClient.post('/sk-requirements/deadlines/', d), onSuccess: () => { toast.success('Deadline set'); refresh() }, onError: err })
+  const patchDl = useMutation({ mutationFn: (v: { id: number; body: Record<string, unknown> }) => apiClient.patch(`/sk-requirements/deadlines/${v.id}/`, v.body), onSuccess: refresh, onError: err })
+  const delDl = useMutation({ mutationFn: (id: number) => apiClient.delete(`/sk-requirements/deadlines/${id}/`), onSuccess: () => { toast.success('Deadline removed'); refresh() }, onError: err })
+
+  const [edit, setEdit] = useState<ReqConfig | null>(null)
+  const year = new Date().getFullYear()
+  const [nd, setNd] = useState({ code: 'annual_budget', year, quarter: '', month: '', deadline: '', all: true, ids: [] as number[] })
+  const codes = cfgs.data ?? []
+
+  return (
+    <div className="space-y-6">
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <h2 className="border-b border-gray-100 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-900">Official deadlines</h2>
+        <div className="space-y-3 p-5">
+          <p className="text-xs text-gray-600">A requirement is overdue only when a deadline is listed here, applies to the barangay, and has passed. With no deadline, it simply stays Not Yet Submitted.</p>
+          <div className="grid gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-6">
+            <select className="input text-sm sm:col-span-2" value={nd.code} onChange={e => setNd(p => ({ ...p, code: e.target.value, quarter: '', month: '' }))}>
+              {codes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+            </select>
+            <input className="input text-sm" type="number" min={2020} max={2100} value={nd.year} onChange={e => setNd(p => ({ ...p, year: Number(e.target.value) }))} aria-label="Year" />
+            {nd.code === 'quarterly_cash' ? (
+              <select className="input text-sm" value={nd.quarter} onChange={e => setNd(p => ({ ...p, quarter: e.target.value }))}><option value="">Quarter</option>{[1, 2, 3, 4].map(q => <option key={q} value={q}>Q{q}</option>)}</select>
+            ) : nd.code === 'monthly_pr' ? (
+              <select className="input text-sm" value={nd.month} onChange={e => setNd(p => ({ ...p, month: e.target.value }))}><option value="">Month</option>{MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}</select>
+            ) : <span className="self-center text-xs text-gray-500">whole year</span>}
+            <input className="input text-sm" type="date" value={nd.deadline} onChange={e => setNd(p => ({ ...p, deadline: e.target.value }))} aria-label="Deadline date" />
+            <button type="button" className="btn-primary btn-sm" disabled={!nd.deadline || addDl.isPending || (nd.code === 'quarterly_cash' && !nd.quarter) || (nd.code === 'monthly_pr' && !nd.month) || (!nd.all && nd.ids.length === 0)}
+              onClick={() => addDl.mutate({ code: nd.code, year: nd.year, quarter: nd.quarter ? Number(nd.quarter) : null, month: nd.month ? Number(nd.month) : null, deadline: nd.deadline, applies_to_all: nd.all, barangays: nd.ids })}>Set deadline</button>
+            <div className="sm:col-span-6"><BarangayPicker all={nd.all} ids={nd.ids} options={barangays} onChange={(all, ids) => setNd(p => ({ ...p, all, ids }))} /></div>
+          </div>
+          {(dls.data ?? []).length === 0 ? <p className="text-sm text-gray-500">No official deadline has been set. Nothing is overdue.</p> : (
+            <ul className="divide-y divide-gray-100">
+              {(dls.data ?? []).map(d => (
+                <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+                  <span><strong>{d.label}</strong> {d.year}{d.quarter ? ` Q${d.quarter}` : ''}{d.month ? ` ${MONTHS[d.month - 1]}` : ''}: {fmtDate(d.deadline)} · {d.applies_to_all ? 'all barangays' : `${d.barangays.length} barangay${d.barangays.length === 1 ? '' : 's'}`}{d.is_active ? '' : ' · inactive'}</span>
+                  <span className="flex gap-2">
+                    <button type="button" className="text-xs font-semibold text-primary-700" onClick={() => patchDl.mutate({ id: d.id, body: { is_active: !d.is_active } })}>{d.is_active ? 'Deactivate' : 'Activate'}</button>
+                    <button type="button" className="text-xs font-semibold text-red-600" onClick={() => { if (window.confirm('Remove this deadline?')) delDl.mutate(d.id) }}>Remove</button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <h2 className="border-b border-gray-100 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-900">The ten requirements: guidance and who owes them</h2>
+        <ul className="divide-y divide-gray-100">
+          {codes.map(c => (
+            <li key={c.id} className="space-y-2 px-5 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-gray-900">{c.label} {!c.is_active && <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-600">inactive</span>}</p>
+                <button type="button" className="text-xs font-semibold text-primary-700" onClick={() => setEdit(edit?.id === c.id ? null : { ...c })}>{edit?.id === c.id ? 'Close' : 'Edit'}</button>
+              </div>
+              <p className="text-xs text-gray-600">{c.instructions}</p>
+              {edit?.id === c.id && (
+                <div className="space-y-2 rounded-xl bg-gray-50 p-3">
+                  <label className="block text-xs font-semibold text-gray-700">Short description<input className="input mt-1 text-sm" maxLength={1000} value={edit.description} onChange={e => setEdit({ ...edit, description: e.target.value })} /></label>
+                  <label className="block text-xs font-semibold text-gray-700">What the SK should submit<textarea className="input mt-1 resize-none text-sm" rows={3} maxLength={2000} value={edit.instructions} onChange={e => setEdit({ ...edit, instructions: e.target.value })} /></label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={edit.is_active} onChange={e => setEdit({ ...edit, is_active: e.target.checked })} /> This requirement is active</label>
+                  <BarangayPicker all={edit.applies_to_all} ids={edit.barangays} options={barangays} onChange={(all, ids) => setEdit({ ...edit, applies_to_all: all, barangays: ids })} />
+                  <button type="button" className="btn-primary btn-sm" disabled={saveCfg.isPending} onClick={() => saveCfg.mutate(edit, { onSuccess: () => setEdit(null) })}>Save</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
 }
 
 interface AwaitingDoc { id: number; barangay: string; label: string; submitted_at: string | null; sk_remarks: string; filename: string }

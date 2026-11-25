@@ -96,11 +96,49 @@ class OverviewView(APIView):
             return me
         sk.ensure_indexed()
         q = request.query_params
-        category = q.get('category') if q.get('category') in CATEGORY_KEYS else None
+        from apps.sk_requirements.states import MONITORED, directory_states, unit_summary
+        from apps.sk_requirements.defaults import DEFAULT_CONFIGS
+        from apps.sk_requirements.models import REQUIREMENT_CHOICES
+        all_codes = [c for c, _ in REQUIREMENT_CHOICES]
+        want_cat = q.get('category') if q.get('category') in all_codes else None
+        category = want_cat if want_cat in CATEGORY_KEYS else None
         status = q.get('status') if q.get('status') in sk.STATUS_LABELS else None
         publication = q.get('publication') if q.get('publication') in ('published', 'unpublished') else None
-        data = sk.build_monitoring(qs.order_by('barangay_name'), _year(request), timezone.localdate(), category=category, status=status,
+        brs = list(qs.order_by('barangay_name'))
+        today = timezone.localdate()
+        data = sk.build_monitoring(brs, _year(request), today, category=category, status=status,
                                    publication=publication, quarter=_int(request, 'quarter', 1, 4), month=_int(request, 'month', 1, 12))
+        # ONE requirement per barangay is ONE unit: 10 requirements x 33 barangays = 330 (never a hardcoded number). Counted from the
+        # honest states: nothing is pending, overdue or done unless it really is.
+        states = directory_states(brs, today)
+        unit_status = {'under_verification': 'submitted'}.get(status, status)
+        data['summary'] = unit_summary(states, only_status=unit_status, only_category=want_cat)
+        data['percent'] = round(100 * data['summary']['completed'] / data['summary']['total']) if data['summary']['total'] else 0
+        other = [(code, label) for code, label in REQUIREMENT_CHOICES if code not in MONITORED and (not want_cat or want_cat == code)]
+        info = {c: (d, i) for c, d, i in DEFAULT_CONFIGS}
+        if want_cat and want_cat not in CATEGORY_KEYS:
+            data['categories'] = []
+        for code, label in other:
+            data['categories'].append({'key': code, 'short': label.replace(' (Resolutions and Ordinances)', '').replace('Minutes of the Meeting', 'Minutes').replace('Conduct of ', ''),
+                                       'label': label, 'kind': 'single', 'description': info[code][0], 'other': True})
+        for row in data['rows']:
+            mine = {r['key']: r for r in states.get(row['barangay_id'], [])}
+            for code, _label in other:
+                r = mine.get(code)
+                if r is None:
+                    row['cells'][code] = {'periods': [], 'kind': 'single', 'completed': 0, 'overdue': 0, 'total': 0}
+                    continue
+                if status and unit_status != r['status'] and not (status == 'published' and r['published']):
+                    row['cells'][code] = {'periods': [], 'kind': 'single', 'completed': 0, 'overdue': 0, 'total': 0}
+                    continue
+                st = {'draft': 'draft'}.get(r['status'], r['status'])
+                row['cells'][code] = {'kind': 'single', 'completed': int(st == 'verified'), 'overdue': int(st == 'overdue'), 'total': 1,
+                                      'periods': [{'label': r['label'], 'quarter': None, 'month': None, 'deadline': r['due_date'], 'status': st,
+                                                   'status_label': sk.STATUS_LABELS.get(st, st), 'late': False, 'workflow': None,
+                                                   'record_id': r['id'], 'history': 0}]}
+            units = [r for r in states.get(row['barangay_id'], []) if (not want_cat or r['key'] == want_cat)]
+            row['totals'] = {'total': len(units), 'completed': sum(1 for r in units if r['status'] == 'verified'),
+                             'overdue': sum(1 for r in units if r['status'] == 'overdue')}
         data['me'] = me
         data['barangays'] = [{'id': b.id, 'name': b.barangay_name} for b in qs.order_by('barangay_name')] if me['role'] == 'admin' \
             else [me['barangay']]

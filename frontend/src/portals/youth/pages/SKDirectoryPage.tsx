@@ -18,7 +18,7 @@ interface Requirement {
   key: string
   label: string
   // the honest state: only "verified" means completed; "submitted" is waiting for LYDO
-  status: 'not_submitted' | 'submitted' | 'returned' | 'verified' | 'overdue'
+  status: 'not_submitted' | 'draft' | 'submitted' | 'returned' | 'verified' | 'overdue'
   detail?: string
   remarks?: string
   submitted_at?: string

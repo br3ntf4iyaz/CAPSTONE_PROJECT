@@ -1,11 +1,12 @@
-import { AlertTriangle, CheckCircle2, Clock, Eye, FileCheck2, Globe2, RotateCcw, Search } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, Eye, FileCheck2, Globe2, Pencil, RotateCcw, Search } from 'lucide-react'
 import { cn } from '@/utils'
 
 export type ComplianceStatus =
-  | 'not_submitted' | 'submitted' | 'under_verification' | 'returned' | 'verified' | 'published' | 'overdue'
+  | 'not_submitted' | 'draft' | 'submitted' | 'under_verification' | 'returned' | 'verified' | 'published' | 'overdue'
 
 export const STATUS_META: Record<ComplianceStatus, { label: string; cls: string; dot: string; icon: typeof Clock }> = {
   not_submitted: { label: 'Not Yet Submitted', cls: 'bg-gray-100 text-gray-700 border-gray-200', dot: 'bg-gray-400', icon: Clock },
+  draft: { label: 'Draft', cls: 'bg-yellow-50 text-yellow-800 border-yellow-300', dot: 'bg-yellow-400', icon: Pencil },
   submitted: { label: 'Submitted', cls: 'bg-sky-50 text-sky-800 border-sky-200', dot: 'bg-sky-500', icon: FileCheck2 },
   under_verification: { label: 'Under Verification', cls: 'bg-violet-50 text-violet-800 border-violet-200', dot: 'bg-violet-500', icon: Search },
   returned: { label: 'Returned for Correction', cls: 'bg-orange-50 text-orange-900 border-orange-200', dot: 'bg-orange-500', icon: RotateCcw },

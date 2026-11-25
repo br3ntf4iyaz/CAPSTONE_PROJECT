@@ -43,6 +43,7 @@ MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', '
 
 STATUS_LABELS = {
     'not_submitted': 'Not Yet Submitted',
+    'draft': 'Draft',
     'submitted': 'Submitted',
     'under_verification': 'Under Verification',
     'returned': 'Returned for Correction',
@@ -66,13 +67,13 @@ def slots_for(category, year):
     if kind == 'quarterly':
         return [{'category': category, 'quarter': n, 'month': None, 'label': QUARTERS[n]['label'],
                  'start': dt.date(year, *QUARTERS[n]['start']), 'end': dt.date(year, *QUARTERS[n]['end']),
-                 'deadline': quarter_deadline(year, n)} for n in (1, 2, 3, 4)]
+                 'deadline': None} for n in (1, 2, 3, 4)]  # official deadlines are set by LYDO (SKDeadline), never assumed
     if kind == 'monthly':
         out = []
         for m in range(1, 13):
             last = (dt.date(year + (m == 12), (m % 12) + 1, 1) - dt.timedelta(days=1))
             out.append({'category': category, 'quarter': None, 'month': m, 'label': f'{MONTH_NAMES[m - 1]} {year}',
-                        'start': dt.date(year, m, 1), 'end': last, 'deadline': month_deadline(year, m)})
+                        'start': dt.date(year, m, 1), 'end': last, 'deadline': None})
         return out
     label = {'cbydp': f'CBYDP in force in {year}', 'abyip': f'ABYIP {year}', 'annual_budget': f'Annual Budget {year}'}[category]
     return [{'category': category, 'quarter': None, 'month': None, 'label': label,
@@ -160,7 +161,8 @@ def build_monitoring(barangays, year, today, category=None, status=None, publica
     records = {}
     for r in SKComplianceRecord.objects.filter(barangay_id__in=ids).select_related('submitted_by').order_by('submitted_at', 'id'):
         records.setdefault((r.barangay_id, r.category), []).append(r)
-    due = requirement_deadlines()
+    from apps.sk_requirements.deadlines import deadline_for, load_deadlines
+    dl = load_deadlines()
 
     summary = {'total': 0, 'completed': 0, 'pending': 0, 'overdue': 0, 'for_verification': 0, 'returned': 0, 'verified': 0, 'published': 0}
     rows = []
@@ -178,7 +180,7 @@ def build_monitoring(barangays, year, today, category=None, status=None, publica
                     continue
                 recs = [r for r in records.get((b.id, cat['key']), []) if matches(r, slot, year)]
                 current = recs[-1] if recs else None
-                deadline = slot['deadline'] or due.get((b.id, cat['key']))
+                deadline = deadline_for(dl, b.id, cat['key'], year, slot['quarter'], slot['month'])  # None unless LYDO configured one
                 st, late = slot_status(current, deadline, today)
                 workflow = current.status if current else None
                 if status and st != status:
@@ -219,14 +221,15 @@ def build_monitoring(barangays, year, today, category=None, status=None, publica
 
 def slot_details(barangay, category, year, today):
     """Everything about one barangay's periods in one category: each period with its newest record and its full history."""
-    due = requirement_deadlines().get((barangay.id, category))
+    from apps.sk_requirements.deadlines import deadline_for, load_deadlines
+    dl = load_deadlines()
     recs = list(SKComplianceRecord.objects.filter(barangay=barangay, category=category).select_related('submitted_by', 'reviewed_by')
                 .order_by('submitted_at', 'id'))
     out = []
     for slot in slots_for(category, year):
         mine = [r for r in recs if matches(r, slot, year)]
         current = mine[-1] if mine else None
-        deadline = slot['deadline'] or due
+        deadline = deadline_for(dl, barangay.id, category, year, slot['quarter'], slot['month'])
         st, late = slot_status(current, deadline, today)
         out.append({**slot, 'deadline': deadline, 'status': st, 'status_label': STATUS_LABELS[st], 'late': late,
                     'current': current, 'history': list(reversed(mine))})

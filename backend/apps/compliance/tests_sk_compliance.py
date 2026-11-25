@@ -48,6 +48,7 @@ class SKComplianceBase(APITestCase):
         self.sk_unverified = make_user('sku@x.com', youth_type='sk', barangay='Barangay A')
         self.general = make_user('gen@x.com')
         self.org = make_user('org@x.com', youth_type='youth_org_leader')
+        self.official_deadlines(2026)
         patcher = mock.patch('django.utils.timezone.localdate', return_value=NOW)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -55,6 +56,14 @@ class SKComplianceBase(APITestCase):
             pp = mock.patch(p, return_value=NOW)
             pp.start()
             self.addCleanup(pp.stop)
+
+    def official_deadlines(self, year):
+        """LYDO configures the deadlines (nothing is assumed): RCB 7th after each quarter, MIL the 7th of the following month."""
+        from apps.sk_requirements.models import SKDeadline
+        for q, d in enumerate([dt.date(year, 4, 7), dt.date(year, 7, 7), dt.date(year, 10, 7), dt.date(year + 1, 1, 7)], start=1):
+            SKDeadline.objects.create(code='quarterly_cash', year=year, quarter=q, deadline=d)
+        for m in range(1, 13):
+            SKDeadline.objects.create(code='monthly_pr', year=year, month=m, deadline=dt.date(year + (m == 12), (m % 12) + 1, 7))
 
     def submit(self, user, **kw):
         self.client.force_authenticate(user)
@@ -70,14 +79,22 @@ class SKComplianceBase(APITestCase):
 class PeriodTests(APITestCase):
     def test_quarterly_and_monthly_periods_and_deadlines(self):
         q = sk.slots_for('quarterly_cash', 2026)
-        self.assertEqual([s['deadline'] for s in q], [dt.date(2026, 4, 7), dt.date(2026, 7, 7), dt.date(2026, 10, 7), dt.date(2027, 1, 7)])
+        self.assertEqual([s['deadline'] for s in q], [None] * 4)  # a period has no deadline of its own: only LYDO configures one
         self.assertEqual(q[0]['start'], dt.date(2026, 1, 1))
         self.assertEqual(q[3]['end'], dt.date(2026, 12, 31))
         m = sk.slots_for('monthly_pr', 2026)
         self.assertEqual(len(m), 12)
-        self.assertEqual(m[0]['deadline'], dt.date(2026, 2, 7))
-        self.assertEqual(m[10]['deadline'], dt.date(2026, 12, 7))
-        self.assertEqual(m[11]['deadline'], dt.date(2027, 1, 7))  # December is due January 7 of the next year
+        self.assertTrue(all(s['deadline'] is None for s in m))
+        from apps.sk_requirements.deadlines import deadline_for, load_deadlines
+        from apps.sk_requirements.models import SKDeadline
+        SKDeadline.objects.create(code='quarterly_cash', year=2026, quarter=1, deadline=dt.date(2026, 4, 7))
+        SKDeadline.objects.create(code='monthly_pr', year=2026, month=1, deadline=dt.date(2026, 2, 7))
+        SKDeadline.objects.create(code='monthly_pr', year=2026, month=12, deadline=dt.date(2027, 1, 7))
+        dl = load_deadlines()  # the official ones LYDO configured
+        self.assertEqual(deadline_for(dl, 1, 'quarterly_cash', 2026, 1, None), dt.date(2026, 4, 7))
+        self.assertEqual(deadline_for(dl, 1, 'monthly_pr', 2026, None, 1), dt.date(2026, 2, 7))
+        self.assertEqual(deadline_for(dl, 1, 'monthly_pr', 2026, None, 12), dt.date(2027, 1, 7))  # December is due January 7 of the next year
+        self.assertIsNone(deadline_for(dl, 1, 'monthly_pr', 2025, None, 1))  # no deadline configured for 2025: none is assumed
         self.assertEqual(m[1]['end'], dt.date(2026, 2, 28))
         self.assertEqual(len(sk.slots_for('cbydp', 2026)), 1)
 
@@ -119,27 +136,28 @@ class WorkflowTests(SKComplianceBase):
         self.assertEqual(rcb['completed'], 0)
         self.assertEqual(rcb['periods'][0]['status'], 'overdue')  # Q1 deadline passed and the upload came after it (test clock): late
         self.assertEqual(o['summary']['completed'], 0)
-        self.assertEqual(o['summary']['for_verification'], 1)
+        self.assertEqual(o['summary']['total'], 10)  # one barangay, ten requirements
+        self.assertEqual(rcb['periods'][0]['workflow'], 'submitted')  # it is waiting for LYDO, however late
 
     def test_overdue_and_summary_numbers_come_from_the_records(self):
         self.client.force_authenticate(self.admin)
         o = self.client.get('/api/compliance/sk/overview/', {'year': 2026}).data
         s = o['summary']
-        per_barangay = 3 + 4 + 12
-        self.assertEqual(s['total'], 2 * per_barangay)
+        self.assertEqual(s['total'], 2 * 10)  # 10 requirements x 2 barangays, counted not hardcoded
         self.assertEqual(s['completed'], 0)
-        # Q1 and Q2 RCB, and MIL Jan to June, are past their deadlines for both barangays
-        self.assertEqual(s['overdue'], 2 * (2 + 6))
-        self.assertEqual(s['pending'], s['total'] - s['overdue'])
+        # only the RCB and the MIL have official deadlines, and they have passed: one overdue requirement each, per barangay
+        self.assertEqual(s['overdue'], 2 * 2)
+        self.assertEqual(s['not_submitted'], 2 * 8)  # everything else is simply Not Yet Submitted, never overdue
+        self.assertEqual(s['pending'], 0)  # nothing is a draft
         self.assertEqual(o['percent'], 0)
 
     def test_filters(self):
         self.client.force_authenticate(self.admin)
         base = {'year': 2026}
         only_rcb = self.client.get('/api/compliance/sk/overview/', {**base, 'category': 'quarterly_cash'}).data
-        self.assertEqual(only_rcb['summary']['total'], 8)
+        self.assertEqual(only_rcb['summary']['total'], 2)  # one requirement per barangay
         q1 = self.client.get('/api/compliance/sk/overview/', {**base, 'quarter': 1}).data
-        self.assertEqual(q1['summary']['total'], 2)
+        self.assertEqual(q1['rows'][0]['cells']['quarterly_cash']['total'], 1)  # the grid narrows to the first quarter
         overdue = self.client.get('/api/compliance/sk/overview/', {**base, 'status': 'overdue'}).data
         self.assertEqual(overdue['summary']['total'], overdue['summary']['overdue'])
         one = self.client.get('/api/compliance/sk/overview/', {**base, 'barangay': self.a.id}).data

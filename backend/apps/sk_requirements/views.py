@@ -465,7 +465,7 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # SK officials may read and upload their OWN barangay's checklist; the rest is admin only.
-        if self.action in ('mine', 'upload', 'file'):
+        if self.action in ('mine', 'upload', 'file', 'discard_draft'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -489,15 +489,19 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
                 'id': r['id'], 'type': r['key'], 'label': r['label'], 'status': r['status'], 'detail': r['detail'],
                 'submitted_at': r['submitted_at'], 'due_date': r['due_date'], 'monitored': r['monitored'],
                 'remarks': r['remarks'], 'sk_remarks': req.sk_remarks if req else '',
+                'description': r['description'], 'instructions': r['instructions'],
+                'period_year': r['period_year'], 'period_label': r['period_label'],
                 'has_file': bool(req and req.file),
                 # RCB and MIL are submitted per quarter or month in SK Compliance; the other documents can be submitted here
-                'can_submit': r['key'] not in ('quarterly_cash', 'monthly_pr') and r['status'] in ('not_submitted', 'overdue', 'returned'),
+                'can_submit': r['key'] not in ('quarterly_cash', 'monthly_pr') and r['status'] in ('not_submitted', 'overdue', 'returned', 'draft'),
             })
         c = counts_of(rows)
         return Response({
             'barangay': {'id': barangay.id, 'name': barangay.barangay_name},
             'summary': {'completed': c['submitted'], 'awaiting': sum(1 for i in items if i['status'] == 'submitted'),
-                        'returned': sum(1 for i in items if i['status'] == 'returned'), 'overdue': c['overdue'], 'total': c['total']},
+                        'returned': sum(1 for i in items if i['status'] == 'returned'), 'overdue': c['overdue'], 'total': c['total'],
+                        'drafts': sum(1 for i in items if i['status'] == 'draft'),
+                        'not_submitted': sum(1 for i in items if i['status'] in ('not_submitted', 'overdue'))},
             'requirements': items,
         })
 
@@ -529,22 +533,49 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
             # goes through verification again while the verified and published one stays untouched (see SK Compliance Monitoring).
             return Response({'detail': 'LYDO already verified this document. To change it, ask LYDO to reopen it.'}, status=status.HTTP_409_CONFLICT)
         file = request.FILES.get('file')
-        if not file:
-            return Response({'file': ['Please choose the file to submit.']}, status=status.HTTP_400_BAD_REQUEST)
+        draft = str(request.data.get('action', 'submit')).lower() == 'draft'
         try:
-            if req.requirement_type in MONITORED:
-                validate_pdf(file)  # these go to the public FPDPB once verified and published: PDF only
-            else:
-                check_upload(file, DOC_EXTS | IMAGE_EXTS, 10 * 1024 * 1024, field=None)
-        except DRFValidationError as exc:
-            return Response({'file': exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+            year_raw = request.data.get('period_year')
+            period_year = int(year_raw) if year_raw not in (None, '') else None
+        except (TypeError, ValueError):
+            return Response({'detail': 'The reporting year is not valid.'}, status=status.HTTP_400_BAD_REQUEST)
+        if period_year is not None and not 2020 <= period_year <= timezone.localdate().year + 1:
+            return Response({'detail': 'The reporting year is not valid.'}, status=status.HTTP_400_BAD_REQUEST)
+        period_label = bleach.clean(str(request.data.get('period_label', '')), tags=[], strip=True).strip()[:120]
+        remarks = bleach.clean(str(request.data.get('remarks', '')), tags=[], strip=True).strip()[:500]
+        if file:
+            try:
+                if req.requirement_type in MONITORED:
+                    validate_pdf(file)  # these go to the public FPDPB once verified and published: PDF only
+                else:
+                    check_upload(file, DOC_EXTS | IMAGE_EXTS, 10 * 1024 * 1024, field=None)
+            except DRFValidationError as exc:
+                return Response({'file': exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+        if draft:
+            # a draft keeps the details and the file, counts for nothing, and can be edited or deleted
+            if not (file or req.file or remarks or period_year or period_label):
+                return Response({'detail': 'Add something to save: a file, the period or your remarks.'}, status=status.HTTP_400_BAD_REQUEST)
+            if file:
+                req.file = file
+            req.status = 'draft'
+            req.period_year, req.period_label, req.sk_remarks = period_year, period_label, remarks
+            req.save()
+            AuditLog.objects.create(user=request.user, action='sk_requirement_draft_saved', model_name='SKRequirement', object_id=req.pk,
+                                    ip_address=get_client_ip(request), details={'barangay': barangay.barangay_name, 'requirement': req.requirement_type})
+            return Response({'id': req.id, 'status': 'draft'})
+        if not file and not (state == 'draft' and req.file):
+            return Response({'file': ['Please choose the file to submit.']}, status=status.HTTP_400_BAD_REQUEST)
+        if state == 'returned' and not file:
+            return Response({'file': ['Choose the corrected file to resubmit.']}, status=status.HTTP_400_BAD_REQUEST)
         old = {'file': req.file.name if req.file else None, 'remarks_from_lydo': req.review_remarks, 'status': req.status}
         # the earlier file stays in storage (history); it is only no longer the current one
-        req.file = file
+        if file:
+            req.file = file
         req.status = 'submitted'
         req.submitted_at = timezone.now()
         req.reviewed_by, req.reviewed_at, req.review_remarks = None, None, ''
-        req.sk_remarks = bleach.clean(str(request.data.get('remarks', '')), tags=[], strip=True).strip()[:500]
+        req.sk_remarks = remarks
+        req.period_year, req.period_label = period_year, period_label
         req.save()  # the ledger signal fingerprints the submitted file
         AuditLog.objects.create(
             user=request.user, action='sk_requirement_submitted', model_name='SKRequirement', object_id=req.pk,
@@ -558,6 +589,26 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
             notify(admin_users(), 'New SK document submitted',
                    f'{barangay.barangay_name} submitted {req.get_requirement_type_display()}. It is waiting for review.', '/admin/sk-compliance?tab=queue')
         return Response({'id': req.id, 'status': req.status, 'submitted_at': req.submitted_at})
+
+    @action(detail=True, methods=['post'], url_path='discard-draft')
+    def discard_draft(self, request, pk=None):
+        """The SK deletes an unfinished draft (the file of a draft only; nothing that was submitted is touched)."""
+        from apps.accounts.models import AuditLog
+        from apps.accounts.views import get_client_ip
+        barangay = _own_barangay(request.user)
+        req = get_object_or_404(SKRequirement, pk=pk)
+        if barangay is None or req.barangay_id != barangay.id:
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if req.status != 'draft':
+            return Response({'detail': 'Only a draft can be deleted.'}, status=status.HTTP_400_BAD_REQUEST)
+        if req.file:
+            req.file.delete(save=False)
+        req.file = None
+        req.status, req.sk_remarks, req.period_year, req.period_label = 'pending', '', None, ''
+        req.save()
+        AuditLog.objects.create(user=request.user, action='sk_requirement_draft_discarded', model_name='SKRequirement', object_id=req.pk,
+                                ip_address=get_client_ip(request), details={'barangay': barangay.barangay_name, 'requirement': req.requirement_type})
+        return Response({'id': req.id, 'status': 'not_submitted'})
 
     @action(detail=True, methods=['get'], url_path='file')
     def file(self, request, pk=None):
