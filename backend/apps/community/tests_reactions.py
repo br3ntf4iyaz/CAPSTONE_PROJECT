@@ -131,13 +131,25 @@ class CommentManagementTests(APITestCase):
         self.assertEqual(CommunityComment.objects.count(), 1)
         self.assertTrue(CommunityPost.objects.filter(id=self.post.id).exists())
 
-    def test_other_users_cannot_delete_it(self):
+    def test_strangers_cannot_delete_it(self):
         a = self.say(self.b, 'one').data['id']
         self.client.force_authenticate(self.c)
         self.assertEqual(self.client.delete(f'{self.base}{a}/').status_code, 403)
-        self.client.force_authenticate(self.owner)  # the post owner can hide but not delete
-        self.assertEqual(self.client.delete(f'{self.base}{a}/').status_code, 403)
         self.assertEqual(CommunityComment.objects.count(), 1)
+
+    def test_post_owner_can_delete_anyones_comment_on_their_post(self):
+        a = self.say(self.b, 'sensitive').data['id']
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.delete(f'{self.base}{a}/').status_code, 204)
+        self.assertEqual(CommunityComment.objects.count(), 0)
+        self.assertTrue(CommunityPost.objects.filter(id=self.post.id).exists())
+
+    def test_post_owner_cannot_delete_comments_on_someone_elses_post(self):
+        other = CommunityPost.objects.create(author=self.c, content='not mine')
+        self.client.force_authenticate(self.b)
+        made = self.client.post(f'/api/community/posts/{other.id}/comments/', {'content': 'hi'}, format='json').data['id']
+        self.client.force_authenticate(self.owner)  # owner of a different post
+        self.assertEqual(self.client.delete(f'/api/community/posts/{other.id}/comments/{made}/').status_code, 403)
 
     def test_admin_can_delete(self):
         a = self.say(self.b, 'one').data['id']
@@ -198,8 +210,8 @@ class CommentManagementTests(APITestCase):
         self.assertTrue(mine['can_delete'])
         self.assertFalse(mine['can_hide'])
         owner_view = self.listing(self.owner)[0]
-        self.assertFalse(owner_view['can_delete'])
         self.assertTrue(owner_view['can_hide'])
+        self.assertTrue(owner_view['can_delete'])
         stranger = self.listing(self.c)[0]
         self.assertFalse(stranger['can_delete'])
         self.assertFalse(stranger['can_hide'])

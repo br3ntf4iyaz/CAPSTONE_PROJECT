@@ -230,8 +230,9 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         except CommunityComment.DoesNotExist:
             return Response({'detail': 'Comment not found.'}, status=status.HTTP_404_NOT_FOUND)
         role = getattr(request.user, 'role', '')
-        if comment.author_id != request.user.id and role not in ('lgu_admin', 'super_admin'):
-            raise PermissionDenied("You can only delete your own comments.")
+        # the writer, the owner of the post (they may remove anything sensitive under their own post), or a LYDO admin
+        if comment.author_id != request.user.id and post.author_id != request.user.id and role not in ('lgu_admin', 'super_admin'):
+            raise PermissionDenied("You can only delete your own comments or comments on your own post.")
         comment_id = comment.pk
         if comment.replies.exists():
             # keep the thread together: the replies stay under an emptied placeholder

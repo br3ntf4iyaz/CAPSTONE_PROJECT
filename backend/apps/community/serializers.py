@@ -31,9 +31,9 @@ class CommunityCommentSerializer(serializers.ModelSerializer):
         return request.user if request and request.user.is_authenticated else None
 
     def get_can_delete(self, obj):
-        # the author, or a LYDO admin; the post owner can hide but not delete other people's comments
+        # the writer, the owner of the post, or a LYDO admin
         u = self._user()
-        return bool(u) and not obj.is_deleted and (obj.author_id == u.id or _is_admin(u))
+        return bool(u) and not obj.is_deleted and (obj.author_id == u.id or obj.post.author_id == u.id or _is_admin(u))
 
     def get_can_hide(self, obj):
         u = self._user()
