@@ -84,8 +84,8 @@ function HubCard({ title, description, icon: Icon, image, to, badge, accent = 'p
             <img src={image} alt="" className="w-full h-full object-contain" />
           </span>
         ) : (
-          <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', accentClasses)}>
-            <Icon size={22} strokeWidth={2.2} />
+          <span className={cn('inline-flex items-center justify-center w-14 h-14 rounded-2xl shadow-md transition-colors', accentClasses)}>
+            <Icon size={26} strokeWidth={2.2} />
           </span>
         )}
         {badge && (
