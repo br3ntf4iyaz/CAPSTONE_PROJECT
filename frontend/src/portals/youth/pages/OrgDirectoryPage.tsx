@@ -696,7 +696,7 @@ export default function OrgDirectoryPage() {
                   tabIndex={0}
                   onClick={() => setSelectedId(org.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(org.id) } }}
-                  className="w-full card p-4 hover:shadow-md hover:border-primary-200 transition-all text-left group cursor-pointer"
+                  className="w-full bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm p-4 hover:shadow-lg hover:shadow-primary-600/10 hover:border-primary-300 hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
@@ -704,21 +704,21 @@ export default function OrgDirectoryPage() {
                         <img
                           src={org.logo_url}
                           alt={org.name}
-                          className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-ink-100"
+                          className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border-2 border-primary-100 bg-white shadow-sm"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-primary-100 flex items-center justify-center flex-shrink-0">
-                          <Users size={18} className="text-primary-600" />
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md shadow-primary-600/30 flex items-center justify-center flex-shrink-0">
+                          <Users size={20} className="text-white" />
                         </div>
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-semibold text-ink-900 text-sm truncate group-hover:text-primary-700 transition-colors">{org.name}</h3>
+                          <h3 className="font-bold text-primary-900 text-sm truncate group-hover:text-primary-700 transition-colors">{org.name}</h3>
                           {org.is_compliant
                             ? <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
                             : <XCircle size={14} className="text-ink-300 flex-shrink-0" />}
                         </div>
-                        <p className="text-xs text-ink-500 mt-0.5">{org.barangay}</p>
+                        <p className="text-xs font-medium text-primary-700 mt-0.5">{org.barangay}</p>
                         <div className="flex flex-wrap gap-1.5 mt-2">
                           <span className={cn('badge text-[10px]', CLASS_COLORS[org.classification] ?? 'badge-gray')}>
                             {CLASS_LABELS[org.classification] ?? org.classification}
@@ -728,15 +728,15 @@ export default function OrgDirectoryPage() {
                           </span>
                         </div>
                         {org.description && (
-                          <p className="text-xs text-ink-500 mt-2 line-clamp-1">{org.description}</p>
+                          <p className="text-xs text-ink-700 mt-2 line-clamp-1">{org.description}</p>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border border-primary-200 px-3 py-1 text-[11px] font-semibold text-primary-700">View Organization</span>
+                          <span className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 group-hover:border-primary-400">View Organization</span>
                           <button
                             type="button"
                             disabled={org.accepting_members === false}
                             onClick={e => { e.stopPropagation(); setJoinOrg({ id: org.id, name: org.name }) }}
-                            className="rounded-full bg-primary-700 px-3 py-1 text-[11px] font-semibold text-white hover:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-500"
+                            className="rounded-full bg-primary-700 px-3.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-primary-600/20 hover:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-500 disabled:shadow-none"
                           >
                             {org.accepting_members === false ? 'Not accepting members' : 'Join'}
                           </button>

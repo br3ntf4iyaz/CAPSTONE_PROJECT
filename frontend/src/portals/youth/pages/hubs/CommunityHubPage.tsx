@@ -5,8 +5,9 @@ import toast from 'react-hot-toast'
 import {
   Users, Building2, ArrowRight, MapPin, CheckCircle2,
   TrendingUp, Shield, Heart, Pin, ImagePlus, X, MessageSquare,
-  ChevronLeft, ChevronRight, Trash2,
+  ChevronLeft, ChevronRight, Trash2, Trophy,
 } from 'lucide-react'
+import { compliancePercent, complianceTile } from '@/components/ui/ComplianceBadge'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
 import type { CommunityPost, CommunityPostImage, CommunityPostPage, CommunityComment } from '@/api/community'
@@ -354,26 +355,29 @@ export default function CommunityHubPage() {
       {/* ── Top compliant barangays ──────────────────────────────────────── */}
       {barangays.length > 0 && (
         <section>
-          <div className="card p-4">
-            <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-3">Top Compliant Barangays</p>
-            <div className="space-y-2">
+          <div className="bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm p-5">
+            <p className="text-xs font-extrabold text-primary-800 uppercase tracking-wide mb-4 flex items-center gap-2">
+              <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-accent-400 text-primary-900"><Trophy size={13} /></span>
+              Top Compliant Barangays
+            </p>
+            <div className="space-y-3">
               {[...barangays]
                 .map(b => {
                   const total = b.submitted_count + b.pending_count + b.overdue_count
-                  return { ...b, pct: total > 0 ? Math.round((b.submitted_count / total) * 100) : 0 }
+                  return { ...b, pct: compliancePercent(b.submitted_count, total) }
                 })
                 .sort((a, b) => b.pct - a.pct)
                 .slice(0, 5)
                 .map((b, index) => {
-                  const BAR_COLORS = ['#4f46e5','#0891b2','#059669','#d97706','#dc2626','#7c3aed','#db2777','#0284c7','#16a34a','#ca8a04']
-                  const color = BAR_COLORS[index % BAR_COLORS.length]
+                  const tile = complianceTile(b.pct)
                   return (
                     <div key={b.id} className="flex items-center gap-3">
-                      <span className="text-xs text-ink-700 w-36 truncate font-medium">{b.barangay_name}</span>
-                      <div className="flex-1 h-1.5 bg-ink-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${b.pct}%`, backgroundColor: color }} />
+                      <span className={cn('inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold', index === 0 ? 'bg-accent-400 text-primary-900' : 'bg-primary-50 text-primary-700 border border-primary-200')}>{index + 1}</span>
+                      <span className="text-sm text-primary-900 w-36 truncate font-bold">{b.barangay_name}</span>
+                      <div className="flex-1 h-2.5 bg-primary-50 border border-primary-100 rounded-full overflow-hidden">
+                        <div className={cn('h-full rounded-full transition-all duration-700', tile.bar)} style={{ width: `${b.pct}%` }} />
                       </div>
-                      <span className="text-xs font-bold text-ink-700 w-9 text-right">{b.pct}%</span>
+                      <span className={cn('text-sm font-extrabold w-11 text-right tabular-nums', tile.text)}>{b.pct}%</span>
                     </div>
                   )
                 })}
@@ -1029,26 +1033,26 @@ function OrgPreviewCard({ org }: { org: YouthOrg }) {
   return (
     <Link
       to="/organizations"
-      className="group bg-white rounded-2xl border border-ink-100 hover:border-primary-300 hover:shadow-md hover:-translate-y-0.5 p-4 flex flex-col gap-3 transition-all"
+      className="group bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm hover:border-primary-300 hover:shadow-lg hover:shadow-primary-600/10 hover:-translate-y-0.5 p-4 flex flex-col gap-3 transition-all"
     >
       <div className="flex items-start gap-3">
         {org.logo_url ? (
           <img
             src={org.logo_url}
             alt={org.name}
-            className="w-10 h-10 rounded-xl object-cover flex-shrink-0 border border-ink-100"
+            className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border-2 border-primary-100 bg-white shadow-sm"
           />
         ) : (
-          <div className="w-10 h-10 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-            <Building2 size={18} className="text-primary-600" />
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md shadow-primary-600/30 flex items-center justify-center flex-shrink-0">
+            <Building2 size={20} className="text-white" />
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm text-ink-900 leading-snug line-clamp-2 group-hover:text-primary-700 transition-colors">
+          <p className="font-bold text-sm text-primary-900 leading-snug line-clamp-2 group-hover:text-primary-700 transition-colors">
             {org.name}
           </p>
           {org.is_compliant && (
-            <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-0.5 mt-0.5">
+            <span className="mt-1 inline-flex w-fit items-center gap-0.5 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700">
               <CheckCircle2 size={9} /> Compliant
             </span>
           )}
@@ -1056,12 +1060,12 @@ function OrgPreviewCard({ org }: { org: YouthOrg }) {
       </div>
       <div className="space-y-1">
         {org.barangay && (
-          <p className="text-xs text-ink-500 flex items-center gap-1">
-            <MapPin size={10} className="flex-shrink-0" /> {org.barangay}
+          <p className="text-xs font-medium text-primary-800 flex items-center gap-1">
+            <MapPin size={10} className="flex-shrink-0 text-primary-500" /> {org.barangay}
           </p>
         )}
       </div>
-      <div className="mt-auto pt-1 border-t border-ink-50">
+      <div className="mt-auto pt-2 border-t border-primary-100">
         <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', CLASS_COLORS[org.classification] ?? 'bg-ink-100 text-ink-700')}>
           {CLASS_LABELS[org.classification] ?? org.classification}
         </span>
