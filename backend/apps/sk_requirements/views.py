@@ -12,7 +12,7 @@ from apps.accounts.permissions import IsAdminRole
 from apps.accounts.uploads import IMAGE_EXTS, check_upload
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
-from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKMember, SKRequirement
+from .models import REQUIREMENT_CHOICES, SKBarangay, SKFeedback, SKMember, SKOfficialSocial, SKPublicActivity, SKRequirement
 from .throttles import SKPhotoThrottle
 from .serializers import (
     SKBarangayDetailSerializer,
@@ -84,7 +84,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     ordering = ['barangay_name']
 
     def get_queryset(self):
-        qs = SKBarangay.objects.prefetch_related('requirements', 'members').annotate(
+        qs = SKBarangay.objects.prefetch_related('requirements', 'members', 'socials__activities').annotate(
             total_requirements=Count('requirements', distinct=True),
             submitted_count=Count('requirements', filter=Q(requirements__status='submitted'), distinct=True),
             pending_count=Count('requirements', filter=Q(requirements__status='pending'), distinct=True),
@@ -105,7 +105,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name'):
+        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name', 'official_social', 'official_activities'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -243,6 +243,110 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         barangay.save(update_fields=['sk_chairperson'])
         _audit_picture(request, barangay, f'chairperson:{name}', 'sk_name_changed')
         return Response({'sk_chairperson': name})
+
+    # ------------------------------------------------------------------
+    # Facebook links, public contact and public activities of ONE official
+    # ------------------------------------------------------------------
+
+    def _seat(self, request, barangay):
+        """The (member, name) the request is about: a member of THIS barangay, or the Chairperson when `member` is omitted."""
+        member_id = request.data.get('member')
+        if member_id:
+            member = get_object_or_404(SKMember, pk=member_id, barangay=barangay)
+            return member, member.name
+        return None, barangay.sk_chairperson
+
+    def _social_for(self, barangay, member, name, create=False):
+        if member is not None:
+            social = SKOfficialSocial.objects.filter(member=member).first()
+        else:
+            social = SKOfficialSocial.objects.filter(barangay=barangay, is_chairperson=True).first()
+            if social and ' '.join(social.official_name.lower().split()) != ' '.join((name or '').lower().split()):
+                social.delete()  # written for a previous chairperson: never reused
+                social = None
+        if social is None and create:
+            social = SKOfficialSocial(barangay=barangay, member=member, is_chairperson=member is None, official_name=name)
+        return social
+
+    @action(detail=True, methods=['post'], url_path='official-social', permission_classes=[IsAuthenticated], throttle_classes=[SKPhotoThrottle])
+    def official_social(self, request, pk=None):
+        """Save the Facebook links, public contact, introduction and visibility of one official. LYDO admins, or the verified SK of this barangay.
+        A field sent empty is removed. Links are checked as text; Facebook is never contacted."""
+        from . import social as rules
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        member, name = self._seat(request, barangay)
+        if not (name or '').strip():
+            return Response({'detail': 'Add the name of the official first.'}, status=status.HTTP_400_BAD_REQUEST)
+        data = request.data
+        errors, clean = {}, {}
+        checks = {
+            'facebook_profile_url': lambda v: rules.clean_facebook_url(v, 'Facebook profile'),
+            'facebook_page_url': lambda v: rules.clean_facebook_url(v, 'Facebook page'),
+            'messenger_url': rules.clean_messenger_url,
+            'public_email': rules.clean_email,
+            'public_contact_number': rules.clean_phone,
+            'public_bio': lambda v: rules.clean_text(v, 500),
+        }
+        for field, fn in checks.items():
+            if field in data:
+                try:
+                    clean[field] = fn(data.get(field))
+                except DRFValidationError as e:
+                    errors[field] = str(e.detail[0])
+        if errors:
+            return Response({'detail': next(iter(errors.values())), 'errors': errors}, status=status.HTTP_400_BAD_REQUEST)
+        social = self._social_for(barangay, member, name, create=True)
+        for field, value in clean.items():
+            setattr(social, field, value)
+        if 'social_links_visibility' in data:
+            social.social_links_visibility = str(data.get('social_links_visibility')).lower() in ('1', 'true', 'yes')
+        social.official_name, social.updated_by = name, request.user
+        social.save()
+        _audit_picture(request, barangay, f'{"member:" + str(member.pk) if member else "chairperson"}:{name}', 'sk_social_saved')
+        from .social import public_social
+        return Response({'social': public_social(social, full=True)})
+
+    @action(detail=True, methods=['post', 'delete'], url_path='official-activities', permission_classes=[IsAuthenticated], throttle_classes=[SKPhotoThrottle])
+    def official_activities(self, request, pk=None):
+        """POST: add a public activity (title + link to a public Facebook post). DELETE with `id`: remove one."""
+        from . import social as rules
+        from .social import public_social
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        member, name = self._seat(request, barangay)
+        social = self._social_for(barangay, member, name)
+        if request.method == 'DELETE':
+            if social is not None:
+                SKPublicActivity.objects.filter(pk=request.data.get('id') or 0, social=social).delete()
+                _audit_picture(request, barangay, f'activity:{name}', 'sk_activity_removed')
+            return Response({'social': public_social(social, full=True)})
+        if social is None:
+            return Response({'detail': 'Save the official\'s social links first, then add activities.'}, status=status.HTTP_400_BAD_REQUEST)
+        if social.activities.count() >= 20:
+            return Response({'detail': 'You can list up to 20 activities. Remove an old one first.'}, status=status.HTTP_400_BAD_REQUEST)
+        title = rules.clean_text(request.data.get('title'), 160)
+        if len(title) < 3:
+            return Response({'detail': 'Give the activity a title.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            url = rules.clean_facebook_url(request.data.get('facebook_post_url'), 'Facebook post', allow_post_hosts=True)
+        except DRFValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
+        if not url:
+            return Response({'detail': 'Paste the link of the public Facebook post.'}, status=status.HTTP_400_BAD_REQUEST)
+        date = request.data.get('activity_date') or None
+        if date:
+            from django.utils.dateparse import parse_date
+            date = parse_date(str(date))
+            if date is None:
+                return Response({'detail': 'The date is not valid.'}, status=status.HTTP_400_BAD_REQUEST)
+        SKPublicActivity.objects.create(social=social, title=title, description=rules.clean_text(request.data.get('description'), 500),
+                                        facebook_post_url=url, activity_date=date)
+        _audit_picture(request, barangay, f'activity:{name}', 'sk_activity_added')
+        social = self._social_for(barangay, member, name)
+        return Response({'social': public_social(social, full=True)}, status=status.HTTP_201_CREATED)
 
     @action(
         detail=False,

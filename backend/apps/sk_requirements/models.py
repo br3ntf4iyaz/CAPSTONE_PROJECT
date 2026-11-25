@@ -151,3 +151,45 @@ class SKFeedback(models.Model):
 
     def __str__(self):
         return f'{self.barangay.barangay_name} — {self.category} by {self.submitted_by}'
+
+
+class SKOfficialSocial(models.Model):
+    """What ONE SK official chose to make public: Facebook links, public contact and a short introduction.
+
+    It belongs to one seat: a member (OneToOne) or the barangay Chairperson. When the person in a seat is replaced, the
+    record is deleted (see signals.py), so the new official never inherits the previous official's links.
+    """
+    barangay = models.ForeignKey(SKBarangay, on_delete=models.CASCADE, related_name='socials')
+    member = models.OneToOneField(SKMember, null=True, blank=True, on_delete=models.CASCADE, related_name='social')
+    is_chairperson = models.BooleanField(default=False)
+    official_name = models.CharField(max_length=200, blank=True)  # who the record was written for
+    facebook_profile_url = models.URLField(max_length=300, blank=True)
+    facebook_page_url = models.URLField(max_length=300, blank=True)
+    messenger_url = models.URLField(max_length=300, blank=True)
+    public_email = models.EmailField(blank=True)
+    public_contact_number = models.CharField(max_length=30, blank=True)
+    public_bio = models.TextField(max_length=500, blank=True)
+    # nothing is shown to the public until a manager turns this on
+    social_links_visibility = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=['barangay'], condition=models.Q(is_chairperson=True), name='one_chairperson_social_per_barangay')]
+
+    def __str__(self):
+        return f'{self.official_name} ({self.barangay.barangay_name})'
+
+
+class SKPublicActivity(models.Model):
+    """A public activity or announcement of an SK official, with a link to a PUBLIC Facebook post typed in by hand.
+    The system does not read Facebook: nothing here is fetched automatically."""
+    social = models.ForeignKey(SKOfficialSocial, on_delete=models.CASCADE, related_name='activities')
+    title = models.CharField(max_length=160)
+    description = models.TextField(max_length=500, blank=True)
+    facebook_post_url = models.URLField(max_length=300)
+    activity_date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-activity_date', '-created_at']

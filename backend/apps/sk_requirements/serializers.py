@@ -135,8 +135,24 @@ class SKOfficialsMixin(serializers.Serializer):
     def get_chairperson_photo_url(self, obj):
         return self._abs(obj.chairperson_photo)
 
+    def _socials(self, obj):
+        """The social records of this barangay, by seat. The chairperson record counts only while the same person is chairperson."""
+        from .social import public_social
+        from .views import can_manage_council_pictures
+        request = self.context.get('request')
+        full = bool(request) and can_manage_council_pictures(request.user, obj)
+        by_member, chair = {}, None
+        for s in obj.socials.all():
+            if s.is_chairperson:
+                if ' '.join(s.official_name.lower().split()) == ' '.join((obj.sk_chairperson or '').lower().split()):
+                    chair = s
+            elif s.member_id:
+                by_member[s.member_id] = s
+        return (lambda m: public_social(by_member.get(m), full)), public_social(chair, full)
+
     def get_officials(self, obj):
         rank = {'kagawad': 1, 'secretary': 2, 'treasurer': 3}
+        for_member, for_chair = self._socials(obj)
         out = [{
             'id': None,
             'key': 'chairperson',
@@ -145,6 +161,7 @@ class SKOfficialsMixin(serializers.Serializer):
             'position_display': 'SK Chairperson',
             'photo_url': self._abs(obj.chairperson_photo),
             'order': 0,
+            'social': for_chair,
         }]
         for m in sorted(obj.members.all(), key=lambda m: (rank.get(m.position, 9), m.order, m.id)):
             out.append({
@@ -155,6 +172,7 @@ class SKOfficialsMixin(serializers.Serializer):
                 'position_display': m.get_position_display(),
                 'photo_url': self._abs(m.photo),
                 'order': m.order,
+                'social': for_member(m.id),
             })
         return out
 

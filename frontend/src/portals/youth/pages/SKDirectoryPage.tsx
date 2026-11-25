@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2 } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
 import ImageLightbox from '@/components/ui/ImageLightbox'
+import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
+import SKOfficialProfile from '../components/SKOfficialProfile'
 import { shrinkImage } from '@/utils/shrinkImage'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, cn } from '@/utils'
@@ -33,6 +35,7 @@ interface SKOfficial {
   position_display: string
   photo_url: string | null
   order: number
+  social?: SKSocial
 }
 
 interface SKBarangay {
@@ -256,8 +259,9 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
 
 /** One official: square picture (face-first crop), full name, then the position. */
 function OfficialCard({
-  o, featured = false, onZoom, canEdit = false, busy = false, onPick, onRemove, onRename,
+  o, featured = false, onZoom, canEdit = false, busy = false, onPick, onRemove, onRename, onOpen,
 }: {
+  onOpen?: () => void
   onRename?: (name: string) => void
   o: SKOfficial
   featured?: boolean
@@ -300,6 +304,11 @@ function OfficialCard({
         ) : (
           <UserIcon className="text-primary-300" size={featured ? 64 : 52} strokeWidth={1.5} aria-label="No picture yet" />
         )}
+        {(o.social?.facebook_profile_url || o.social?.facebook_page_url) && (
+          <span className="absolute left-1.5 top-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-[#1877F2] text-white shadow" title="Has a Facebook link" aria-label="Has a Facebook link">
+            <Facebook size={14} />
+          </span>
+        )}
       </div>
       <h4 className={cn('mt-3 font-bold text-ink-900 leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
@@ -310,6 +319,11 @@ function OfficialCard({
       >
         {o.position_display}
       </p>
+      {onOpen && (
+        <button type="button" onClick={onOpen} className="mt-2 w-full rounded-full border border-primary-200 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-50">
+          View profile
+        </button>
+      )}
 
       {canEdit && (
         <div className="mt-2.5 flex w-full flex-wrap items-center justify-center gap-1.5">
@@ -431,9 +445,14 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
     busy: busyKey === o.key,
     onPick: (file: File) => picture.mutate({ o, file }),
     onRemove: () => picture.mutate({ o, file: null }),
+    onOpen: () => setProfileKey(o.key),
   })
 
   const [zoomKey, setZoomKey] = useState<string | null>(null)
+  const [profileKey, setProfileKey] = useState<string | null>(null)
+  const [editKey, setEditKey] = useState<string | null>(null)
+  const profileOf = officials.find(o => o.key === profileKey) ?? null
+  const editOf = officials.find(o => o.key === editKey) ?? null
   const withPhotos = officials.filter(o => !!o.photo_url)
   const zoomIndex = withPhotos.findIndex(o => o.key === zoomKey)
   const zoomed = zoomIndex >= 0 ? withPhotos[zoomIndex] : null
@@ -572,6 +591,25 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
           )}
         </section>
       </div>
+
+      {profileOf && (
+        <SKOfficialProfile
+          o={profileOf}
+          barangayName={barangay.barangay_name}
+          canManage={canEdit}
+          onManage={() => setEditKey(profileOf.key)}
+          onClose={() => setProfileKey(null)}
+        />
+      )}
+      {editOf && (
+        <SKSocialEditor
+          key={editOf.key}
+          barangayId={barangay.id}
+          official={editOf}
+          onClose={() => setEditKey(null)}
+          onSaved={() => qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })}
+        />
+      )}
 
       {zoomed && (
         <ImageLightbox

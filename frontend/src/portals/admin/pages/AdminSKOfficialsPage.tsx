@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Camera, Plus, Save, Trash2, User as UserIcon, Users, AlertTriangle, ImageOff } from 'lucide-react'
+import { Camera, Plus, Save, Trash2, User as UserIcon, Users, AlertTriangle, ImageOff, Facebook } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { shrinkImage } from '@/utils/shrinkImage'
 import { confirmDeletion } from '@/components/ui/ConfirmDialog'
+import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
 
 interface Official {
   key: string
@@ -14,6 +15,7 @@ interface Official {
   position: 'chairperson' | 'kagawad' | 'secretary' | 'treasurer'
   position_display: string
   photo_url: string | null
+  social?: SKSocial
 }
 
 interface Barangay {
@@ -52,6 +54,7 @@ function SeatCard({
 }) {
   const isChair = position === 'chairperson'
   const [name, setName] = useState(official?.name ?? '')
+  const [socialOpen, setSocialOpen] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   useEffect(() => { setName(official?.name ?? '') }, [official?.name, official?.id])
 
@@ -157,6 +160,11 @@ function SeatCard({
             <ImageOff size={12} />
           </button>
         )}
+        {official && official.name.trim() && (
+          <button type="button" onClick={() => setSocialOpen(true)} disabled={busy} className="btn-secondary btn-sm inline-flex items-center gap-1" title="Facebook links and public contact">
+            <Facebook size={12} /> Social links
+          </button>
+        )}
         {official && !isChair && (
           <button
             type="button"
@@ -181,6 +189,9 @@ function SeatCard({
           e.target.value = ''
         }}
       />
+      {socialOpen && official && (
+        <SKSocialEditor key={official.key} barangayId={barangayId} official={official} onClose={() => setSocialOpen(false)} onSaved={onChanged} />
+      )}
     </div>
   )
 }
@@ -274,7 +285,7 @@ export default function AdminSKOfficialsPage() {
                 barangayId={selected.id}
                 position="chairperson"
                 label="SK Chairperson"
-                official={{ key: 'chair', id: null, name: selected.sk_chairperson, position: 'chairperson', position_display: 'SK Chairperson', photo_url: selected.chairperson_photo_url }}
+                official={{ key: 'chair', id: null, name: selected.sk_chairperson, position: 'chairperson', position_display: 'SK Chairperson', photo_url: selected.chairperson_photo_url, social: selected.officials.find(x => x.position === 'chairperson')?.social }}
                 onChanged={refresh}
               />
             </div>
