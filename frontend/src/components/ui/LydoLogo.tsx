@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 interface LydoLogoProps {
   size?: number
@@ -60,5 +61,56 @@ export function LydoLogo({ size = 36, className = '' }: LydoLogoProps) {
       draggable={false}
       onError={() => setFailed(true)}
     />
+  )
+}
+
+/** The logo as a button: clicking it opens a large view of the seal so people can look at it properly. */
+export function ViewableLogo({ size = 36, className = '' }: LydoLogoProps) {
+  const [open, setOpen] = useState(false)
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open])
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label="View the LYDO logo larger"
+        title="View logo"
+        className="flex-shrink-0 rounded-lg cursor-zoom-in transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400"
+      >
+        <LydoLogo size={size} className={className} />
+      </button>
+      {open && createPortal(
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center p-4 bg-primary-950/70 backdrop-blur-sm"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="LYDO logo"
+            onClick={e => e.stopPropagation()}
+            className="relative w-full max-w-md rounded-3xl bg-white shadow-2xl p-6 text-center"
+          >
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+              className="absolute top-3 right-3 w-8 h-8 rounded-full text-ink-500 hover:bg-ink-100 text-lg leading-none"
+            >
+              ×
+            </button>
+            <LydoLogo size={320} className="mx-auto max-w-full h-auto" />
+            <p className="mt-3 font-display font-bold text-lg text-ink-900">Lucena Youth Development Office</p>
+            <p className="text-xs text-ink-500">City Government of Lucena</p>
+          </div>
+        </div>,
+        document.body,
+      )}
+    </>
   )
 }

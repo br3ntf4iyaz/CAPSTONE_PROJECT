@@ -1,7 +1,7 @@
 ﻿import { useState } from 'react'
 import { Outlet, NavLink, Link } from 'react-router-dom'
 import { Menu, X, LayoutDashboard } from 'lucide-react'
-import { LydoLogo } from '@/components/ui/LydoLogo'
+import { LydoLogo, ViewableLogo } from '@/components/ui/LydoLogo'
 import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { useMe } from '@/hooks/useAuth'
@@ -34,20 +34,21 @@ export default function YouthPublicLayout() {
           <div className="flex items-center justify-between h-16 gap-4">
 
             {/* Brand */}
-            <Link
-              to="/"
-              className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg px-1"
-            >
-              <LydoLogo size={36} />
-              <span className="flex flex-col leading-none">
+            <div className="flex items-center gap-2.5 flex-shrink-0 px-1">
+              <ViewableLogo size={36} />
+              <Link
+                to="/"
+                aria-label="LYDO home"
+                className="flex flex-col leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg"
+              >
                 <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">
                   LYDO
                 </span>
                 <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">
                   Lucena Youth
                 </span>
-              </span>
-            </Link>
+              </Link>
+            </div>
 
             {/* Desktop nav */}
             <nav className="hidden md:flex items-center gap-1">

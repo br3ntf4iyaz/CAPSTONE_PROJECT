@@ -2,7 +2,7 @@
 import { createPortal } from 'react-dom'
 import { Outlet, NavLink, Link, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import YouthPublicLayout from './YouthPublicLayout'
-import { LydoLogo } from '@/components/ui/LydoLogo'
+import { ViewableLogo } from '@/components/ui/LydoLogo'
 import {
   Home, BookOpen, Users, Briefcase, CalendarDays,
   Library, MessageSquareWarning, User, LogOut, Bell, Menu, X,
@@ -706,13 +706,13 @@ export default function YouthLayout() {
           <div className="flex items-center justify-between h-16 gap-3">
 
             {/* Brand */}
-            <Link to="/dashboard" className="flex items-center gap-2.5 flex-shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg px-1">
-              <LydoLogo size={36} />
-              <span className="hidden sm:flex flex-col leading-none">
+            <div className="flex items-center gap-2.5 flex-shrink-0 px-1">
+              <ViewableLogo size={36} />
+              <Link to="/dashboard" aria-label="LYDO home" className="hidden sm:flex flex-col leading-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400 rounded-lg">
                 <span className="font-display font-extrabold text-lg text-ink-900 tracking-tightish">LYDO</span>
                 <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">Lucena Youth</span>
-              </span>
-            </Link>
+              </Link>
+            </div>
 
             {/* Desktop tab bar */}
             <div className="flex-1 overflow-hidden">
