@@ -43,6 +43,7 @@ interface SKBarangay {
   members?: SKMember[]
   officials?: SKOfficial[]
   chairperson_photo_url?: string | null
+  group_photo_url?: string | null
   can_edit_officials?: boolean
   id: number
   barangay_name: string
@@ -452,6 +453,18 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
   })
 
   const [zoomKey, setZoomKey] = useState<string | null>(null)
+  const [groupZoom, setGroupZoom] = useState(false)
+  const groupFile = useRef<HTMLInputElement>(null)
+  const groupPhoto = useMutation({
+    mutationFn: async (file: File | null) => {
+      const fd = new FormData()
+      if (file) fd.append('photo', await shrinkImage(file, 1600, 0.88))
+      else fd.append('remove', 'true')
+      return apiClient.post(`/sk-requirements/barangays/${barangay.id}/group-photo/`, fd, { headers: { 'Content-Type': undefined as unknown as string } })
+    },
+    onSuccess: (_r, file) => { toast.success(file ? 'Group picture updated' : 'Group picture removed'); qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] }) },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not save the picture. Use a JPG or PNG under 8 MB.'),
+  })
   const [profileKey, setProfileKey] = useState<string | null>(null)
   const [editKey, setEditKey] = useState<string | null>(null)
   const profileOf = officials.find(o => o.key === profileKey) ?? null
@@ -495,11 +508,41 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             </button>
           </div>
           <div className="flex items-center gap-4">
-            <div className={cn('w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl flex items-center justify-center overflow-hidden', tile.ring, barangay.logo_url ? 'bg-white/20' : tile.bg)} title={`Compliance ${pct}%`}>
-              {barangay.logo_url
-                ? <img src={barangay.logo_url} alt={`${barangay.barangay_name} logo`} className="w-full h-full object-cover" />
-                : <tile.Icon size={34} className={tile.icon} />
-              }
+            <div className="shrink-0">
+              {barangay.group_photo_url ? (
+                <button
+                  type="button"
+                  onClick={() => setGroupZoom(true)}
+                  aria-label={`View a larger group picture of the ${barangay.barangay_name} SK council`}
+                  title="Click to enlarge"
+                  className={cn('group relative block h-20 w-32 sm:h-24 sm:w-44 cursor-zoom-in overflow-hidden rounded-2xl bg-white/20', tile.ring)}
+                >
+                  <img src={barangay.group_photo_url} alt={`${barangay.barangay_name} SK council`} className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+                  <span className="absolute bottom-1 right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><ZoomIn size={12} /></span>
+                </button>
+              ) : (
+                <div className={cn('w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center overflow-hidden', tile.ring, barangay.logo_url ? 'bg-white/20' : tile.bg)} title={`Compliance ${pct}%`}>
+                  {barangay.logo_url
+                    ? <img src={barangay.logo_url} alt={`${barangay.barangay_name} logo`} className="w-full h-full object-cover" />
+                    : <tile.Icon size={34} className={tile.icon} />
+                  }
+                </div>
+              )}
+              {canEdit && (
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <button type="button" onClick={() => groupFile.current?.click()} disabled={groupPhoto.isPending}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/30 disabled:opacity-50">
+                    <Camera size={11} /> {groupPhoto.isPending ? 'Saving...' : barangay.group_photo_url ? 'Change group picture' : 'Add group picture'}
+                  </button>
+                  {barangay.group_photo_url && (
+                    <button type="button" aria-label="Remove the group picture" title="Remove the group picture" disabled={groupPhoto.isPending}
+                      onClick={() => { if (window.confirm('Remove the council group picture?')) groupPhoto.mutate(null) }}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 disabled:opacity-50"><Trash2 size={11} /></button>
+                  )}
+                  <input ref={groupFile} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) groupPhoto.mutate(f); e.target.value = '' }} />
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-wider text-primary-100">Sangguniang Kabataan</p>
@@ -592,6 +635,15 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
         </section>
       </div>
 
+      {groupZoom && barangay.group_photo_url && (
+        <ImageLightbox
+          src={barangay.group_photo_url}
+          alt={`${barangay.barangay_name} SK council`}
+          caption={`SK Council of ${barangay.barangay_name}`}
+          subcaption="Sangguniang Kabataan"
+          onClose={() => setGroupZoom(false)}
+        />
+      )}
       {profileOf && (
         <SKOfficialProfile
           o={profileOf}
@@ -653,6 +705,7 @@ function BarangayCard({
   onSendFeedback?: () => void
 }) {
   const [expanded, setExpanded] = useState(false)
+  const [groupZoom, setGroupZoom] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -691,6 +744,18 @@ function BarangayCard({
       >
         <div className="flex items-center gap-4 min-w-0">
           {/* Logo / icon — bigger so uploaded logos are visible */}
+          {b.group_photo_url ? (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); setGroupZoom(true) }}
+              onKeyDown={e => e.stopPropagation()}
+              aria-label={`View a larger group picture of the ${b.barangay_name} SK council`}
+              title={`Compliance ${pct}% · click to enlarge`}
+              className={cn('group relative block h-14 w-24 sm:h-16 sm:w-28 flex-shrink-0 cursor-zoom-in overflow-hidden rounded-2xl bg-primary-100', tile.ring)}
+            >
+              <img src={b.group_photo_url} alt={`${b.barangay_name} SK council`} loading="lazy" className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105" />
+            </button>
+          ) : (
           <div className={cn('relative w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden group', tile.ring, b.logo_url ? 'bg-primary-100' : tile.bg)} title={`Compliance ${pct}%`}>
             {b.logo_url
               ? <img src={b.logo_url} alt={b.barangay_name} className="w-full h-full object-cover" />
@@ -714,6 +779,18 @@ function BarangayCard({
               </button>
             )}
           </div>
+          )}
+          {groupZoom && b.group_photo_url && (
+            <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <ImageLightbox
+                src={b.group_photo_url}
+                alt={`${b.barangay_name} SK council`}
+                caption={`SK Council of ${b.barangay_name}`}
+                subcaption="Sangguniang Kabataan"
+                onClose={() => setGroupZoom(false)}
+              />
+            </div>
+          )}
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">

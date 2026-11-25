@@ -117,6 +117,7 @@ class SKOfficialsMixin(serializers.Serializer):
     """Adds the full, ordered list of the 10 officials of one barangay (and only that barangay)."""
 
     chairperson_photo_url = serializers.SerializerMethodField()
+    group_photo_url = serializers.SerializerMethodField()
     officials = serializers.SerializerMethodField()
     can_edit_officials = serializers.SerializerMethodField()
 
@@ -134,6 +135,9 @@ class SKOfficialsMixin(serializers.Serializer):
 
     def get_chairperson_photo_url(self, obj):
         return self._abs(obj.chairperson_photo)
+
+    def get_group_photo_url(self, obj):
+        return self._abs(obj.group_photo)
 
     def _socials(self, obj):
         """The social records of this barangay, by seat. The chairperson record counts only while the same person is chairperson."""
@@ -271,6 +275,7 @@ class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
             'contact_phone',
             'logo_url',
             'chairperson_photo_url',
+            'group_photo_url',
             'officials',
             'can_edit_officials',
             'members',
@@ -323,6 +328,7 @@ class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
             'description',
             'logo_url',
             'chairperson_photo_url',
+            'group_photo_url',
             'officials',
             'can_edit_officials',
             'members',

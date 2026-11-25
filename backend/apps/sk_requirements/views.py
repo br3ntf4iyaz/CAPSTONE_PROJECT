@@ -105,7 +105,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name', 'official_social', 'official_activities'):
+        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name', 'official_social', 'official_activities', 'group_photo'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -179,6 +179,41 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
             barangay.chairperson_photo.storage.delete(old)
         _audit_picture(request, barangay, 'chairperson', 'sk_photo_changed')
         return Response({'chairperson_photo_url': request.build_absolute_uri(barangay.chairperson_photo.url)})
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='group-photo',
+        permission_classes=[IsAuthenticated],
+        parser_classes=[MultiPartParser, FormParser],
+        throttle_classes=[SKPhotoThrottle],
+    )
+    def group_photo(self, request, pk=None):
+        """Replace (file in 'photo') or remove (remove=true) the council group picture. Admin or verified SK of this barangay."""
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        if str(request.data.get('remove', '')).lower() in ('1', 'true') and 'photo' not in request.FILES:
+            if barangay.group_photo:
+                barangay.group_photo.delete(save=False)
+                barangay.group_photo = None
+                barangay.save(update_fields=['group_photo'])
+            _audit_picture(request, barangay, 'group', 'sk_photo_removed')
+            return Response({'group_photo_url': None})
+        if 'photo' not in request.FILES:
+            return Response({'detail': 'No photo provided.'}, status=status.HTTP_400_BAD_REQUEST)
+        photo = request.FILES['photo']
+        try:
+            check_upload(photo, IMAGE_EXTS, 8 * 1024 * 1024, field=None)
+        except DRFValidationError as e:
+            return Response({'detail': str(e.detail[0])}, status=status.HTTP_400_BAD_REQUEST)
+        old = barangay.group_photo.name if barangay.group_photo else None
+        barangay.group_photo = photo
+        barangay.save(update_fields=['group_photo'])
+        if old and old != barangay.group_photo.name:
+            barangay.group_photo.storage.delete(old)
+        _audit_picture(request, barangay, 'group', 'sk_photo_changed')
+        return Response({'group_photo_url': request.build_absolute_uri(barangay.group_photo.url)})
 
     @action(
         detail=True,

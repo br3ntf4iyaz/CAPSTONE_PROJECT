@@ -46,6 +46,7 @@ class SKBarangay(models.Model):
     description = models.TextField(blank=True)
     logo = models.ImageField(upload_to='sk_logos/', null=True, blank=True)
     chairperson_photo = models.ImageField(upload_to='sk_chairpersons/', null=True, blank=True)
+    group_photo = models.ImageField(upload_to='sk_groups/', null=True, blank=True)  # the council group picture
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

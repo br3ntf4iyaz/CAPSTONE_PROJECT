@@ -154,3 +154,68 @@ class SKSocialTests(TestCase):
         self.save(self.ac, {'messenger_url': 'm.me/kim.ebarle', 'social_links_visibility': True})
         data = self.anon.get(f'/api/sk-requirements/barangays/{self.a.pk}/').data
         self.assertEqual(self.official(data, 'chairperson')['social']['messenger_url'], 'https://m.me/kim.ebarle')
+
+
+class SKGroupPictureTests(TestCase):
+    """The council group picture."""
+
+    def setUp(self):
+        self.a = SKBarangay.objects.create(barangay_name='Barangay A', sk_chairperson='Kim Ebarle')
+        self.b = SKBarangay.objects.create(barangay_name='Barangay B', sk_chairperson='Chair B')
+        self.admin = User.objects.create_user(email='adm@t.local', password='x', role='lgu_admin', is_active=True)
+        self.youth = User.objects.create_user(email='yt@t.local', password='x', role='youth', is_active=True)
+        self.sk = User.objects.create_user(email='sk@t.local', password='x', role='youth', youth_type='sk', is_active=True)
+        self.sk.profile.barangay = 'Barangay A'
+        self.sk.profile.save()
+        IDVerification.objects.create(user=self.sk, id_type='umid', status='approved')
+        self.ac, self.yc, self.skc, self.anon = APIClient(), APIClient(), APIClient(), APIClient()
+        self.ac.force_authenticate(self.admin)
+        self.yc.force_authenticate(self.youth)
+        self.skc.force_authenticate(self.sk)
+
+    def png(self, name='g.png'):
+        import io
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from PIL import Image
+        buf = io.BytesIO()
+        Image.new('RGB', (60, 40), (10, 120, 60)).save(buf, 'PNG')
+        return SimpleUploadedFile(name, buf.getvalue(), content_type='image/png')
+
+    def upload(self, client, barangay=None, **extra):
+        return client.post(f'/api/sk-requirements/barangays/{(barangay or self.a).pk}/group-photo/', {'photo': self.png(), **extra}, format='multipart')
+
+    def test_the_sk_of_the_barangay_and_admin_can_replace_the_group_picture_others_cannot(self):
+        import shutil, tempfile
+        from django.test import override_settings
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            self.assertEqual(self.upload(self.skc).status_code, 200)
+            self.assertEqual(self.upload(self.ac).status_code, 200)
+            self.assertEqual(self.upload(self.yc).status_code, 403)
+            self.assertIn(self.upload(self.anon).status_code, (401, 403))
+            self.assertEqual(self.upload(self.skc, barangay=self.b).status_code, 403)
+            data = self.anon.get(f'/api/sk-requirements/barangays/{self.a.pk}/').data
+            self.assertTrue(data['group_photo_url'])
+            r = self.skc.post(f'/api/sk-requirements/barangays/{self.a.pk}/group-photo/', {'remove': 'true'}, format='multipart')
+            self.assertEqual(r.status_code, 200)
+            self.assertIsNone(self.anon.get(f'/api/sk-requirements/barangays/{self.a.pk}/').data['group_photo_url'])
+
+    def test_a_bad_file_is_refused(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        bad = SimpleUploadedFile('x.png', b'not an image', content_type='image/png')
+        r = self.skc.post(f'/api/sk-requirements/barangays/{self.a.pk}/group-photo/', {'photo': bad}, format='multipart')
+        self.assertEqual(r.status_code, 400)
+
+    def test_the_cartoon_group_picture_is_drawn_and_a_real_upload_is_never_replaced(self):
+        import io, tempfile
+        from django.core.management import call_command
+        from django.test import override_settings
+        SKMember.objects.create(barangay=self.a, position='secretary', name='Sec', order=1)
+        with override_settings(MEDIA_ROOT=tempfile.mkdtemp()):
+            call_command('seed_group_pictures', stdout=io.StringIO())
+            self.a.refresh_from_db(); self.b.refresh_from_db()
+            self.assertTrue(self.a.group_photo.name.split('/')[-1].startswith('sample_group_'))
+            self.assertTrue(self.b.group_photo)  # even a barangay with no members gets one
+            self.upload(self.skc)  # a real upload
+            real = SKBarangay.objects.get(pk=self.a.pk).group_photo.name
+            call_command('seed_group_pictures', '--refresh', stdout=io.StringIO())
+            self.assertEqual(SKBarangay.objects.get(pk=self.a.pk).group_photo.name, real)
