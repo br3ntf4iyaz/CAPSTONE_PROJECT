@@ -6,6 +6,7 @@ import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
 import ImageLightbox from '@/components/ui/ImageLightbox'
+import { ComplianceBadge, ComplianceMeter, ExemplaryAward } from '@/components/ui/ComplianceBadge'
 import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
 import SKOfficialProfile from '../components/SKOfficialProfile'
 import { shrinkImage } from '@/utils/shrinkImage'
@@ -377,7 +378,9 @@ function OfficialCard({
 
 function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: () => void }) {
   const total = barangay.submitted_count + barangay.pending_count + barangay.overdue_count
-  const pct = total > 0 ? Math.round((barangay.submitted_count / total) * 100) : 0
+  // same calculation as before, but rounding can no longer show 100% (or 0%) unless it is exactly true
+  const raw = total > 0 ? Math.round((barangay.submitted_count / total) * 100) : 0
+  const pct = barangay.submitted_count === total && total > 0 ? 100 : barangay.submitted_count > 0 ? Math.min(99, Math.max(1, raw)) : 0
 
   // Always the 10 seats of THIS barangay, in order: Chairperson, 7 Kagawads, Secretary, Treasurer
   const officials: SKOfficial[] = barangay.officials ?? [
@@ -534,12 +537,9 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
           </div>
           <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-4">
             <p className="text-xs font-semibold text-ink-500 mb-2.5 uppercase tracking-wide">Compliance</p>
-            <div className="flex items-center gap-3 mb-2.5">
-              <div className="flex-1 h-2.5 bg-ink-100 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
-              </div>
-              <span className="text-base font-bold text-ink-900 w-12 text-right">{pct}%</span>
-            </div>
+            <div className="mb-3"><ComplianceBadge pct={pct} /></div>
+            <div className="mb-2.5"><ComplianceMeter pct={pct} /></div>
+            {pct >= 100 && <div className="mb-3"><ExemplaryAward /></div>}
             <div className="flex flex-wrap gap-2">
               <span className="badge badge-green text-sm">{barangay.submitted_count} submitted</span>
               <span className="badge badge-gray text-sm">{barangay.pending_count} pending</span>
