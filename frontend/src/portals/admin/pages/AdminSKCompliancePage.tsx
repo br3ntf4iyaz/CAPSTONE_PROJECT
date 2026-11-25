@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
 import { PageSpinner } from '@/components/ui/Spinner'
+import { openPrivateFile } from '@/components/ui/SecureImage'
 import { complianceTile, compliancePercent } from '@/components/ui/ComplianceBadge'
 import { MONTHS, STATUS_META, StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
 import { CompletionRing, KpiCard, SEGMENT_TINT, groupTone, type Tone } from '@/components/ComplianceKit'
@@ -268,6 +269,58 @@ function Sel({ label, value, onChange, children }: { label: string; value: strin
   return <label className="text-xs font-bold uppercase tracking-wide text-primary-800">{label}<select className="input mt-1 bg-white py-2 text-sm font-normal normal-case tracking-normal text-ink-900" value={value} onChange={e => onChange(e.target.value)}>{children}</select></label>
 }
 
+interface AwaitingDoc { id: number; barangay: string; label: string; submitted_at: string | null; sk_remarks: string; filename: string }
+
+/** The documents SK councils submitted (Annex H, Policies, Minutes, KK Assembly, Linggo ng Kabataan): LYDO opens each one, then approves it or returns it with remarks. */
+function OtherDocsQueue() {
+  const qc = useQueryClient()
+  const [returning, setReturning] = useState<number | null>(null)
+  const [remarks, setRemarks] = useState('')
+  const q = useQuery({ queryKey: ['sk-other-awaiting'], queryFn: () => apiClient.get('/sk-requirements/requirements/awaiting/').then(r => r.data as AwaitingDoc[]) })
+  const decide = useMutation({
+    mutationFn: (v: { id: number; decision: 'approve' | 'return'; remarks?: string }) => apiClient.post(`/sk-requirements/requirements/${v.id}/review/`, { decision: v.decision, remarks: v.remarks ?? '' }),
+    onSuccess: (_r, v) => {
+      toast.success(v.decision === 'approve' ? 'Verified. The SK was notified.' : 'Returned. The SK was notified.')
+      setReturning(null); setRemarks('')
+      qc.invalidateQueries({ queryKey: ['sk-other-awaiting'] })
+      qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
+    },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not save.')),
+  })
+  const rows = q.data ?? []
+  return (
+    <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <h2 className="border-b border-gray-100 bg-gray-50 px-5 py-3 text-sm font-semibold text-gray-900">Other documents waiting for review ({rows.length})</h2>
+      {rows.length === 0 ? <p className="px-5 py-6 text-sm text-gray-500">No other SK document is waiting for review.</p> : (
+        <ul className="divide-y divide-gray-100">
+          {rows.map(r => (
+            <li key={r.id} className="space-y-2 px-5 py-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">{r.barangay}: {r.label}</p>
+                  <p className="text-xs text-gray-500">Submitted {fmtDate(r.submitted_at)} · {r.filename}</p>
+                  {r.sk_remarks && <p className="mt-1 text-xs text-gray-600"><strong>SK remarks:</strong> {r.sk_remarks}</p>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className="btn-secondary btn-sm" onClick={() => openPrivateFile(`/api/sk-requirements/requirements/${r.id}/file/`).catch(() => toast.error('Could not open the file'))}>Open file</button>
+                  <button type="button" className="btn-primary btn-sm" disabled={decide.isPending} onClick={() => decide.mutate({ id: r.id, decision: 'approve' })}>Verify</button>
+                  <button type="button" className="btn-secondary btn-sm text-amber-700" onClick={() => { setReturning(returning === r.id ? null : r.id); setRemarks('') }}>Return</button>
+                </div>
+              </div>
+              {returning === r.id && (
+                <div className="space-y-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                  <textarea className="input resize-none text-sm" rows={2} maxLength={1000} placeholder="What must the SK correct? They will read this." value={remarks} onChange={e => setRemarks(e.target.value)} />
+                  <button type="button" disabled={remarks.trim().length < 5 || decide.isPending} onClick={() => decide.mutate({ id: r.id, decision: 'return', remarks })} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Return to the SK</button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  )
+}
+
 function Queue({ data, loading, onOpen }: { data?: { to_verify: QueueRow[]; ready_to_publish: QueueRow[] }; loading: boolean; onOpen: (r: QueueRow) => void }) {
   if (loading || !data) return <PageSpinner />
   const Block = ({ title, rows, empty }: { title: string; rows: QueueRow[]; empty: string }) => (
@@ -286,7 +339,7 @@ function Queue({ data, loading, onOpen }: { data?: { to_verify: QueueRow[]; read
       )}
     </section>
   )
-  return <div className="space-y-5"><Block title="Waiting for verification" rows={data.to_verify} empty="Nothing is waiting for verification." />
+  return <div className="space-y-5"><OtherDocsQueue /><Block title="Waiting for verification" rows={data.to_verify} empty="Nothing is waiting for verification." />
     <Block title="Verified and ready to publish" rows={data.ready_to_publish} empty="No verified documents are waiting for publication." /></div>
 }
 

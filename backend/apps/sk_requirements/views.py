@@ -84,12 +84,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     ordering = ['barangay_name']
 
     def get_queryset(self):
-        qs = SKBarangay.objects.prefetch_related('requirements', 'members', 'socials__activities').annotate(
-            total_requirements=Count('requirements', distinct=True),
-            submitted_count=Count('requirements', filter=Q(requirements__status='submitted'), distinct=True),
-            pending_count=Count('requirements', filter=Q(requirements__status='pending'), distinct=True),
-            overdue_count=Count('requirements', filter=Q(requirements__status='overdue'), distinct=True),
-        )
+        qs = SKBarangay.objects.prefetch_related('requirements', 'members', 'socials__activities')
         if not (
             self.request.user.is_authenticated
             and IsAdminRole().has_permission(self.request, self)
@@ -101,6 +96,13 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         if self.action == 'list':
             return SKBarangayListSerializer
         return SKBarangayDetailSerializer
+
+    def get_serializer_context(self):
+        ctx = super().get_serializer_context()
+        if self.action == 'list':  # the honest state of every requirement of every listed barangay, in a few queries
+            from .states import directory_states
+            ctx['sk_states'] = directory_states(list(self.filter_queryset(self.get_queryset())))
+        return ctx
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
@@ -394,25 +396,14 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         Returns a list of all barangays with counts of submitted / pending / overdue
         requirements.
         """
-        queryset = SKBarangay.objects.annotate(
-            submitted_count=Count('requirements', filter=Q(requirements__status='submitted')),
-            pending_count=Count('requirements', filter=Q(requirements__status='pending')),
-            overdue_count=Count('requirements', filter=Q(requirements__status='overdue')),
-            total_count=Count('requirements'),
-        ).order_by('barangay_name')
-
-        data = [
-            {
-                'id': b.id,
-                'barangay_name': b.barangay_name,
-                'sk_chairperson': b.sk_chairperson,
-                'total': b.total_count,
-                'submitted': b.submitted_count,
-                'pending': b.pending_count,
-                'overdue': b.overdue_count,
-            }
-            for b in queryset
-        ]
+        from .states import counts_of, directory_states
+        barangays = list(SKBarangay.objects.order_by('barangay_name'))
+        states = directory_states(barangays)
+        data = []
+        for b in barangays:
+            c = counts_of(states[b.id])
+            data.append({'id': b.id, 'barangay_name': b.barangay_name, 'sk_chairperson': b.sk_chairperson,
+                         'total': c['total'], 'submitted': c['submitted'], 'pending': c['pending'], 'overdue': c['overdue']})
         return Response(data, status=status.HTTP_200_OK)
 
 
@@ -474,7 +465,7 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         # SK officials may read and upload their OWN barangay's checklist; the rest is admin only.
-        if self.action in ('mine', 'upload'):
+        if self.action in ('mine', 'upload', 'file'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -488,25 +479,25 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
         _ensure_requirements(barangay)
-        today = timezone.now().date()
-        barangay.requirements.filter(status='pending', due_date__lt=today).update(status='overdue')
-        order = {code: i for i, (code, _) in enumerate(REQUIREMENT_CHOICES)}
-        labels = dict(REQUIREMENT_CHOICES)
-        rows = sorted(barangay.requirements.all(), key=lambda r: order.get(r.requirement_type, 99))
-        items = [
-            {
-                'id': r.id, 'type': r.requirement_type, 'label': labels.get(r.requirement_type, r.requirement_type),
-                'status': r.status, 'submitted_at': r.submitted_at, 'due_date': r.due_date,
-                'notes': r.notes, 'has_file': bool(r.file),
-            }
-            for r in rows
-        ]
+        from .states import counts_of, directory_states
+        rows = directory_states([barangay])[barangay.id]
+        reqs = {r.id: r for r in barangay.requirements.all()}
+        items = []
+        for r in rows:
+            req = reqs.get(r['id'])
+            items.append({
+                'id': r['id'], 'type': r['key'], 'label': r['label'], 'status': r['status'], 'detail': r['detail'],
+                'submitted_at': r['submitted_at'], 'due_date': r['due_date'], 'monitored': r['monitored'],
+                'remarks': r['remarks'], 'sk_remarks': req.sk_remarks if req else '',
+                'has_file': bool(req and req.file),
+                # RCB and MIL are submitted per quarter or month in SK Compliance; the other documents can be submitted here
+                'can_submit': r['key'] not in ('quarterly_cash', 'monthly_pr') and r['status'] in ('not_submitted', 'overdue', 'returned'),
+            })
+        c = counts_of(rows)
         return Response({
             'barangay': {'id': barangay.id, 'name': barangay.barangay_name},
-            'summary': {
-                'submitted': sum(1 for i in items if i['status'] == 'submitted'),
-                'total': len(items),
-            },
+            'summary': {'completed': c['submitted'], 'awaiting': sum(1 for i in items if i['status'] == 'submitted'),
+                        'returned': sum(1 for i in items if i['status'] == 'returned'), 'overdue': c['overdue'], 'total': c['total']},
             'requirements': items,
         })
 
@@ -517,25 +508,116 @@ class SKRequirementViewSet(viewsets.ModelViewSet):
         parser_classes=[MultiPartParser, FormParser, JSONParser],
     )
     def upload(self, request, pk=None):
-        """POST /sk-requirements/requirements/<id>/upload/: an SK official submits a PDF for their barangay."""
+        """POST /sk-requirements/requirements/<id>/upload/: an SK official submits (or, after LYDO returned it, resubmits) a document.
+        An upload is never "done": it waits for LYDO. A document under review or already verified is not silently replaced."""
+        from apps.accounts.models import AuditLog
+        from apps.accounts.uploads import DOC_EXTS
+        from apps.accounts.views import get_client_ip
+        from .states import MONITORED, directory_states
+        import bleach
         barangay = _own_barangay(request.user)
         req = get_object_or_404(SKRequirement, pk=pk)
         if barangay is None or req.barangay_id != barangay.id:
             return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if req.requirement_type in ('quarterly_cash', 'monthly_pr'):
+            return Response({'detail': 'The RCB and the MIL are submitted for each quarter or month in SK Compliance.'}, status=status.HTTP_400_BAD_REQUEST)
+        state = next(r['status'] for r in directory_states([barangay])[barangay.id] if r['key'] == req.requirement_type)
+        if state == 'submitted':
+            return Response({'detail': 'This document is already waiting for LYDO. Wait for the review, or ask LYDO to return it.'}, status=status.HTTP_409_CONFLICT)
+        if state == 'verified' and req.requirement_type not in MONITORED:
+            # the plain documents are locked once verified. CBYDP, ABYIP and the Annual Budget may be replaced by a NEW version, which
+            # goes through verification again while the verified and published one stays untouched (see SK Compliance Monitoring).
+            return Response({'detail': 'LYDO already verified this document. To change it, ask LYDO to reopen it.'}, status=status.HTTP_409_CONFLICT)
         file = request.FILES.get('file')
         if not file:
-            return Response({'file': ['Please choose a PDF file.']}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'file': ['Please choose the file to submit.']}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            validate_pdf(file)
+            if req.requirement_type in MONITORED:
+                validate_pdf(file)  # these go to the public FPDPB once verified and published: PDF only
+            else:
+                check_upload(file, DOC_EXTS | IMAGE_EXTS, 10 * 1024 * 1024, field=None)
         except DRFValidationError as exc:
             return Response({'file': exc.detail}, status=status.HTTP_400_BAD_REQUEST)
+        old = {'file': req.file.name if req.file else None, 'remarks_from_lydo': req.review_remarks, 'status': req.status}
+        # the earlier file stays in storage (history); it is only no longer the current one
         req.file = file
         req.status = 'submitted'
         req.submitted_at = timezone.now()
+        req.reviewed_by, req.reviewed_at, req.review_remarks = None, None, ''
+        req.sk_remarks = bleach.clean(str(request.data.get('remarks', '')), tags=[], strip=True).strip()[:500]
         req.save()  # the ledger signal fingerprints the submitted file
-        from apps.compliance.sk_compliance import record_requirement_submission
-        record_requirement_submission(req, request.user)  # SK Compliance Monitoring: index this exact file for verification
+        AuditLog.objects.create(
+            user=request.user, action='sk_requirement_submitted', model_name='SKRequirement', object_id=req.pk,
+            ip_address=get_client_ip(request),
+            details={'barangay': barangay.barangay_name, 'requirement': req.requirement_type, 'file': req.file.name, 'replaced': old},
+        )
+        from apps.compliance.sk_compliance import admin_users, notify, record_requirement_submission
+        if req.requirement_type in MONITORED:
+            record_requirement_submission(req, request.user)  # SK Compliance Monitoring: index this exact file for verification
+        else:
+            notify(admin_users(), 'New SK document submitted',
+                   f'{barangay.barangay_name} submitted {req.get_requirement_type_display()}. It is waiting for review.', '/admin/sk-compliance?tab=queue')
         return Response({'id': req.id, 'status': req.status, 'submitted_at': req.submitted_at})
+
+    @action(detail=True, methods=['get'], url_path='file')
+    def file(self, request, pk=None):
+        """The submitted document: LYDO staff, or the SK of that barangay only."""
+        from apps.accounts.uploads import private_file_response
+        req = get_object_or_404(SKRequirement, pk=pk)
+        if not IsAdminRole().has_permission(request, self):
+            own = _own_barangay(request.user)
+            if own is None or own.pk != req.barangay_id:
+                return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return private_file_response(req.file)
+
+    @action(detail=False, methods=['get'], url_path='awaiting', permission_classes=[IsAuthenticated, IsAdminRole])
+    def awaiting(self, request):
+        """Documents the SK submitted that LYDO has not reviewed yet (the five documents reviewed on the requirement itself)."""
+        from .states import MONITORED, other_state
+        today = timezone.localdate()
+        out = []
+        for r in SKRequirement.objects.exclude(requirement_type__in=MONITORED).exclude(file='').exclude(file__isnull=True).select_related('barangay'):
+            if other_state(r, today) == 'submitted':
+                out.append({'id': r.id, 'barangay': r.barangay.barangay_name, 'barangay_id': r.barangay_id, 'label': r.get_requirement_type_display(),
+                            'submitted_at': r.submitted_at, 'sk_remarks': r.sk_remarks, 'filename': r.file.name.rsplit('/', 1)[-1]})
+        out.sort(key=lambda x: x['submitted_at'] or timezone.now())
+        return Response(out)
+
+    @action(detail=True, methods=['post'], url_path='review', permission_classes=[IsAuthenticated, IsAdminRole])
+    def review(self, request, pk=None):
+        """LYDO approves a submitted document, or returns it with remarks the SK can read. Never automatic."""
+        from apps.accounts.models import AuditLog
+        from apps.accounts.views import get_client_ip
+        from apps.compliance.sk_compliance import notify, sk_users_of
+        from .states import MONITORED, other_state
+        import bleach
+        req = get_object_or_404(SKRequirement, pk=pk)
+        if req.requirement_type in MONITORED:
+            return Response({'detail': 'This document is verified in SK Compliance Monitoring.'}, status=status.HTTP_400_BAD_REQUEST)
+        if other_state(req, timezone.localdate()) != 'submitted':
+            return Response({'detail': 'There is no submitted document waiting for review.'}, status=status.HTTP_400_BAD_REQUEST)
+        decision = request.data.get('decision')
+        remarks = bleach.clean(str(request.data.get('remarks', '')), tags=[], strip=True).strip()[:1000]
+        if decision not in ('approve', 'return'):
+            return Response({'detail': 'Choose approve or return.'}, status=status.HTTP_400_BAD_REQUEST)
+        if decision == 'return' and len(remarks) < 5:
+            return Response({'detail': 'Write what must be corrected, so the SK knows what to fix.'}, status=status.HTTP_400_BAD_REQUEST)
+        previous = req.status
+        req.reviewed_by, req.reviewed_at, req.review_remarks = request.user, timezone.now(), remarks
+        if decision == 'return':
+            req.status = 'pending'
+        req.save()
+        AuditLog.objects.create(
+            user=request.user, action='sk_requirement_approved' if decision == 'approve' else 'sk_requirement_returned',
+            model_name='SKRequirement', object_id=req.pk, ip_address=get_client_ip(request),
+            details={'barangay': req.barangay.barangay_name, 'requirement': req.requirement_type, 'from': previous, 'remarks': remarks, 'file': req.file.name if req.file else None},
+        )
+        label = req.get_requirement_type_display()
+        if decision == 'approve':
+            notify(sk_users_of(req.barangay), 'Document verified', f'LYDO verified your {label}.' + (f' {remarks}' if remarks else ''), '/sk-requirements')
+        else:
+            notify(sk_users_of(req.barangay), 'Document returned for correction', f'LYDO returned your {label}. {remarks}', '/sk-requirements')
+        return Response({'id': req.id, 'decision': decision})
 
     def perform_update(self, serializer):
         instance = self.get_object()

@@ -605,17 +605,11 @@ class Command(BaseCommand):
                 barangay_name=bname,
                 defaults=dict(sk_chairperson=chair, contact_email=email, contact_phone=phone)
             )
+            # Honest starting point: NOTHING is marked submitted. Only a real upload by the SK, reviewed by LYDO, counts.
             for i, rtype in enumerate(req_types):
-                is_submitted = i < submitted_count
-                is_overdue = not is_submitted and submitted_count <= 4 and i < 6
-                status = "submitted" if is_submitted else ("overdue" if is_overdue else "pending")
                 SKRequirement.objects.get_or_create(
                     barangay=brgy, requirement_type=rtype,
-                    defaults=dict(
-                        status=status,
-                        submitted_at=timezone.now() - timedelta(days=30 + i * 5) if is_submitted else None,
-                        due_date=date.today() - timedelta(days=10) if is_overdue else date.today() + timedelta(days=30),
-                    )
+                    defaults=dict(status="pending", due_date=date.today() + timedelta(days=30)),
                 )
         self.stdout.write(self.style.SUCCESS("  [OK] SK barangays seeded (33 barangays)"))
 

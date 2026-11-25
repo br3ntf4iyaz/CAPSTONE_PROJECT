@@ -95,6 +95,8 @@ class SKRequirement(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
     due_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    sk_remarks = models.TextField(blank=True)  # what the SK wrote when submitting
+    review_remarks = models.TextField(blank=True)  # what LYDO wrote when approving or returning it
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

@@ -9,6 +9,7 @@ import ImageLightbox from '@/components/ui/ImageLightbox'
 import { ComplianceBadge, ComplianceMeter, ExemplaryAward, compliancePercent, complianceTile } from '@/components/ui/ComplianceBadge'
 import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
 import SKOfficialProfile from '../components/SKOfficialProfile'
+import { RequirementActions, StateBadge, SubmitDocumentModal, useMyChecklist, type MyRequirement } from '../components/RequirementSubmit'
 import { shrinkImage } from '@/utils/shrinkImage'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, cn } from '@/utils'
@@ -16,7 +17,10 @@ import { formatDate, cn } from '@/utils'
 interface Requirement {
   key: string
   label: string
-  status: 'submitted' | 'pending' | 'overdue'
+  // the honest state: only "verified" means completed; "submitted" is waiting for LYDO
+  status: 'not_submitted' | 'submitted' | 'returned' | 'verified' | 'overdue'
+  detail?: string
+  remarks?: string
   submitted_at?: string
 }
 
@@ -584,8 +588,8 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             <div className="mb-2.5"><ComplianceMeter pct={pct} /></div>
             {pct >= 100 && <div className="mb-3"><ExemplaryAward /></div>}
             <div className="flex flex-wrap gap-2">
-              <span className="badge badge-green text-sm">{barangay.submitted_count} submitted</span>
-              <span className="badge badge-gray text-sm">{barangay.pending_count} pending</span>
+              <span className="badge badge-green text-sm">{barangay.submitted_count} verified</span>
+              <span className="badge badge-gray text-sm">{barangay.pending_count} not yet verified</span>
               {barangay.overdue_count > 0 && <span className="badge badge-red text-sm">{barangay.overdue_count} overdue</span>}
             </div>
           </div>
@@ -678,19 +682,6 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
   )
 }
 
-const isSubmitted = (s: string) => s === 'submitted'
-
-const reqIcon = (status: string): React.ReactNode =>
-  isSubmitted(status)
-    ? <CheckCircle2 size={14} className="text-green-500" />
-    : <Circle size={14} className="text-ink-400" />
-
-const reqBadge = (status: string): string =>
-  isSubmitted(status) ? 'badge-green' : 'badge-gray'
-
-const reqLabel = (status: string): string =>
-  isSubmitted(status) ? 'Submitted' : 'Not Yet Submitted'
-
 function BarangayCard({
   b,
   onViewProfile,
@@ -706,6 +697,11 @@ function BarangayCard({
 }) {
   const [expanded, setExpanded] = useState(false)
   const [groupZoom, setGroupZoom] = useState(false)
+  const [submitting, setSubmitting] = useState<MyRequirement | null>(null)
+  const authUser = useAuthStore().user
+  // the SK of this barangay manages its documents right here (their own checklist, with the buttons)
+  const isMySK = isOwn && authUser?.youth_type === 'sk'
+  const mine = useMyChecklist(isMySK && expanded)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -874,21 +870,31 @@ function BarangayCard({
       )}
 
       {expanded && b.requirements && b.requirements.length > 0 && (
-        <div className="border-t border-ink-100 px-5 py-4 space-y-2.5">
-          {b.requirements.map(req => (
-            <div key={req.key} className="flex items-center justify-between gap-3 py-0.5">
-              <div className="flex items-center gap-2.5 min-w-0">
-                {reqIcon(req.status)}
-                <span className="text-sm text-ink-700">{req.label}</span>
+        <div className="border-t border-ink-100 px-5 py-4 space-y-3">
+          {b.requirements.map(req => {
+            const mineRow = mine.data?.requirements.find(m => m.type === req.key)
+            const remarks = req.status === 'returned' ? (mineRow?.remarks || req.remarks) : ''
+            return (
+              <div key={req.key} className="space-y-1.5">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 text-sm text-ink-800">{req.label}</span>
+                  <div className="flex flex-shrink-0 items-center gap-2">
+                    {req.detail && <span className="hidden text-xs text-ink-500 sm:inline">{req.detail}</span>}
+                    {req.submitted_at && <span className="text-xs text-ink-500">{formatDate(req.submitted_at)}</span>}
+                    <StateBadge state={req.status} />
+                  </div>
+                </div>
+                {remarks && <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"><strong>LYDO remarks:</strong> {remarks}</p>}
+                {isMySK && mineRow && <RequirementActions item={mineRow} onSubmit={setSubmitting} />}
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {req.submitted_at && <span className="text-xs text-ink-500">{formatDate(req.submitted_at)}</span>}
-                <span className={cn('badge text-xs', reqBadge(req.status))}>{reqLabel(req.status)}</span>
-              </div>
-            </div>
-          ))}
+            )
+          })}
+          {isOwn && authUser?.youth_type === 'sk' && (
+            <p className="pt-1 text-xs text-ink-500">Only documents verified by LYDO count as done. A document you submit waits for LYDO to review it.</p>
+          )}
         </div>
       )}
+      {submitting && <SubmitDocumentModal item={submitting} onClose={() => setSubmitting(null)} />}
     </div>
   )
 }

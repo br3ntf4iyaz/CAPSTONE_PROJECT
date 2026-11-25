@@ -3,6 +3,7 @@ from rest_framework import serializers
 from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
 from .models import SKBarangay, SKFeedback, SKMember, SKRequirement, SKRequirementTemplate
+from .states import counts_of, directory_states
 
 BLEACH_ALLOWED_TAGS = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a']
 BLEACH_ALLOWED_ATTRS = {'a': ['href', 'title', 'rel']}
@@ -249,19 +250,63 @@ class SKMemberSerializer(serializers.ModelSerializer):
 # SKBarangay — List
 # ---------------------------------------------------------------------------
 
-class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
+class SKStatesMixin:
+    """The requirement rows and the counts shown for a barangay come from sk_requirements.states: the honest state of each one.
+    A document counts as done ("submitted_count") only when LYDO verified it; an upload alone is "waiting for LYDO"."""
+
+    def _rows(self, obj):
+        cache = self.context.setdefault('sk_states', {})
+        if obj.id not in cache:
+            cache.update(directory_states([obj]))
+        return cache[obj.id]
+
+    def _public_rows(self, obj):
+        request = self.context.get('request')
+        out = []
+        for r in self._rows(obj):
+            url = None
+            if r.get('published_record_id'):
+                path = f"/api/compliance/fpdpb/files/{r['published_record_id']}/"
+                url = request.build_absolute_uri(path) if request else path
+            out.append({'id': r['id'], 'key': r['key'], 'label': r['label'], 'status': r['status'], 'detail': r['detail'],
+                        'remarks': r['remarks'], 'submitted_at': r['submitted_at'], 'monitored': r['monitored'], 'file_url': url})
+        return out
+
+    def get_total_requirements(self, obj):
+        return counts_of(self._rows(obj))['total']
+
+    def get_requirements_total(self, obj):
+        return counts_of(self._rows(obj))['total']
+
+    def get_submitted_count(self, obj):
+        return counts_of(self._rows(obj))['submitted']
+
+    def get_requirements_submitted(self, obj):
+        return counts_of(self._rows(obj))['submitted']
+
+    def get_pending_count(self, obj):
+        return counts_of(self._rows(obj))['pending']
+
+    def get_overdue_count(self, obj):
+        return counts_of(self._rows(obj))['overdue']
+
+
+class SKBarangayListSerializer(SKStatesMixin, SKOfficialsMixin, serializers.ModelSerializer):
     # Aliases expected by the admin frontend
     name = serializers.CharField(source='barangay_name')
     chairperson = serializers.CharField(source='sk_chairperson', allow_blank=True)
-    requirements = SKRequirementCompactSerializer(many=True, read_only=True)
-    total_requirements = serializers.IntegerField(read_only=True)
-    requirements_total = serializers.IntegerField(read_only=True, source='total_requirements')
-    submitted_count = serializers.IntegerField(read_only=True)
-    requirements_submitted = serializers.IntegerField(read_only=True, source='submitted_count')
-    pending_count = serializers.IntegerField(read_only=True)
-    overdue_count = serializers.IntegerField(read_only=True)
+    requirements = serializers.SerializerMethodField()
+    total_requirements = serializers.SerializerMethodField()
+    requirements_total = serializers.SerializerMethodField()
+    submitted_count = serializers.SerializerMethodField()
+    requirements_submitted = serializers.SerializerMethodField()
+    pending_count = serializers.SerializerMethodField()
+    overdue_count = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     members = SKMemberSerializer(many=True, read_only=True)
+
+    def get_requirements(self, obj):
+        return self._public_rows(obj)
 
     class Meta:
         model = SKBarangay
@@ -303,7 +348,10 @@ class SKBarangayListSerializer(SKOfficialsMixin, serializers.ModelSerializer):
 # SKBarangay — Detail
 # ---------------------------------------------------------------------------
 
-class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
+class SKBarangayDetailSerializer(SKStatesMixin, SKOfficialsMixin, serializers.ModelSerializer):
+    submitted_count = serializers.SerializerMethodField()
+    pending_count = serializers.SerializerMethodField()
+    overdue_count = serializers.SerializerMethodField()
     requirements = serializers.SerializerMethodField()
 
     def get_requirements(self, obj):
@@ -312,8 +360,9 @@ class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         full = bool(user and user.is_authenticated and getattr(user, 'role', '') in ('lgu_admin', 'super_admin'))
-        cls = SKRequirementSerializer if full else SKRequirementCompactSerializer
-        return cls(obj.requirements.all(), many=True, context=self.context).data
+        if full:
+            return SKRequirementSerializer(obj.requirements.all(), many=True, context=self.context).data
+        return self._public_rows(obj)
     logo_url = serializers.SerializerMethodField()
     members = SKMemberSerializer(many=True, read_only=True)
 
@@ -335,6 +384,9 @@ class SKBarangayDetailSerializer(SKOfficialsMixin, serializers.ModelSerializer):
             'is_active',
             'created_at',
             'requirements',
+            'submitted_count',
+            'pending_count',
+            'overdue_count',
         ]
         read_only_fields = ['created_at']
 

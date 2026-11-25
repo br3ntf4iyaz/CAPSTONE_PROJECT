@@ -54,8 +54,8 @@ class SKRequirementUploadTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.data['barangay']['name'], 'Barangay 1')
         self.assertEqual([x['type'] for x in r.data['requirements']], [c for c, _ in REQUIREMENT_CHOICES])
-        self.assertEqual(r.data['summary'], {'submitted': 0, 'total': len(REQUIREMENT_CHOICES)})
-        self.assertTrue(all(x['status'] == 'pending' for x in r.data['requirements']))
+        self.assertEqual((r.data['summary']['completed'], r.data['summary']['total']), (0, len(REQUIREMENT_CHOICES)))
+        self.assertTrue(all(x['status'] in ('not_submitted', 'overdue') for x in r.data['requirements']))  # nothing is submitted until it really is
 
     def test_checklist_is_not_duplicated_by_repeated_visits(self):
         self.mine(self.sk1); self.mine(self.sk1)
@@ -75,7 +75,8 @@ class SKRequirementUploadTests(TestCase):
         req = SKRequirement.objects.get(pk=rid)
         self.assertTrue(req.file.name.endswith('.pdf'))
         self.assertIsNotNone(req.submitted_at)
-        self.assertEqual(self.mine(self.sk1).data['summary']['submitted'], 1)
+        summary = self.mine(self.sk1).data['summary']
+        self.assertEqual((summary['awaiting'], summary['completed']), (1, 0))  # waiting for LYDO, not completed
 
     def test_upload_is_fingerprinted_on_the_ledger_and_verifies(self):
         rid = self.first_id()
