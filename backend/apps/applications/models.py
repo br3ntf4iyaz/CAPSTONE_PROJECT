@@ -16,7 +16,11 @@ class OpportunityApplication(models.Model):
     KIND_CHOICES = [('scholarship', 'Scholarship'), ('job', 'Job')]
     STATUS_CHOICES = [
         ('submitted', 'Submitted'), ('under_review', 'Under Review'),
-        ('approved', 'Approved'), ('rejected', 'Rejected'),
+        ('approved', 'Approved'), ('rejected', 'Rejected'), ('revoked', 'Approval Revoked'),
+    ]
+    AI_STATUS_CHOICES = [
+        ('pending', 'Waiting for AI screening'), ('processing', 'AI screening'), ('done', 'AI screening done'),
+        ('failed', 'AI screening failed'), ('unavailable', 'AI screening unavailable'),
     ]
 
     applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='opportunity_applications')
@@ -41,8 +45,28 @@ class OpportunityApplication(models.Model):
     previous_note = models.TextField(blank=True)  # the reason LYDO gave the last time it was not accepted
     status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='submitted')
     submitted_at = models.DateTimeField(auto_now_add=True)
-    admin_note = models.TextField(blank=True)
+    admin_note = models.TextField(blank=True)  # the reason or note the APPLICANT can read
     reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    # --- AI screening: an assistance only. It is kept apart from the administrator's decision (status) ---
+    ai_status = models.CharField(max_length=15, choices=AI_STATUS_CHOICES, default='pending')
+    ai_results = models.JSONField(default=dict, blank=True)  # per document: status + plain-language finding
+    ai_attempts = models.PositiveSmallIntegerField(default=0)
+    ai_started_at = models.DateTimeField(null=True, blank=True)
+    ai_completed_at = models.DateTimeField(null=True, blank=True)
+    file_names = models.JSONField(default=dict, blank=True)  # original file names, by requirement
+
+    # --- what the administrator did: opened is not verified ---
+    opened_docs = models.JSONField(default=dict, blank=True)  # requirement -> when an admin first opened it
+    manual_checks = models.JSONField(default=dict, blank=True)  # the boxes the administrator ticked by hand
+    ai_override_note = models.TextField(blank=True)  # why the admin approved although the AI flagged a requirement
+    rejected_items = models.JSONField(default=list, blank=True)  # which requirements were invalid or missing
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    revocation_reason = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-submitted_at']

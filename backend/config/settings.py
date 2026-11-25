@@ -207,6 +207,9 @@ if not DEBUG:
 
 # Anthropic API for chatbot
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+# AI screening of job applications (apps/applications/ai_screening.py): an assistance only, never a decision.
+AI_SCREENING_ENABLED = os.getenv('AI_SCREENING_ENABLED', 'true').lower() != 'false'
+AI_SCREENING_MODEL = os.getenv('AI_SCREENING_MODEL', 'claude-haiku-4-5-20251001')
 
 # Ledger anchoring (apps/ledger). ANCHOR_BACKEND = "ledger" (local hash chain, default)
 # or "evm" (hash written to an EVM chain such as Polygon Amoy / Ethereum Sepolia).

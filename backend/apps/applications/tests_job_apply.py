@@ -60,7 +60,7 @@ class JobApplicationTests(APITestCase):
         self.assertEqual(r.status_code, 201, r.data)
         for key in ('id_document_url', 'id_document_back_url', 'selfie_url', 'document_url'):
             self.assertTrue(r.data[key], key)
-        self.assertEqual(r.data['face_check']['matched'], True)
+        self.assertNotIn('face_check', r.data)  # the applicant's device measurement is for the administrator only
 
     def test_everything_is_required(self):
         for field in ('id_document', 'id_document_back', 'selfie', 'document', 'id_number', 'id_type'):
@@ -97,24 +97,21 @@ class JobApplicationTests(APITestCase):
             self.client.force_authenticate(self.admin)
             self.assertEqual(self.client.get(url).status_code, 200, part)
 
-    def test_an_application_cannot_be_decided_blindly(self):
+    def test_an_application_cannot_be_approved_blindly(self):
         app_id = self.apply().data['id']
         url = f'/api/applications/{app_id}/'
         self.client.force_authenticate(self.admin)
-        r = self.client.patch(url, {'status': 'approved', 'documents_checked': True}, format='json')
-        self.assertEqual(r.status_code, 400)
+        self.assertEqual(self.client.patch(url, {'status': 'approved'}, format='json').status_code, 400)  # not under review
         self.assertEqual(self.client.patch(url, {'status': 'under_review'}, format='json').status_code, 200)
-        self.assertEqual(self.client.patch(url, {'status': 'approved'}, format='json').status_code, 400)
-        self.assertEqual(self.client.patch(url, {'status': 'rejected', 'documents_checked': True}, format='json').status_code, 400)
-        ok = self.client.patch(url, {'status': 'approved', 'documents_checked': True, 'admin_note': 'Welcome aboard'}, format='json')
-        self.assertEqual(ok.status_code, 200, ok.data)
-        self.assertTrue(Notification.objects.filter(user=self.user, title='Application approved').exists())
+        r = self.client.patch(url, {'status': 'approved'}, format='json')  # nothing opened, nothing ticked
+        self.assertEqual(r.status_code, 400)
+        self.assertTrue(r.data['blockers'])
 
     def refuse(self, app_id, note='The back of the ID is not readable'):
         self.client.force_authenticate(self.admin)
         url = f'/api/applications/{app_id}/'
         self.client.patch(url, {'status': 'under_review'}, format='json')
-        return self.client.patch(url, {'status': 'rejected', 'documents_checked': True, 'admin_note': note}, format='json')
+        return self.client.patch(url, {'status': 'rejected', 'admin_note': note}, format='json')
 
     def test_a_refusal_with_a_reason_works_and_a_note_alone_can_be_edited_later(self):
         app_id = self.apply().data['id']
@@ -157,4 +154,4 @@ class JobApplicationTests(APITestCase):
         self.client.post(f'/api/applications/{app_id}/resubmit/', self.payload(), format='multipart')
         self.client.force_authenticate(self.admin)
         url = f'/api/applications/{app_id}/'
-        self.assertEqual(self.client.patch(url, {'status': 'approved', 'documents_checked': True}, format='json').status_code, 400)
+        self.assertEqual(self.client.patch(url, {'status': 'approved'}, format='json').status_code, 400)

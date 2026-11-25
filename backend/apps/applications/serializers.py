@@ -16,6 +16,15 @@ class ApplicationSerializer(serializers.ModelSerializer):
     id_document_url = serializers.SerializerMethodField()
     id_document_back_url = serializers.SerializerMethodField()
     selfie_url = serializers.SerializerMethodField()
+    approval_blockers = serializers.SerializerMethodField()
+    reviewed_by_name = serializers.SerializerMethodField()
+    approved_by_name = serializers.SerializerMethodField()
+    revoked_by_name = serializers.SerializerMethodField()
+
+    # Only an administrator sees these. The applicant never gets the AI findings or the administrator's private working.
+    ADMIN_ONLY = ['ai_status', 'ai_results', 'ai_started_at', 'ai_completed_at', 'file_names', 'opened_docs', 'manual_checks',
+                  'ai_override_note', 'approval_blockers', 'reviewed_by_name', 'approved_by_name', 'revoked_by_name',
+                  'revocation_reason', 'face_check']
 
     class Meta:
         model = OpportunityApplication
@@ -25,9 +34,14 @@ class ApplicationSerializer(serializers.ModelSerializer):
             'id_document_back', 'selfie', 'face_check', 'resubmit_count', 'previous_note',
             'document_url', 'id_document_url', 'id_document_back_url', 'selfie_url',
             'status', 'submitted_at', 'admin_note', 'reviewed_at',
+            'ai_status', 'ai_results', 'ai_started_at', 'ai_completed_at', 'file_names', 'opened_docs', 'manual_checks',
+            'ai_override_note', 'rejected_items', 'approval_blockers', 'reviewed_by_name', 'approved_at', 'approved_by_name',
+            'revoked_at', 'revoked_by_name', 'revocation_reason',
         ]
         read_only_fields = ['id', 'title', 'status', 'submitted_at', 'document_url', 'id_document_url', 'id_document_back_url',
-                            'selfie_url', 'admin_note', 'reviewed_at', 'resubmit_count', 'previous_note']
+                            'selfie_url', 'admin_note', 'reviewed_at', 'resubmit_count', 'previous_note',
+                            'ai_status', 'ai_results', 'ai_started_at', 'ai_completed_at', 'file_names', 'opened_docs', 'manual_checks',
+                            'ai_override_note', 'rejected_items', 'approved_at', 'revoked_at', 'revocation_reason']
         extra_kwargs = {
             'document': {'write_only': True, 'required': False},
             'id_document': {'write_only': True, 'required': False},
@@ -54,6 +68,30 @@ class ApplicationSerializer(serializers.ModelSerializer):
 
     def get_selfie_url(self, obj):
         return self._url(obj, 'selfie', 'selfie')
+
+    def get_approval_blockers(self, obj):
+        from .review_rules import approval_blockers
+        return approval_blockers(obj) if obj.status in ('submitted', 'under_review') else []
+
+    def _name(self, user):
+        return (user.get_full_name() if hasattr(user, 'get_full_name') else '') or getattr(user, 'email', '') if user else None
+
+    def get_reviewed_by_name(self, obj):
+        return self._name(obj.reviewed_by)
+
+    def get_approved_by_name(self, obj):
+        return self._name(obj.approved_by)
+
+    def get_revoked_by_name(self, obj):
+        return self._name(obj.revoked_by)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get('request')
+        if not (request and request.user.is_authenticated and request.user.role in ('lgu_admin', 'super_admin')):
+            for key in self.ADMIN_ONLY:
+                data.pop(key, None)
+        return data
 
     def validate_face_check(self, value):
         """Keep only plain numbers and flags from the device. The reviewer, not this number, decides."""

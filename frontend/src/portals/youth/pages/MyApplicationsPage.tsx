@@ -11,7 +11,7 @@ export interface MyApplication {
   kind: 'job' | 'scholarship'
   object_id: number
   title: string
-  status: 'submitted' | 'under_review' | 'for_compliance' | 'approved' | 'rejected' | 'withdrawn'
+  status: 'submitted' | 'under_review' | 'for_compliance' | 'approved' | 'rejected' | 'revoked' | 'withdrawn'
   submitted_at: string
   admin_note?: string
   reviewed_at?: string | null
@@ -24,6 +24,7 @@ export const APPLICATION_STATUS: Record<MyApplication['status'], { label: string
   approved:     { label: 'Approved',     cls: 'bg-emerald-100 text-emerald-800', hint: 'Congratulations! Check the note below for next steps.' },
   rejected:     { label: 'Not accepted', cls: 'bg-red-100 text-red-700',         hint: 'This application was not accepted this time.' },
   for_compliance: { label: SCHOLARSHIP_STATUS.for_compliance.label, cls: SCHOLARSHIP_STATUS.for_compliance.cls, hint: SCHOLARSHIP_STATUS.for_compliance.hint },
+  revoked:      { label: 'Approval revoked', cls: 'bg-orange-100 text-orange-800', hint: 'LYDO took back the approval. The reason is shown below.' },
   withdrawn:    { label: 'Withdrawn',    cls: 'bg-ink-100 text-ink-500',         hint: 'You withdrew this application.' },
 }
 
@@ -45,9 +46,9 @@ export function useMyApplications() {
 }
 
 function Progress({ status }: { status: MyApplication['status'] }) {
-  const done = status === 'approved' || status === 'rejected'
+  const done = status === 'approved' || status === 'rejected' || status === 'revoked'
   const idx = done ? 2 : STEPS.indexOf(status)
-  const labels = ['Submitted', 'Under review', status === 'rejected' ? 'Not accepted' : 'Decision']
+  const labels = ['Submitted', 'Under review', status === 'rejected' ? 'Not accepted' : status === 'revoked' ? 'Approval revoked' : 'Decision']
   return (
     <ol className="flex items-center gap-1.5 text-[11px] font-semibold" aria-label="Application progress">
       {labels.map((l, i) => (
@@ -56,7 +57,7 @@ function Progress({ status }: { status: MyApplication['status'] }) {
             className={cn(
               'px-2 py-0.5 rounded-full',
               i <= idx
-                ? (i === 2 && status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700')
+                ? (i === 2 && (status === 'rejected' || status === 'revoked') ? 'bg-red-100 text-red-700' : 'bg-primary-100 text-primary-700')
                 : 'bg-ink-50 text-ink-400',
             )}
           >
