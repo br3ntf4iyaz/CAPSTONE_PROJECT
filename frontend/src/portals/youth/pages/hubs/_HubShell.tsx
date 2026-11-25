@@ -12,7 +12,7 @@ import { cn } from '@/utils'
 export interface HubItem {
   title: string
   description: string
-  icon: LucideIcon
+  icon: React.ElementType  // a line icon, or a custom drawing such as the certificate seal
   to?: string                 // omit for "coming soon" cards
   badge?: string              // optional eyebrow tag (e.g. "New", "Coming soon")
   external?: boolean
