@@ -181,7 +181,8 @@ class AIReviewTests(APITestCase):
     @override_settings(ANTHROPIC_API_KEY='')
     def test_without_an_ai_key_it_says_unavailable(self):
         app_id = self.apply()
-        app = self.screen(app_id, model_answer())
+        with mock.patch.dict('os.environ', {'GROQ_API_KEY': ''}):
+            app = self.screen(app_id, model_answer())
         self.assertEqual(app.ai_status, 'unavailable')
         self.assertEqual(app.ai_results['documents']['id_front']['status'], 'unavailable')
 
@@ -284,3 +285,14 @@ class AIReviewTests(APITestCase):
         app.document.save('cv.pdf', SimpleUploadedFile('cv.pdf', b'not a pdf at all'), save=True)
         out = self.screen(app_id, json.dumps({k: v for k, v in json.loads(model_answer()).items() if k != 'resume'}))
         self.assertEqual(out.ai_results['documents']['resume']['status'], 'invalid')
+
+    @override_settings(ANTHROPIC_API_KEY='')
+    def test_the_free_service_is_chosen_when_only_its_key_exists(self):
+        with mock.patch.dict('os.environ', {'GROQ_API_KEY': 'gsk-test'}):
+            self.assertEqual(ai_screening.provider(), 'groq')
+            # a PDF with no readable text is left for the administrator, never called valid or invalid
+            app_id = self.apply()
+            answer = json.dumps({k: v for k, v in json.loads(model_answer()).items() if k != 'resume'})
+            app = self.screen(app_id, answer)
+        self.assertEqual(app.ai_results['documents']['resume']['status'], 'needs_review')
+        self.assertEqual(app.ai_status, 'done')

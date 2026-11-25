@@ -16,6 +16,7 @@ channels==4.0.0
 channels-redis==4.2.0
 daphne==4.1.0
 anthropic
+pypdf
 google-auth
 web3>=7
 gunicorn==22.0.0

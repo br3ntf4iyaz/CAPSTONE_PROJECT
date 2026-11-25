@@ -11,6 +11,7 @@ import logging
 import re
 import threading
 import time
+import os
 import zipfile
 
 from django.conf import settings
@@ -58,8 +59,19 @@ Rules:
 - A document given as "(not provided)" must not appear in your answer."""
 
 
+def provider():
+    """Which AI service reads the documents: Claude if its key is set, otherwise Groq (free tier) if its key is set."""
+    if not getattr(settings, 'AI_SCREENING_ENABLED', True):
+        return None
+    if getattr(settings, 'ANTHROPIC_API_KEY', ''):
+        return 'anthropic'
+    if os.getenv('GROQ_API_KEY', ''):
+        return 'groq'
+    return None
+
+
 def enabled():
-    return bool(getattr(settings, 'ANTHROPIC_API_KEY', '')) and getattr(settings, 'AI_SCREENING_ENABLED', True)
+    return provider() is not None
 
 
 # ----------------------------------------------------------------------------------------------- reading the files
@@ -73,7 +85,7 @@ def _image_block(raw):
     img.thumbnail((1568, 1568))
     out = io.BytesIO()
     img.save(out, format='JPEG', quality=85)
-    return {'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': base64.standard_b64encode(out.getvalue()).decode()}}
+    return {'type': 'image', 'b64': base64.standard_b64encode(out.getvalue()).decode()}
 
 
 def _docx_text(raw):
@@ -82,6 +94,16 @@ def _docx_text(raw):
     text = re.sub(r'</w:p>', '\n', xml)
     text = re.sub(r'<[^>]+>', '', text)
     return text.strip()[:12000]
+
+
+def _pdf_text(raw):
+    """Text inside a PDF, or None when it cannot be read."""
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(io.BytesIO(raw))
+        return '\n'.join((page.extract_text() or '') for page in reader.pages[:6]).strip()[:12000]
+    except Exception:
+        return None
 
 
 def _read(app, key):
@@ -104,7 +126,14 @@ def _read(app, key):
         if name.endswith('.pdf'):
             if not raw.startswith(b'%PDF'):
                 return 'invalid', 'The file is not a readable PDF.'
-            return 'ok', [{'type': 'document', 'source': {'type': 'base64', 'media_type': 'application/pdf', 'data': base64.standard_b64encode(raw).decode()}}]
+            if provider() == 'groq':  # this service reads pictures and text, not PDF files: read the text out of the PDF
+                text = _pdf_text(raw)
+                if text is None:
+                    return 'review', 'This PDF could not be read automatically (it may be a scan or a picture). Open it and check it yourself.'
+                if len(text) < 20:
+                    return 'review', 'The PDF has almost no readable text (it may be a scan). Open it and check it yourself.'
+                return 'ok', [{'type': 'text', 'text': f'(text of the PDF)\n{text}'}]
+            return 'ok', [{'type': 'pdf', 'b64': base64.standard_b64encode(raw).decode()}]
         if name.endswith('.docx'):
             text = _docx_text(raw)
             if len(text) < 20:
@@ -125,7 +154,52 @@ class Transient(Exception):
 
 def _call_model(content):
     """One request to the AI service. Kept separate so tests can replace it. Raises Transient for retryable trouble."""
+    if provider() == 'groq':
+        return _call_groq(content)
+    return _call_anthropic(content)
+
+
+GROQ_MODELS = [m for m in (os.getenv('AI_SCREENING_GROQ_MODEL', ''), 'meta-llama/llama-4-scout-17b-16e-instruct',
+                           'meta-llama/llama-4-maverick-17b-128e-instruct') if m]
+
+
+def _call_groq(content):
+    import httpx
+    import openai
+    parts = []
+    for b in content:
+        if b['type'] == 'image':
+            parts.append({'type': 'image_url', 'image_url': {'url': f"data:image/jpeg;base64,{b['b64']}"}})
+        elif b['type'] == 'text':
+            parts.append({'type': 'text', 'text': b['text']})
+    client = openai.OpenAI(
+        api_key=os.getenv('GROQ_API_KEY', ''), base_url='https://api.groq.com/openai/v1', max_retries=0,
+        http_client=httpx.Client(proxy=os.getenv('OUTBOUND_PROXY') or None, timeout=90.0),
+    )
+    last = None
+    for model in GROQ_MODELS:
+        try:
+            r = client.chat.completions.create(model=model, max_tokens=1800, temperature=0,
+                                               messages=[{'role': 'system', 'content': SYSTEM_PROMPT}, {'role': 'user', 'content': parts}])
+            return r.choices[0].message.content or ''
+        except (openai.APIConnectionError, openai.APITimeoutError, openai.RateLimitError, openai.InternalServerError) as exc:
+            raise Transient(str(exc)) from exc
+        except (openai.NotFoundError, openai.PermissionDeniedError, openai.BadRequestError) as exc:
+            last = exc  # this model is not available to the key: try the next one
+    raise last or RuntimeError('No vision model is available.')
+
+
+def _call_anthropic(content):
     import anthropic
+    blocks = []
+    for b in content:
+        if b['type'] == 'image':
+            blocks.append({'type': 'image', 'source': {'type': 'base64', 'media_type': 'image/jpeg', 'data': b['b64']}})
+        elif b['type'] == 'pdf':
+            blocks.append({'type': 'document', 'source': {'type': 'base64', 'media_type': 'application/pdf', 'data': b['b64']}})
+        else:
+            blocks.append(b)
+    content = blocks
     import os
     import httpx
     # PythonAnywhere free accounts reach the internet only through a proxy (same OUTBOUND_PROXY the chatbot uses)
