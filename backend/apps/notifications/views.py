@@ -207,7 +207,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser, JSONParser]
-    http_method_names = ['get', 'post', 'head', 'options']
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
 
     def get_permissions(self):
         if self.action in ('create', 'admin_history'):
@@ -284,6 +284,25 @@ class NotificationViewSet(viewsets.ModelViewSet):
         broadcasts = BroadcastNotification.objects.select_related('sent_by').all()
         serializer = BroadcastNotificationSerializer(broadcasts, many=True, context={'request': request})
         return Response(serializer.data)
+
+    # ── User: delete one update ───────────────────────────────────────────
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        DELETE /notifications/{id}/ — remove ONE of the caller's own update notifications.
+
+        get_queryset() only contains the caller's rows, so someone else's notification is a 404
+        (it is never confirmed to exist). Admin announcements (the Messages tab) are not deletable
+        here, and nothing else (messages, broadcasts, other users' rows) is touched.
+        """
+        notification = self.get_object()
+        if notification.notification_type == 'announcement':
+            return Response(
+                {'detail': 'Messages cannot be deleted from here.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        notification.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     # ── User: mark read ───────────────────────────────────────────────────
 

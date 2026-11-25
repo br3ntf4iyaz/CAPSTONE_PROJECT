@@ -1,4 +1,5 @@
 ﻿import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Outlet, NavLink, Link, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import YouthPublicLayout from './YouthPublicLayout'
 import { LydoLogo } from '@/components/ui/LydoLogo'
@@ -7,8 +8,9 @@ import {
   Library, MessageSquareWarning, User, LogOut, Bell, Menu, X,
   MessageCircle, FileText, Building2, ChevronDown, HandHeart, Newspaper,
   CheckCheck, ShieldCheck, ShieldAlert, ChevronRight, ChevronLeft, CreditCard,
-  Mail, Paperclip, ClipboardCheck, Landmark,
+  Mail, Paperclip, ClipboardCheck, Landmark, MoreVertical, Trash2,
 } from 'lucide-react'
+import toast from 'react-hot-toast'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
 import { useMe } from '@/hooks/useAuth'
@@ -182,13 +184,17 @@ function NotificationPanel() {
   const [open, setOpen]           = useState(false)
   const [activeTab, setActiveTab] = useState<'updates' | 'messages'>('updates')
   const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null)
+  const [confirmId, setConfirmId] = useState<number | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   const qc  = useQueryClient()
   const navigate = useNavigate()
 
+  useEffect(() => { if (!open) { setMenu(null); setConfirmId(null) } }, [open])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-notif-portal]')) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -213,6 +219,20 @@ function NotificationPanel() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['notifications'] })
       qc.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+
+  // Delete ONE update the user owns (the server refuses other users' notifications and announcements)
+  const deleteNotif = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/notifications/${id}/`),
+    onSuccess: () => {
+      setConfirmId(null)
+      qc.invalidateQueries({ queryKey: ['notifications'] })
+      qc.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+      toast.success('Notification deleted successfully.')
+    },
+    onError: (e: any) => {
+      toast.error(e?.response?.data?.detail ?? 'Could not delete the notification. Please try again.')
     },
   })
 
@@ -301,15 +321,16 @@ function NotificationPanel() {
               updates.length === 0 ? (
                 <div className="p-8 text-center">
                   <Bell size={28} className="mx-auto mb-2 text-ink-300" />
-                  <p className="text-sm text-ink-500">No notifications yet</p>
+                  <p className="text-sm font-semibold text-ink-700">No notifications yet.</p>
+                  <p className="text-xs text-ink-400 mt-1">You&apos;re all caught up! New updates will appear here.</p>
                 </div>
               ) : (
                 updates.map(n => {
                   const dest = n.link || NOTIF_TYPE_ROUTE[n.notification_type] || null
                   const isExternal = !!dest && (dest.startsWith('http://') || dest.startsWith('https://'))
                   return (
+                    <div key={n.id} className="group relative">
                     <button
-                      key={n.id}
                       onClick={() => {
                         if (!n.is_read) markRead.mutate(n.id)
                         if (dest) {
@@ -322,7 +343,7 @@ function NotificationPanel() {
                         }
                       }}
                       className={cn(
-                        'w-full text-left px-4 py-3 hover:bg-primary-50 transition-colors',
+                        'w-full text-left pl-4 pr-10 py-3 hover:bg-primary-50 transition-colors',
                         !n.is_read && 'bg-primary-50/50',
                         dest && 'cursor-pointer',
                       )}
@@ -342,6 +363,26 @@ function NotificationPanel() {
                         </div>
                       </div>
                     </button>
+                    {/* Three-dot menu: always visible on touch screens, on hover for desktop */}
+                    <button
+                      type="button"
+                      aria-label="Notification options"
+                      aria-haspopup="menu"
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (menu?.id === n.id) { setMenu(null); return }
+                        const r = e.currentTarget.getBoundingClientRect()
+                        setMenu({ id: n.id, top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) })
+                      }}
+                      className={cn(
+                        'absolute top-2.5 right-2 w-7 h-7 inline-flex items-center justify-center rounded-full text-ink-500 hover:bg-primary-100 hover:text-primary-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                        'sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100',
+                        menu?.id === n.id && 'sm:opacity-100 bg-primary-100 text-primary-700',
+                      )}
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    </div>
                   )
                 })
               )
@@ -422,6 +463,66 @@ function NotificationPanel() {
               )
             )}
           </div>
+
+          {/* Options menu of one update (fixed, so the scrolling list never clips it) */}
+          {menu && createPortal(
+            <div data-notif-portal>
+              <div className="fixed inset-0 z-[60]" onMouseDown={e => { e.stopPropagation(); setMenu(null) }} />
+              <div
+                role="menu"
+                className="fixed z-[61] min-w-[11rem] rounded-xl bg-white border border-ink-100 shadow-xl py-1"
+                style={{ top: menu.top, right: menu.right }}
+              >
+                <button
+                  role="menuitem"
+                  onClick={() => { setConfirmId(menu.id); setMenu(null) }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={14} /> Delete this notification
+                </button>
+              </div>
+            </div>
+          , document.body)}
+
+          {/* Confirmation before anything is deleted */}
+          {confirmId !== null && createPortal(
+            <div data-notif-portal
+              className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-primary-950/60 backdrop-blur-sm"
+              onMouseDown={e => { e.stopPropagation(); if (!deleteNotif.isPending) setConfirmId(null) }}
+            >
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="del-notif-title"
+                onMouseDown={e => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-6 text-center"
+              >
+                <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                  <Trash2 size={22} />
+                </span>
+                <h3 id="del-notif-title" className="font-display font-bold text-lg text-ink-900">Delete Notification?</h3>
+                <p className="mt-1.5 text-sm text-ink-600">
+                  Are you sure you want to delete this notification? This action cannot be undone.
+                </p>
+                <div className="mt-5 flex flex-col-reverse sm:flex-row gap-2 sm:justify-center">
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    disabled={deleteNotif.isPending}
+                    className="px-4 py-2 rounded-xl border border-ink-200 text-sm font-semibold text-ink-700 hover:bg-paper-50 disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => deleteNotif.mutate(confirmId)}
+                    disabled={deleteNotif.isPending}
+                    className="px-4 py-2 rounded-xl bg-red-600 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {deleteNotif.isPending ? 'Deleting…' : 'Delete Notification'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          , document.body)}
         </div>
       )}
     </div>
