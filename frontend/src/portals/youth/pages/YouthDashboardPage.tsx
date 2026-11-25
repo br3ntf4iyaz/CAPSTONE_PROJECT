@@ -583,7 +583,7 @@ export default function YouthDashboardPage() {
           <header className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2.5">
               <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent-100">
-                <img src="/images/icons/announcements.png" alt="" className="w-full h-full object-contain scale-125" />
+                <img src="/images/icons/announcements.png" alt="" className="w-full h-full object-contain scale-100" />
               </span>
               <h2 className="section-title !mb-0">Announcements</h2>
             </div>
