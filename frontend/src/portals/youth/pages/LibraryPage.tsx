@@ -51,7 +51,18 @@ const CATEGORIES: { key: CategoryKey; label: string; icon: React.ReactNode; colo
   { key: 'other',      label: 'Other',           icon: <FileText size={16} />,     color: 'text-gray-700',      bg: 'bg-gray-100' },
 ]
 
-const CATEGORY_MAP = Object.fromEntries(CATEGORIES.map(c => [c.key, c]))
+// Soft tinted filter tabs (the "All Materials" tab is the solid blue one)
+const TAB_TONES: Record<string, string> = {
+  legal:      'bg-blue-50 text-blue-800 border-blue-200 hover:border-blue-400 ring-blue-300',
+  governance: 'bg-indigo-50 text-indigo-800 border-indigo-200 hover:border-indigo-400 ring-indigo-300',
+  education:  'bg-emerald-50 text-emerald-800 border-emerald-200 hover:border-emerald-400 ring-emerald-300',
+  health:     'bg-rose-50 text-rose-800 border-rose-200 hover:border-rose-400 ring-rose-300',
+  financial:  'bg-teal-50 text-teal-800 border-teal-200 hover:border-teal-400 ring-teal-300',
+  leadership: 'bg-amber-50 text-amber-800 border-amber-200 hover:border-amber-400 ring-amber-300',
+  other:      'bg-gray-100 text-gray-700 border-gray-200 hover:border-gray-400 ring-gray-300',
+}
+
+const CATEGORY_MAP =Object.fromEntries(CATEGORIES.map(c => [c.key, c]))
 
 // ── Resource type badge ─────────────────────────────────────────────────────
 
@@ -466,20 +477,24 @@ export default function LibraryPage() {
             ? resources.filter(r => r.is_published).length
             : (countByCategory[cat.key] ?? 0)
           const isActive = activeCategory === cat.key
+          const isAll = cat.key === 'all'
+          const tone = TAB_TONES[cat.key]
           return (
             <button
               key={cat.key}
               onClick={() => setActiveCategory(cat.key)}
               className={cn(
                 'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border',
-                isActive
-                  ? `${cat.bg} ${cat.color} border-transparent shadow-sm`
-                  : 'bg-white text-ink-600 border-ink-100 hover:border-ink-200 hover:bg-paper-50',
+                isAll
+                  ? cn('bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-600/20 hover:bg-primary-700', isActive && 'ring-2 ring-primary-300')
+                  : cn(tone, isActive && 'ring-2 shadow-sm font-bold'),
               )}
             >
-              {cat.icon}
+              {isAll ? (
+                <span className="inline-flex items-center justify-center w-6 h-6 -ml-1 rounded-lg bg-accent-400 text-primary-900">{cat.icon}</span>
+              ) : cat.icon}
               {cat.label}
-              <span className={cn('ml-0.5 opacity-70', isActive ? cat.color : 'text-ink-400')}>
+              <span className={cn('ml-0.5', isAll ? 'text-primary-100' : 'opacity-70')}>
                 ({count})
               </span>
             </button>
