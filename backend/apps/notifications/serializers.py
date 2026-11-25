@@ -8,6 +8,9 @@ class NotificationSerializer(serializers.ModelSerializer):
         source='get_notification_type_display', read_only=True
     )
 
+    actor_name = serializers.SerializerMethodField()
+    actor_avatar = serializers.SerializerMethodField()
+
     class Meta:
         model = Notification
         fields = [
@@ -20,8 +23,21 @@ class NotificationSerializer(serializers.ModelSerializer):
             'read_at',
             'link',
             'created_at',
+            'actor_name',
+            'actor_avatar',
+            'post_id',
+            'comment_id',
         ]
         read_only_fields = ['is_read', 'read_at', 'created_at']
+
+    def get_actor_name(self, obj):
+        return (obj.actor.get_full_name() or obj.actor.email) if obj.actor_id else ''
+
+    def get_actor_avatar(self, obj):
+        if obj.actor_id and obj.actor.avatar:
+            request = self.context.get('request')
+            return request.build_absolute_uri(obj.actor.avatar.url) if request else obj.actor.avatar.url
+        return None
 
 
 class BroadcastCreateSerializer(serializers.Serializer):

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import {
@@ -10,7 +11,7 @@ import {
 import { compliancePercent, complianceTile } from '@/components/ui/ComplianceBadge'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
-import type { CommunityPost, CommunityPostImage, CommunityPostPage, CommunityComment } from '@/api/community'
+import type { CommunityPost, CommunityPostImage, CommunityPostPage, CommunityComment, CommunityReactor } from '@/api/community'
 import { useAuthStore } from '@/store/authStore'
 import { cn, toArray, timeAgo } from '@/utils'
 
@@ -65,6 +66,12 @@ export default function CommunityHubPage() {
   const [editingPostId, setEditingPostId] = useState<number | null>(null)
   const [postToDelete, setPostToDelete] = useState<number | null>(null)
   const [editContent, setEditContent] = useState('')
+  const [reactorsPostId, setReactorsPostId] = useState<number | null>(null)
+
+  // A notification opens the feed at  /community?post=ID&comment=ID : show and highlight that post
+  const [searchParams, setSearchParams] = useSearchParams()
+  const linkedPostId = Number(searchParams.get('post')) || null
+  const linkedCommentId = Number(searchParams.get('comment')) || null
 
   const toggleComments = (id: number) => {
     setOpenCommentIds(prev => {
@@ -104,9 +111,41 @@ export default function CommunityHubPage() {
       communityApi.list(pageParam as number, selectedBarangay ?? undefined),
     getNextPageParam: (last, pages) => last.next ? pages.length + 1 : undefined,
     initialPageParam: 1,
+    refetchInterval: 10000, // new reactions and comments show up without a manual refresh
   })
 
-  const posts = useMemo(() => postsData?.pages.flatMap(p => p.results) ?? [], [postsData])
+  const loadedPosts = useMemo(() => postsData?.pages.flatMap(p => p.results) ?? [], [postsData])
+
+  const { data: linkedPost, isError: linkedMissing } = useQuery<CommunityPost>({
+    queryKey: ['community-post', linkedPostId],
+    queryFn: () => communityApi.get(linkedPostId as number),
+    enabled: !!linkedPostId,
+    retry: false,
+    refetchInterval: 10000,
+  })
+  // the post a notification points to is always shown, even when it is not in the pages loaded so far
+  const posts = useMemo(
+    () => (linkedPost && !loadedPosts.some(p => p.id === linkedPost.id) ? [linkedPost, ...loadedPosts] : loadedPosts),
+    [linkedPost, loadedPosts],
+  )
+
+  useEffect(() => {
+    if (linkedPostId && linkedMissing) {
+      toast.error('This post is no longer available.')
+      setSearchParams({}, { replace: true })
+    }
+  }, [linkedPostId, linkedMissing, setSearchParams])
+
+  // open the linked post's comments and scroll to the post (or to the comment itself)
+  useEffect(() => {
+    if (!linkedPost) return
+    setOpenCommentIds(prev => (prev.has(linkedPost.id) ? prev : new Set(prev).add(linkedPost.id)))
+    const t = window.setTimeout(() => {
+      const el = (linkedCommentId && document.getElementById('comment-' + linkedCommentId)) || document.getElementById('post-' + linkedPost.id)
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 600)
+    return () => window.clearTimeout(t)
+  }, [linkedPost?.id, linkedCommentId])
 
   // Accumulate known barangays for filter chips (never shrink when filter changes)
   useEffect(() => {
@@ -179,6 +218,7 @@ export default function CommunityHubPage() {
         queryClient.setQueryData(['community-posts', selectedBarangay], ctx.prev)
       }
     },
+    onSettled: (_d, _e, id) => { queryClient.invalidateQueries({ queryKey: ['community-post', id] }) },
     onSuccess: (data, id) => {
       queryClient.setQueryData(
         ['community-posts', selectedBarangay],
@@ -515,9 +555,11 @@ export default function CommunityHubPage() {
           {posts.map(post => (
             <div
               key={post.id}
+              id={'post-' + post.id}
               className={cn(
-                'bg-white rounded-xl border p-4',
-                post.is_pinned ? 'border-amber-300 bg-amber-50/30' : 'border-ink-200'
+                'bg-white rounded-xl border p-4 transition-shadow',
+                post.is_pinned ? 'border-amber-300 bg-amber-50/30' : 'border-ink-200',
+                post.id === linkedPostId && 'ring-2 ring-primary-400 border-primary-300 shadow-md',
               )}
             >
               <div className="flex items-start gap-3">
@@ -623,8 +665,16 @@ export default function CommunityHubPage() {
                       )}
                     >
                       <Heart size={14} className={post.is_liked ? 'fill-red-500' : ''} />
-                      {post.like_count > 0 && <span>{post.like_count}</span>}
                     </button>
+                    {post.like_count > 0 && (
+                      <button
+                        onClick={() => setReactorsPostId(post.id)}
+                        aria-label={'See who reacted (' + post.like_count + ')'}
+                        className="-ml-2.5 text-xs font-medium text-ink-500 hover:text-primary-700 hover:underline transition-colors"
+                      >
+                        {post.like_count}
+                      </button>
+                    )}
                     <button
                       onClick={() => toggleComments(post.id)}
                       className={cn(
@@ -637,7 +687,7 @@ export default function CommunityHubPage() {
                     </button>
                   </div>
 
-                  <CommentsSection postId={post.id} currentUser={auth.user} showList={openCommentIds.has(post.id)} />
+                  <CommentsSection postId={post.id} currentUser={auth.user} showList={openCommentIds.has(post.id)} highlightCommentId={post.id === linkedPostId ? linkedCommentId : null} />
                 </div>
               </div>
             </div>
@@ -661,6 +711,8 @@ export default function CommunityHubPage() {
 
         </div>
       </section>
+
+      {reactorsPostId !== null && <ReactorsModal postId={reactorsPostId} onClose={() => setReactorsPostId(null)} />}
 
       {postToDelete !== null && (
         <ConfirmDeleteDialog
@@ -916,7 +968,63 @@ function HubCard({
   )
 }
 
-function CommentsSection({ postId, currentUser, showList }: { postId: number; currentUser: any; showList: boolean }) {
+/** Everyone who reacted to one post: photo, name and account type, newest first. */
+function ReactorsModal({ postId, onClose }: { postId: number; onClose: () => void }) {
+  const { data, isLoading, isError } = useQuery<{ count: number; results: CommunityReactor[] }>({
+    queryKey: ['post-reactors', postId],
+    queryFn: () => communityApi.reactors(postId),
+    refetchInterval: 10000,
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm p-0 sm:p-4" onMouseDown={onClose}>
+      <div
+        role="dialog" aria-modal="true" aria-label="People who reacted"
+        onMouseDown={e => e.stopPropagation()}
+        className="w-full sm:max-w-sm max-h-[80vh] flex flex-col rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl overflow-hidden"
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-ink-100">
+          <div>
+            <h3 className="font-display font-bold text-ink-900">People who reacted</h3>
+            <p className="text-xs text-ink-500 mt-0.5 flex items-center gap-1">
+              <Heart size={12} className="fill-red-500 text-red-500" /> {data?.count ?? 0} {(data?.count ?? 0) === 1 ? 'reaction' : 'reactions'}
+            </p>
+          </div>
+          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full text-ink-500 hover:bg-ink-100"><X size={16} className="mx-auto" /></button>
+        </div>
+        <div className="overflow-y-auto divide-y divide-ink-50">
+          {isLoading ? (
+            <div className="p-6 text-center text-sm text-ink-500">Loading…</div>
+          ) : isError ? (
+            <div className="p-6 text-center text-sm text-red-600">Could not load the list. Please try again.</div>
+          ) : (data?.results.length ?? 0) === 0 ? (
+            <div className="p-6 text-center text-sm text-ink-500">No reactions yet.</div>
+          ) : (
+            data!.results.map(p => (
+              <div key={p.id} className="flex items-center gap-3 px-5 py-3">
+                <span className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 inline-flex items-center justify-center font-semibold text-primary-700">
+                  {p.avatar ? <img src={p.avatar} alt="" className="w-full h-full object-cover" /> : p.name[0]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-ink-900 truncate">{p.name}</p>
+                  <p className="text-xs text-ink-500">{p.account_type}</p>
+                </div>
+                <Heart size={16} className="fill-red-500 text-red-500 flex-shrink-0" aria-label="Heart" />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
+function CommentsSection({ postId, currentUser, showList, highlightCommentId = null }: { postId: number; currentUser: any; showList: boolean; highlightCommentId?: number | null }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
   const [commentToDelete, setCommentToDelete] = useState<number | null>(null)
@@ -925,6 +1033,7 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
     queryKey: ['comments', postId],
     queryFn: () => communityApi.listComments(postId),
     enabled: showList,
+    refetchInterval: showList ? 10000 : false,
   })
 
   const addComment = useMutation({
@@ -964,7 +1073,7 @@ function CommentsSection({ postId, currentUser, showList }: { postId: number; cu
               <p className="text-xs text-ink-400 text-center py-1">No comments yet. Be the first!</p>
             )}
             {comments.map(c => (
-              <div key={c.id} className="flex gap-2">
+              <div key={c.id} id={'comment-' + c.id} className={cn('flex gap-2 rounded-xl', c.id === highlightCommentId && 'bg-primary-50 ring-1 ring-primary-200 p-1 -m-1')}>
                 <div className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">
                   {c.author_avatar
                     ? <img src={c.author_avatar} alt="" className="w-full h-full object-cover" />

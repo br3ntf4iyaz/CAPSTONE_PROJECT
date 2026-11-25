@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from django.db import models
 from .models import CommunityPost, CommunityPostImage, PostReaction, CommunityComment
 from .serializers import CommunityPostSerializer, CommunityCommentSerializer
+from . import notify
 
 
 ALLOWED_IMAGE_TYPES = {'JPEG', 'PNG', 'WEBP', 'GIF'}
@@ -105,7 +106,10 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         role = getattr(request.user, 'role', '')
         if post.author_id != request.user.id and role not in ('lgu_admin', 'super_admin'):
             raise PermissionDenied("You can only delete your own posts.")
-        return super().destroy(request, *args, **kwargs)
+        post_id = post.pk
+        response = super().destroy(request, *args, **kwargs)
+        notify.forget_post(post_id)  # no notification may keep pointing at a deleted post
+        return response
 
     @action(detail=True, methods=['post'], permission_classes=[IsVerifiedOrAdmin])
     def react(self, request, pk=None):
@@ -115,8 +119,29 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         )
         if not created:
             reaction.delete()
+        # grouped notification to the post owner (nothing for their own reaction; quiet update on removal)
+        notify.sync_reaction_notification(post, bump=created)
         count = PostReaction.objects.filter(post=post).count()
         return Response({'liked': created, 'count': count})
+
+    @action(detail=True, methods=['get'], permission_classes=[permissions.IsAuthenticated])
+    def reactors(self, request, pk=None):
+        """Everyone who reacted to this post (name, photo and account type only, no private details)."""
+        post = self.get_object()
+        rows = PostReaction.objects.filter(post=post).select_related('user').order_by('-created_at', '-id')
+        people = []
+        for r in rows:
+            u = r.user
+            avatar = request.build_absolute_uri(u.avatar.url) if u.avatar else None
+            people.append({
+                'id': u.id,
+                'name': notify.name_of(u),
+                'avatar': avatar,
+                'account_type': notify.account_type(u),
+                'reaction': 'heart',
+                'reacted_at': r.created_at,
+            })
+        return Response({'count': len(people), 'results': people})
 
     @action(detail=True, methods=['post'])
     def pin(self, request, pk=None):
@@ -147,6 +172,7 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         if len(content) > 1000:
             return Response({'detail': 'Comment too long (max 1000 characters).'}, status=status.HTTP_400_BAD_REQUEST)
         comment = CommunityComment.objects.create(post=post, author=request.user, content=content)
+        notify.notify_comment(post, comment, request.user)
         serializer = CommunityCommentSerializer(comment, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -165,5 +191,7 @@ class CommunityPostViewSet(viewsets.ModelViewSet):
         role = getattr(request.user, 'role', '')
         if comment.author_id != request.user.id and role not in ('lgu_admin', 'super_admin'):
             raise PermissionDenied("You can only delete your own comments.")
+        comment_id = comment.pk
         comment.delete()
+        notify.forget_comment(comment_id)
         return Response(status=status.HTTP_204_NO_CONTENT)

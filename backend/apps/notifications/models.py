@@ -11,6 +11,8 @@ class Notification(models.Model):
         ('project', 'Project'),
         ('announcement', 'Announcement'),
         ('system', 'System'),
+        ('community_comment', 'Community comment'),
+        ('community_reaction', 'Community reaction'),
     ]
 
     user = models.ForeignKey(
@@ -25,6 +27,14 @@ class Notification(models.Model):
     read_at = models.DateTimeField(null=True, blank=True)
     link = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    # Community Feed activity: who did it and which post/comment it is about.
+    # The ids are plain numbers (not foreign keys) so a deleted post can never break the notification.
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
+    post_id = models.PositiveIntegerField(null=True, blank=True, db_index=True)
+    comment_id = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

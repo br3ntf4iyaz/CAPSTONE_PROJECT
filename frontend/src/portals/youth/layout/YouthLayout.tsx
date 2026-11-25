@@ -169,6 +169,9 @@ interface Notification {
   is_read: boolean
   link: string
   created_at: string
+  actor_name?: string
+  actor_avatar?: string | null
+  post_id?: number | null
 }
 
 const NOTIF_TYPE_ROUTE: Record<string, string> = {
@@ -204,14 +207,14 @@ function NotificationPanel() {
     queryKey: ['notifications'],
     queryFn: () => apiClient.get('/notifications/?page_size=50').then(r => r.data),
     enabled: open,
-    refetchInterval: open ? 30000 : false,
+    refetchInterval: open ? 10000 : false,
   })
 
   const unread = useQuery<number>({
     queryKey: ['notifications-unread-count'],
     queryFn: () =>
       apiClient.get('/notifications/unread_count/').then(r => r.data?.count ?? 0).catch(() => 0),
-    refetchInterval: 60000,
+    refetchInterval: 15000,
   })
 
   const markRead = useMutation({
@@ -352,7 +355,12 @@ function NotificationPanel() {
                         {!n.is_read && (
                           <span className="mt-1.5 flex-shrink-0 w-2 h-2 rounded-full bg-primary-500" />
                         )}
-                        <div className={cn('flex-1 min-w-0', n.is_read && 'pl-4.5')}>
+                        {n.actor_name && (
+                          <span className="flex-shrink-0 w-8 h-8 rounded-full bg-primary-100 overflow-hidden inline-flex items-center justify-center text-xs font-bold text-primary-700">
+                            {n.actor_avatar ? <img src={n.actor_avatar} alt="" className="w-full h-full object-cover" /> : n.actor_name[0]}
+                          </span>
+                        )}
+                        <div className={cn('flex-1 min-w-0', n.is_read && !n.actor_name && 'pl-4.5')}>
                           <p className={cn('text-sm leading-snug', n.is_read ? 'text-ink-600' : 'font-semibold text-ink-900')}>
                             {n.title}
                           </p>

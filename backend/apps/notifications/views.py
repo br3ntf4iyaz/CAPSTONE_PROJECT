@@ -217,6 +217,7 @@ class NotificationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return (
             Notification.objects.filter(user=self.request.user)
+            .select_related('actor')
             .order_by('is_read', '-created_at')
         )
 

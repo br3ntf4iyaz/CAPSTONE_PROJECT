@@ -32,6 +32,15 @@ export interface CommunityPost {
   is_own: boolean
 }
 
+export interface CommunityReactor {
+  id: number
+  name: string
+  avatar: string | null
+  account_type: string
+  reaction: string
+  reacted_at: string
+}
+
 export interface CommunityPostPage {
   results: CommunityPost[]
   next: string | null
@@ -63,6 +72,12 @@ export const communityApi = {
 
   react: (id: number) =>
     apiClient.post<{ liked: boolean; count: number }>(`/community/posts/${id}/react/`).then(r => r.data),
+
+  reactors: (id: number) =>
+    apiClient.get<{ count: number; results: CommunityReactor[] }>(`/community/posts/${id}/reactors/`).then(r => r.data),
+
+  get: (id: number) =>
+    apiClient.get<CommunityPost>(`/community/posts/${id}/`).then(r => r.data),
 
   pin: (id: number) =>
     apiClient.post<{ is_pinned: boolean }>(`/community/posts/${id}/pin/`).then(r => r.data),
