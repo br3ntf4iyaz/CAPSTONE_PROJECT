@@ -231,6 +231,11 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         message = sanitize(str(request.data.get('message', '')).strip())[:500]
         app = OrgMembershipApplication.objects.create(organization=org, applicant=user, message=message)
         self._audit(request, 'org_membership_applied', org, application=app.pk)
+        try:  # the applicant is told it was received; the decision follows in another notification
+            create_notification(user, 'Membership application sent',
+                                f'Your application to join "{org.name}" was sent. You will be notified when the organization decides.', 'system', link='/organizations')
+        except Exception:
+            pass
         if org.submitted_by_id:
             try:
                 create_notification(org.submitted_by, 'New membership application',

@@ -544,7 +544,6 @@ export default function OrgDirectoryPage() {
   const [showSubmitForm, setShowSubmitForm] = useState(false)
   const [joinOrg, setJoinOrg] = useState<{ id: number; name: string } | null>(null)
   const [barangay, setBarangay] = useState('')
-  const [acceptingOnly, setAcceptingOnly] = useState(false)
   const [params, setParams] = useSearchParams()
 
   const auth = useAuthStore()
@@ -592,7 +591,6 @@ export default function OrgDirectoryPage() {
     if (o.sub_classification === 'sk_council') return false
     if (classFilter && o.classification !== classFilter) return false
     if (barangay && o.barangay !== barangay) return false
-    if (acceptingOnly && o.accepting_members === false) return false
     if (!search) return true
     return (
       o.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -672,9 +670,6 @@ export default function OrgDirectoryPage() {
                 {barangays.map(b => <option key={b} value={b}>{b}</option>)}
               </select>
             )}
-            <label className="flex items-center gap-2 text-sm text-ink-700">
-              <input type="checkbox" checked={acceptingOnly} onChange={e => setAcceptingOnly(e.target.checked)} /> Accepting members now
-            </label>
           </div>
 
           <p className="text-xs text-ink-500">
