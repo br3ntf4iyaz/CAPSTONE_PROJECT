@@ -60,15 +60,15 @@ export const CELL_TINT: Record<ComplianceStatus, string> = {
   overdue: 'border-alert-200 bg-alert-50 hover:border-alert-400',
 }
 
-/** The tile of one document in the monitoring grid: a light tint, a thin border and a coloured left edge. */
+/** The tile of one document in the monitoring grid: a vivid colour that says the status at a glance. Text on it is white (dark on yellow). */
 export const SEGMENT_TINT: Record<ComplianceStatus, string> = {
-  not_submitted: 'border-ink-200 border-l-ink-300 bg-white hover:bg-ink-50',
-  submitted: 'border-sky-200 border-l-sky-500 bg-sky-50/60 hover:bg-sky-50',
-  under_verification: 'border-violet-200 border-l-violet-500 bg-violet-50/60 hover:bg-violet-50',
-  returned: 'border-orange-200 border-l-orange-500 bg-orange-50/60 hover:bg-orange-50',
-  verified: 'border-emerald-200 border-l-emerald-500 bg-emerald-50/60 hover:bg-emerald-50',
-  published: 'border-primary-200 border-l-primary-600 bg-primary-50/70 hover:bg-primary-50',
-  overdue: 'border-red-200 border-l-red-500 bg-red-50/70 hover:bg-red-50',
+  not_submitted: 'border-amber-300 bg-gradient-to-r from-amber-300 to-yellow-400 text-amber-950',
+  submitted: 'border-sky-600 bg-gradient-to-r from-sky-500 to-blue-600 text-white',
+  under_verification: 'border-violet-600 bg-gradient-to-r from-violet-500 to-purple-600 text-white',
+  returned: 'border-orange-600 bg-gradient-to-r from-orange-500 to-amber-600 text-white',
+  verified: 'border-emerald-600 bg-gradient-to-r from-emerald-500 to-green-600 text-white',
+  published: 'border-primary-800 bg-gradient-to-r from-primary-600 to-primary-800 text-white',
+  overdue: 'border-red-700 bg-gradient-to-r from-red-500 to-rose-600 text-white',
 }
 
 /** One tone for a document that has several periods (quarters or months): the most urgent thing wins. */
