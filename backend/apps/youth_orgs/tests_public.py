@@ -88,6 +88,7 @@ class PublicOrganizationTests(TestCase):
         self.assertEqual(self.skc.post(url, {}, format='json').status_code, 201)  # an SK official may apply too
         self.assertTrue(Notification.objects.filter(user=self.leader, title='New membership application').exists())
         self.assertTrue(Notification.objects.filter(user=self.youth, title='Membership application sent').exists())
+        self.assertTrue(Notification.objects.filter(user=self.admin, title='New membership application').exists())  # LYDO is told too
         self.assertEqual(self.lc.post(url, {}, format='json').status_code, 400)  # the leader already manages it
         self.assertEqual(len(self.yc.get('/api/youth-orgs/my-applications/').data), 1)
 

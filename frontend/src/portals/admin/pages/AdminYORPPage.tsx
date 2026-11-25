@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 import { useYORPDecisionIntegrity } from '@/api/ledger'
+import { OrgApplicationsPanel } from '@/portals/youth/components/OrgJoin'
 
 interface YouthOrg {
   id: number
@@ -444,6 +445,11 @@ export default function AdminYORPPage() {
                   <div className="sm:col-span-3">
                     <DecisionBox orgId={org.id} />
                   </div>
+                  {org.status === 'approved' && (
+                    <div className="sm:col-span-3 rounded-xl border border-gray-200 bg-white">
+                      <OrgApplicationsPanel orgId={org.id} />
+                    </div>
+                  )}
                 </div>
               )}
             </div>

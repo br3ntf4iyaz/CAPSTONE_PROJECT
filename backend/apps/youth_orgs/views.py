@@ -236,12 +236,16 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
                                 f'Your application to join "{org.name}" was sent. You will be notified when the organization decides.', 'system', link='/organizations')
         except Exception:
             pass
-        if org.submitted_by_id:
-            try:
-                create_notification(org.submitted_by, 'New membership application',
-                                    f'{user.full_name or user.email} applied to join "{org.name}".', 'system', link=f'/organizations?org={org.pk}')
-            except Exception:
-                pass
+        text = f'{user.full_name or user.email} applied to join "{org.name}".'
+        try:
+            if org.submitted_by_id:  # the leader who registered the organization decides
+                create_notification(org.submitted_by, 'New membership application', text, 'system', link=f'/organizations?org={org.pk}')
+            # LYDO is told too: an organization entered by LYDO has no leader, and LYDO keeps oversight of all of them
+            from django.contrib.auth import get_user_model
+            for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
+                create_notification(admin, 'New membership application', text, 'system', link='/admin/yorp')
+        except Exception:
+            pass
         return Response(OrgMembershipApplicationSerializer(app).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
