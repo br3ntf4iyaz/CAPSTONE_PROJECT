@@ -126,7 +126,11 @@ class Transient(Exception):
 def _call_model(content):
     """One request to the AI service. Kept separate so tests can replace it. Raises Transient for retryable trouble."""
     import anthropic
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=90.0, max_retries=0)
+    import os
+    import httpx
+    # PythonAnywhere free accounts reach the internet only through a proxy (same OUTBOUND_PROXY the chatbot uses)
+    http_client = httpx.Client(proxy=os.getenv('OUTBOUND_PROXY') or None, timeout=90.0)
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, http_client=http_client, max_retries=0)
     try:
         msg = client.messages.create(
             model=getattr(settings, 'AI_SCREENING_MODEL', 'claude-haiku-4-5-20251001'),
