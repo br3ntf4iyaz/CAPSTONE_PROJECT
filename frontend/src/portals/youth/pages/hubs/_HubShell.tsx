@@ -66,53 +66,52 @@ export default function HubShell({ eyebrow, title, description, items, banner }:
 
 function HubCard({ title, description, icon: Icon, to, badge, accent = 'primary', samples }: HubItem) {
   const accentClasses = {
-    primary: 'bg-primary-600 text-white group-hover:bg-primary-700',
-    accent:  'bg-accent-400 text-primary-900 group-hover:bg-accent-500',
-    neutral: 'bg-ink-100 text-ink-700 group-hover:bg-primary-100 group-hover:text-primary-700',
+    primary: 'bg-white text-primary-700 group-hover:bg-primary-50',
+    accent:  'bg-accent-400 text-primary-900 group-hover:bg-accent-300',
+    neutral: 'bg-white/15 text-white border border-white/30 group-hover:bg-white/25',
   }[accent]
 
   const isStub = !to
 
   const inner = (
     <>
-      <div className="flex items-start justify-between mb-5">
-        <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl transition-colors', accentClasses)}>
+      <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+      <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-accent-400/20 blur-2xl" />
+      <div className="relative flex items-start justify-between mb-5">
+        <span className={cn('inline-flex items-center justify-center w-12 h-12 rounded-2xl shadow-md transition-colors', accentClasses)}>
           <Icon size={22} strokeWidth={2.2} />
         </span>
         {badge && (
-          <span className={cn(
-            'chip text-[10px] uppercase tracking-wider',
-            isStub ? 'bg-ink-100 text-ink-600' : 'bg-accent-100 text-accent-800',
-          )}>
+          <span className="chip bg-white/15 text-white text-[10px] font-bold uppercase tracking-wider border border-white/30">
             {badge}
           </span>
         )}
       </div>
-      <h3 className="font-display font-bold text-xl text-ink-900 leading-tight mb-2">{title}</h3>
-      <p className="text-sm text-ink-600 leading-relaxed">{description}</p>
+      <h3 className="relative font-display font-bold text-xl text-white leading-tight mb-2">{title}</h3>
+      <p className="relative text-sm text-primary-100 leading-relaxed">{description}</p>
       {samples && samples.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
+        <ul className="relative mt-3 space-y-1.5">
           {samples.map(s => (
-            <li key={s} className="flex items-start gap-2 text-xs text-ink-500">
-              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-ink-300 flex-shrink-0" />
+            <li key={s} className="flex items-start gap-2 text-xs text-primary-100">
+              <span className="mt-1 w-1.5 h-1.5 rounded-full bg-accent-400 flex-shrink-0" />
               {s}
             </li>
           ))}
         </ul>
       )}
       <div className={cn(
-        'mt-5 inline-flex items-center gap-1 text-sm font-semibold transition-all',
-        isStub ? 'text-ink-400' : 'text-primary-700 group-hover:text-primary-800 group-hover:gap-2',
+        'relative mt-5 inline-flex items-center gap-1 text-sm font-bold transition-all',
+        isStub ? 'text-primary-200' : 'text-accent-300 group-hover:text-accent-200 group-hover:gap-2',
       )}>
         {isStub ? 'Coming soon' : (<>Open <ArrowRight size={14} /></>)}
       </div>
     </>
   )
 
-  const baseCls = 'group bg-white rounded-3xl border p-6 flex flex-col transition-all'
+  const baseCls = 'group relative overflow-hidden bg-gradient-to-br from-primary-700 to-primary-900 text-white rounded-3xl shadow-lg shadow-primary-900/20 p-6 flex flex-col transition-all'
   const interactiveCls = isStub
-    ? 'border-ink-100 opacity-70 cursor-not-allowed'
-    : 'border-ink-100 hover:border-primary-300 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer'
+    ? 'opacity-70 cursor-not-allowed'
+    : 'hover:shadow-xl hover:shadow-primary-900/30 hover:-translate-y-0.5 cursor-pointer'
 
   if (isStub) {
     return <div className={cn(baseCls, interactiveCls)} aria-disabled>{inner}</div>

@@ -30,7 +30,7 @@ export default function LearnHubPage() {
     <HubShell
       eyebrow="Learn"
       title="Skills, badges, and certificates."
-      description="Grow on your own pace. Whether you're prepping for college, building a livelihood, or stepping into youth leadership \u2014 start here."
+      description="Grow on your own pace. Whether you're prepping for college, building a livelihood, or stepping into youth leadership — start here."
       items={ITEMS}
     />
   )

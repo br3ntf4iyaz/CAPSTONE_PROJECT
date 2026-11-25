@@ -234,7 +234,11 @@ export default function YouthCalendarPage() {
             const isFull = event.capacity != null && event.registration_count >= event.capacity
 
             return (
-              <div key={event.id} className={cn('card overflow-hidden', event.is_registered && 'ring-1 ring-emerald-200')}>
+              <div key={event.id} className={cn(
+                'bg-white rounded-2xl border border-l-4 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-primary-600/10',
+                isPast ? 'border-gray-200 border-l-gray-300' : 'border-primary-100 border-l-primary-500 hover:border-primary-300',
+                event.is_registered && 'ring-1 ring-emerald-200',
+              )}>
                 {/* Thumbnail */}
                 {event.thumbnail && (
                   <div className="h-40 w-full overflow-hidden bg-ink-100">
@@ -250,7 +254,7 @@ export default function YouthCalendarPage() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <h3 className="text-lg font-semibold text-ink-900">{event.title}</h3>
+                        <h3 className={cn('text-lg font-bold', isPast ? 'text-ink-700' : 'text-primary-900')}>{event.title}</h3>
                         <span className={cn('badge', EVENT_TYPE_COLORS[event.event_type] || 'badge-gray')}>
                           {event.event_type.replace('_', ' ')}
                         </span>
@@ -265,25 +269,25 @@ export default function YouthCalendarPage() {
                       </div>
 
                       {event.description && (
-                        <p className="text-ink-600 mb-4 line-clamp-2">{event.description}</p>
+                        <p className="text-ink-700 mb-4 line-clamp-2">{event.description}</p>
                       )}
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm text-ink-500">
-                        <div className="flex items-center gap-1.5">
-                          <CalendarDays size={15} />
+                      <div className="flex flex-wrap items-center gap-2 text-sm text-primary-900">
+                        <div className="flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1">
+                          <CalendarDays size={15} className="text-primary-500" />
                           {formatDateTime(event.start_datetime)}
                           {event.end_datetime && (
                             <span> – {formatDateTime(event.end_datetime)}</span>
                           )}
                         </div>
                         {event.location && (
-                          <div className="flex items-center gap-1.5">
-                            <MapPin size={15} />
+                          <div className="flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1">
+                            <MapPin size={15} className="text-primary-500" />
                             {event.location}
                           </div>
                         )}
-                        <div className="flex items-center gap-1.5">
-                          <Users size={15} />
+                        <div className="flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1">
+                          <Users size={15} className="text-primary-500" />
                           {event.capacity
                             ? `${event.registration_count} / ${event.capacity}`
                             : `${event.registration_count} registered`}

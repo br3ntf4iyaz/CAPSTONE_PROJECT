@@ -31,7 +31,7 @@ export default function NeedHelpHubPage() {
     <HubShell
       eyebrow="Need help?"
       title="We've got you covered."
-      description="Whatever the question \u2014 from how to register to what's a YORP \u2014 there's a way to get an answer here."
+      description="Whatever the question — from how to register to what's a YORP — there's a way to get an answer here."
       items={ITEMS}
     />
   )

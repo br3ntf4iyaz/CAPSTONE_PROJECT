@@ -100,8 +100,8 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
   return (
     <div
       className={cn(
-        'card flex flex-col gap-3 p-5 hover:shadow-md transition-all duration-200',
-        featured && 'border-l-4 border-l-primary-500 bg-primary-50/30',
+        'flex flex-col gap-3 p-5 bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm hover:shadow-lg hover:shadow-primary-600/10 hover:border-primary-300 hover:-translate-y-0.5 transition-all duration-200',
+        featured && 'border-l-accent-400 bg-gradient-to-br from-accent-50/60 to-white',
       )}
     >
       {/* Top row */}
@@ -136,7 +136,7 @@ function ResourceCard({ resource, featured = false }: { resource: Resource; feat
       </div>
 
       {/* Title */}
-      <h3 className="font-semibold text-sm text-ink-900 leading-snug line-clamp-2">
+      <h3 className="font-bold text-sm text-primary-900 leading-snug line-clamp-2">
         {resource.title}
       </h3>
 
@@ -209,7 +209,7 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-primary-950/60 backdrop-blur-sm px-4 py-6"
       onClick={onClose}
     >
       <div
@@ -217,29 +217,34 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-ink-100 px-6 py-4 flex items-start justify-between gap-4 rounded-t-2xl">
-          <div className="flex-1 min-w-0">
+        <div className="sticky top-0 z-10 rounded-t-2xl overflow-hidden">
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white px-6 py-4 flex items-start justify-between gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div className="relative flex-1 min-w-0">
             {resource.law_number && (
               <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary-100 text-primary-800 text-xs font-bold">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/90 text-primary-800 text-xs font-bold">
                   <Gavel size={11} />
                   {resource.law_number}
                 </span>
                 {resource.year_enacted && (
-                  <span className="text-xs text-ink-400">Enacted {resource.year_enacted}</span>
+                  <span className="text-xs text-primary-100">Enacted {resource.year_enacted}</span>
                 )}
               </div>
             )}
-            <h2 className="font-display font-bold text-lg text-ink-900 leading-snug">
+            <h2 className="font-display font-bold text-lg text-white leading-snug">
               {resource.title}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="flex-shrink-0 p-2 rounded-lg hover:bg-paper-100 text-ink-400 hover:text-ink-700 transition-colors"
+            aria-label="Close"
+            className="relative flex-shrink-0 p-2 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-colors"
           >
             <X size={18} />
           </button>
+        </div>
+        <div className="ph-stripe h-1 w-full" />
         </div>
 
         {/* Body */}
@@ -268,13 +273,13 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
           {/* Description */}
           {resource.description && (
             <div>
-              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">About This Resource</p>
+              <p className="text-xs font-bold text-primary-800 uppercase tracking-wider mb-2 border-l-4 border-primary-500 pl-2">About This Resource</p>
               <p className="text-sm text-ink-700 leading-relaxed">{resource.description}</p>
             </div>
           )}
 
           {/* Details */}
-          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm rounded-2xl border border-primary-100 bg-primary-50/50 p-4">
             {resource.author && (
               <div><dt className="text-xs text-ink-400">Author or publisher</dt><dd className="font-medium text-ink-800">{resource.author}</dd></div>
             )}
@@ -293,7 +298,7 @@ function ResourceModal({ resource, onClose }: { resource: Resource; onClose: () 
           {/* Tags */}
           {tags.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-ink-500 uppercase tracking-wider mb-2">Topics</p>
+              <p className="text-xs font-bold text-primary-800 uppercase tracking-wider mb-2 border-l-4 border-primary-500 pl-2">Topics</p>
               <div className="flex flex-wrap gap-1.5">
                 {tags.map(tag => (
                   <span key={tag} className="text-xs px-2.5 py-1 bg-paper-100 text-ink-600 rounded-lg">
