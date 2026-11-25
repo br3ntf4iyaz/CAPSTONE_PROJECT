@@ -9,6 +9,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { StatusChip, StatusLegend, fmtDate, type ComplianceStatus } from '@/components/ComplianceStatus'
 import { CompletionRing, KpiCard, type Tone } from '@/components/ComplianceKit'
 import { apiMessage, downloadWithLogin } from '../lms'
+import { RequirementActions, StateBadge, SubmitDocumentModal, useMyChecklist, type MyRequirement } from '../components/RequirementSubmit'
 
 interface Rec {
   id: number; status: ComplianceStatus; status_label: string; title: string; description: string; submitted_at: string | null
@@ -29,7 +30,7 @@ interface Overview {
   year: number; years: number[]; percent: number
   summary: { total: number; completed: number; pending: number; overdue: number; for_verification: number; returned: number; verified: number; published: number }
   me: { role: 'admin' | 'sk'; barangay: { id: number; name: string } | null; can_submit: boolean; needs_verification: boolean }
-  categories: { key: string; short: string; label: string; kind: 'single' | 'quarterly' | 'monthly'; description: string }[]
+  categories: { key: string; short: string; label: string; kind: 'single' | 'quarterly' | 'monthly'; description: string; other?: boolean }[]
 }
 
 const peso = (v: string | null | undefined) => (v ? `₱${Number(v).toLocaleString('en-PH', { minimumFractionDigits: 2 })}` : null)
@@ -104,8 +105,47 @@ export default function SKCompliancePage() {
         <div className="mt-3"><StatusLegend /></div>
       </div>
 
-      {o.categories.map(c => <Category key={c.key} cat={c} year={o.year} barangayId={o.me.barangay?.id ?? 0} canSubmit={o.me.can_submit} />)}
+      {o.categories.map(c => c.other
+        ? <OtherCategory key={c.key} cat={c} />
+        : <Category key={c.key} cat={c} year={o.year} barangayId={o.me.barangay?.id ?? 0} canSubmit={o.me.can_submit} />)}
     </div>
+  )
+}
+
+/** Annex H, Policies, Minutes, KK Assembly, Linggo ng Kabataan: one document each, submitted with the form and verified by LYDO. */
+function OtherCategory({ cat }: { cat: Overview['categories'][number] }) {
+  const [open, setOpen] = useState(true)
+  const [submitting, setSubmitting] = useState<MyRequirement | null>(null)
+  const mine = useMyChecklist()
+  const item = mine.data?.requirements.find(r => r.type === cat.key)
+  return (
+    <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+      <button type="button" aria-expanded={open} onClick={() => setOpen(o => !o)} className="flex w-full items-center justify-between gap-3 bg-gray-50 px-5 py-4 text-left">
+        <div className="min-w-0">
+          <h2 className="font-semibold text-gray-900">{cat.label}</h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-gray-500">{cat.description}</p>
+        </div>
+        <ChevronDown size={18} className={cn('shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <div className="space-y-3 p-5">
+          {mine.isLoading ? <PageSpinner /> : !item ? <p className="text-sm text-gray-500">This requirement does not apply to your barangay.</p> : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <StateBadge state={item.status} />
+                <span className="text-xs text-gray-500">{item.due_date ? `Deadline ${fmtDate(item.due_date)}` : 'No deadline has been set yet'}</span>
+              </div>
+              {item.instructions && item.status !== 'verified' && <p className="rounded-lg bg-primary-50/70 px-3 py-2 text-xs text-primary-900"><strong>What to submit:</strong> {item.instructions}</p>}
+              {item.status === 'returned' && item.remarks && <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"><strong>LYDO asked you to correct:</strong> {item.remarks}</p>}
+              {item.status === 'submitted' && <p className="text-xs text-gray-500">Waiting for LYDO to review it.</p>}
+              {item.status === 'verified' && <p className="text-xs text-gray-500">Verified by LYDO. To change it, ask LYDO to reopen it.</p>}
+              <RequirementActions item={item} onSubmit={setSubmitting} />
+            </>
+          )}
+        </div>
+      )}
+      {submitting && <SubmitDocumentModal item={submitting} onClose={() => setSubmitting(null)} />}
+    </section>
   )
 }
 

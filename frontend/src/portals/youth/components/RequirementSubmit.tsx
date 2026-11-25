@@ -87,6 +87,7 @@ export function SubmitDocumentModal({ item, onClose }: { item: MyRequirement; on
       toast.success(action === 'draft' ? 'Draft saved. It is not sent to LYDO yet.' : 'Submitted. LYDO will review it.')
       qc.invalidateQueries({ queryKey: ['sk-requirements-mine'] })
       qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
+      qc.invalidateQueries({ queryKey: ['sk-compliance-overview'] })
       onClose()
     },
     onError: (err: any) => {
