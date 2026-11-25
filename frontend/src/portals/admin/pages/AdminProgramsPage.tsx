@@ -11,6 +11,7 @@ import { formatDate, cn, toArray } from '@/utils'
 
 interface YouthProgram {
   id: number
+  thumbnail_url?: string | null
   title: string
   category: string
   category_display: string
@@ -142,15 +143,40 @@ function ProgramModal({ editProgram, onClose, onSaved }: ProgramModalProps) {
   const setF = <K extends keyof ProgramFormData>(k: K, v: ProgramFormData[K]) =>
     setForm(p => ({ ...p, [k]: v }))
 
+  // cover picture: choose, preview before saving, replace or remove
+  const [coverFile, setCoverFile] = useState<File | null>(null)
+  const [coverPreview, setCoverPreview] = useState<string | null>(editProgram?.thumbnail_url ?? null)
+  const [removeCover, setRemoveCover] = useState(false)
+  const pickCover = (f: File | undefined) => {
+    if (!f) return
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type)) { toast.error('Use a JPG, PNG or WebP picture.'); return }
+    if (f.size > 5 * 1024 * 1024) { toast.error('The picture is over 5 MB. Choose a smaller one.'); return }
+    setCoverFile(f); setRemoveCover(false)
+    const r = new FileReader(); r.onloadend = () => setCoverPreview(r.result as string); r.readAsDataURL(f)
+  }
+  const saveCover = async (id: number) => {
+    if (!coverFile && !removeCover) return
+    const fd = new FormData()
+    fd.append('thumbnail', coverFile ?? '')
+    await apiClient.patch(`${PROGRAMS_URL}${id}/`, fd, { headers: { 'Content-Type': undefined as unknown as string } })
+  }
+
   const createM = useMutation({
-    mutationFn: (data: ProgramFormData) => apiClient.post(PROGRAMS_URL, data),
+    mutationFn: async (data: ProgramFormData) => {
+      const res = await apiClient.post(PROGRAMS_URL, data)
+      await saveCover(res.data.id)
+      return res
+    },
     onSuccess: () => { toast.success('Program created'); onSaved(); onClose() },
     onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'Failed to create program'),
   })
 
   const updateM = useMutation({
-    mutationFn: (data: ProgramFormData) =>
-      apiClient.patch(`${PROGRAMS_URL}${editProgram!.id}/`, data),
+    mutationFn: async (data: ProgramFormData) => {
+      const res = await apiClient.patch(`${PROGRAMS_URL}${editProgram!.id}/`, data)
+      await saveCover(editProgram!.id)
+      return res
+    },
     onSuccess: () => { toast.success('Program updated'); onSaved(); onClose() },
     onError: (err: any) => toast.error(err?.response?.data?.detail ?? 'Failed to update program'),
   })
@@ -337,6 +363,28 @@ function ProgramModal({ editProgram, onClose, onSaved }: ProgramModalProps) {
               Untick to keep it as a draft that only administrators can see.
             </span>
           </label>
+
+          {/* Cover picture */}
+          <div className="pt-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Cover picture</p>
+            <div className="flex flex-wrap items-start gap-3">
+              <div className="relative aspect-[16/9] w-48 overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
+                {coverPreview && !removeCover
+                  ? <img src={coverPreview} alt="Cover preview" className="absolute inset-0 h-full w-full object-cover" />
+                  : <span className="absolute inset-0 flex items-center justify-center px-2 text-center text-xs text-gray-500">No picture. A drawing that matches the topic is shown.</span>}
+              </div>
+              <div className="space-y-2 text-sm">
+                <label className="btn-secondary btn-sm inline-block cursor-pointer">
+                  {coverPreview && !removeCover ? 'Replace picture' : 'Choose picture'}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={e => { pickCover(e.target.files?.[0]); e.target.value = '' }} />
+                </label>
+                {coverPreview && !removeCover && (
+                  <button type="button" className="block text-xs font-semibold text-red-600 hover:underline" onClick={() => { setRemoveCover(true); setCoverFile(null) }}>Remove picture</button>
+                )}
+                <p className="max-w-xs text-xs text-gray-500">Use a real photo of this program (JPG, PNG or WebP, under 5 MB, wide 16:9 works best). Only upload photos you have the right to use. The preview is saved when you press Save.</p>
+              </div>
+            </div>
+          </div>
 
           {/* Contact Information */}
           <div className="pt-2">

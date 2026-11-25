@@ -163,6 +163,11 @@ class ProgramDetailSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(obj.thumbnail.url)
         return None
 
+    def validate_thumbnail(self, value):
+        if value:
+            check_upload(value, IMAGE_EXTS, 5 * 1024 * 1024, field=None)
+        return value
+
     def validate_description(self, value):
         return sanitize(value)
 

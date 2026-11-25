@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { MapPin } from 'lucide-react'
+import TopicCover from '@/components/ui/TopicCover'
 import { PageSpinner } from '@/components/ui/Spinner'
 import type { FeaturedPost } from './types'
 
@@ -43,19 +44,11 @@ export function FeaturedPostsSection({ posts, isLoading }: { posts: FeaturedPost
                     {/* ── Image block ── */}
                     <div
                       className="relative w-full overflow-hidden bg-primary-800 flex-shrink-0"
-                      style={{ aspectRatio: '4/3' }}
+                      style={{ aspectRatio: '16/9' }}
                     >
-                      {post.thumbnail ? (
-                        <img
-                          src={post.thumbnail}
-                          alt={post.title}
-                          loading="lazy"
-                          decoding="async"
-                          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary-700 to-primary-900" />
-                      )}
+                      <div className="absolute inset-0 transition-transform duration-500 group-hover:scale-105">
+                        <TopicCover image={post.thumbnail} title={post.title} category={post.post_type} alt={post.title} labelClass="right-2 top-2" />
+                      </div>
 
                       {/* Bottom scrim so text stays legible */}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />

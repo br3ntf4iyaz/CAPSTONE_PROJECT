@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { CalendarDays, Mail, MapPin, Phone, Target, Users, X, Building2, Sparkles } from 'lucide-react'
+import { CalendarDays, Mail, MapPin, Phone, Target, Users, X, Sparkles } from 'lucide-react'
+import TopicCover from '@/components/ui/TopicCover'
 import apiClient from '@/api/client'
 import { cn, toArray } from '@/utils'
 
@@ -94,9 +95,7 @@ export function YouthOrgProgramsSection() {
           {shown.map(p => (
             <article key={p.id} className="flex flex-col overflow-hidden rounded-2xl border border-ink-100 bg-white transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-lg">
               <div className="relative aspect-[16/9] bg-gradient-to-br from-primary-700 to-primary-500">
-                {p.thumbnail_url
-                  ? <img src={p.thumbnail_url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
-                  : <Building2 size={40} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-white/60" />}
+                <TopicCover image={p.thumbnail_url} title={p.title} category={p.category} labelClass="left-3 bottom-3" />
                 <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-primary-800">{p.category_display}</span>
                 <span className={cn('absolute right-3 top-3 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', STATUS_STYLE[p.status] ?? STATUS_STYLE.completed)}>{p.status_display}</span>
               </div>
