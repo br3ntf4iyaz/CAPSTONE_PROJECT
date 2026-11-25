@@ -110,7 +110,7 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm px-0 sm:px-4"
       onClick={onClose}
     >
       <div
@@ -118,14 +118,16 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
+        <div className="sticky top-0 z-10">
+        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 text-white px-6 py-4 flex items-start justify-between gap-4">
+          <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+          <div className="relative flex items-start gap-3 flex-1 min-w-0">
             {/* Avatar */}
             {s.logo_url ? (
-              <img src={s.logo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border border-gray-100" />
+              <img src={s.logo_url} alt={s.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 border-2 border-white/40 bg-white" />
             ) : (
-              <div className="w-12 h-12 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                <GraduationCap size={22} className="text-primary-700" />
+              <div className="w-12 h-12 rounded-xl bg-white/15 border border-white/30 flex items-center justify-center flex-shrink-0">
+                <GraduationCap size={22} className="text-white" />
               </div>
             )}
             <div className="flex-1 min-w-0">
@@ -139,17 +141,19 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
                   </span>
                 )}
               </div>
-              <h2 className="text-base font-bold text-gray-900 leading-snug">{s.name}</h2>
+              <h2 className="text-lg font-bold text-white leading-snug">{s.name}</h2>
               {s.municipality && (
-                <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                <p className="text-xs text-primary-100 mt-0.5 flex items-center gap-1">
                   <MapPin size={11} /> {s.municipality}{s.province ? `, ${s.province}` : ''}
                 </p>
               )}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 flex-shrink-0 transition-colors">
+          <button onClick={onClose} aria-label="Close" className="relative p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white flex-shrink-0 transition-colors">
             <X size={18} />
           </button>
+        </div>
+        <div className="ph-stripe h-1 w-full" />
         </div>
 
         {isLoading ? (
@@ -158,37 +162,37 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
           <div className="px-6 py-5 space-y-5">
             {/* Description */}
             {s.description && (
-              <p className="text-sm text-gray-600 leading-relaxed">{s.description}</p>
+              <p className="text-sm text-ink-700 leading-relaxed">{s.description}</p>
             )}
 
             {/* Contact grid */}
-            <div className="space-y-2.5">
+            <div className="space-y-2.5 rounded-2xl border border-primary-100 bg-primary-50/50 p-4">
               {s.address && (
                 <div className="flex items-start gap-2.5 text-sm text-gray-600">
-                  <MapPin size={14} className="text-gray-400 flex-shrink-0 mt-0.5" /> {s.address}
+                  <MapPin size={14} className="text-primary-500 flex-shrink-0 mt-0.5" /> {s.address}
                 </div>
               )}
               {s.phone && (
                 <a href={`tel:${s.phone}`} className="flex items-center gap-2.5 text-sm text-gray-600 hover:text-primary-700 transition-colors">
-                  <Phone size={14} className="text-gray-400 flex-shrink-0" /> {s.phone}
+                  <Phone size={14} className="text-primary-500 flex-shrink-0" /> {s.phone}
                 </a>
               )}
               {s.email && (
                 <a href={`mailto:${s.email}`} className="flex items-center gap-2.5 text-sm text-primary-700 hover:underline">
-                  <Mail size={14} className="text-gray-400 flex-shrink-0" /> {s.email}
+                  <Mail size={14} className="text-primary-500 flex-shrink-0" /> {s.email}
                 </a>
               )}
               {s.website && (
                 <a href={s.website} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2.5 text-sm text-primary-700 hover:underline">
-                  <Globe size={14} className="text-gray-400 flex-shrink-0" /> Visit website
+                  <Globe size={14} className="text-primary-500 flex-shrink-0" /> Visit website
                   <ExternalLink size={11} />
                 </a>
               )}
               {s.facebook_url && (
                 <a href={s.facebook_url} target="_blank" rel="noopener noreferrer"
                   className="flex items-center gap-2.5 text-sm text-blue-600 hover:underline">
-                  <Facebook size={14} className="text-gray-400 flex-shrink-0" /> Facebook page
+                  <Facebook size={14} className="text-[#1877F2] flex-shrink-0" /> Facebook page
                   <ExternalLink size={11} />
                 </a>
               )}
@@ -199,7 +203,7 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
             {detail && signedIn && (
               detail.programs && detail.programs.length > 0 ? (
                 <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                  <h3 className="text-sm font-bold text-primary-900 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                     <BookOpen size={14} className="text-primary-700" />
                     Verified Courses
                     <span className="text-xs font-normal text-gray-400">({detail.programs.length})</span>
@@ -212,12 +216,12 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
                     }, {}),
                   ).map(([field, items]) => (
                     <div key={field}>
-                      <p className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1.5">
+                      <p className="text-xs font-bold uppercase tracking-wide text-primary-700 mb-1.5">
                         {FIELD_LABELS[field] ?? field} <span className="font-normal text-gray-400">({items.length})</span>
                       </p>
                       <ul className="space-y-1.5">
                         {items.map(sp => (
-                          <li key={sp.id} className="rounded-lg border border-gray-200 px-3 py-2">
+                          <li key={sp.id} className="rounded-xl border border-primary-100 bg-primary-50/50 px-3 py-2">
                             <p className="text-sm font-medium text-gray-900 break-words">{sp.program.name}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
                               <span className="px-2 py-0.5 rounded-full bg-primary-50 text-primary-700 font-semibold">
@@ -250,18 +254,18 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
         )}
 
         {/* Footer CTA */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4">
+        <div className="sticky bottom-0 bg-white border-t border-primary-100 px-6 py-4 shadow-[0_-8px_16px_-12px_rgba(0,48,135,0.25)]">
           {s.website ? (
             <a href={s.website} target="_blank" rel="noopener noreferrer"
-              className="btn-primary w-full flex items-center justify-center gap-2">
+              className="btn-primary w-full flex items-center justify-center gap-2 shadow-md shadow-primary-600/20">
               Visit School Website <ExternalLink size={14} />
             </a>
           ) : s.email ? (
-            <a href={`mailto:${s.email}`} className="btn-primary w-full flex items-center justify-center gap-2">
+            <a href={`mailto:${s.email}`} className="btn-primary w-full flex items-center justify-center gap-2 shadow-md shadow-primary-600/20">
               Contact School
             </a>
           ) : (
-            <p className="text-sm text-center text-gray-400 py-1">
+            <p className="text-sm text-center font-medium text-primary-800 py-1">
               Visit {s.name} at {s.address ?? 'their campus'}.
             </p>
           )}

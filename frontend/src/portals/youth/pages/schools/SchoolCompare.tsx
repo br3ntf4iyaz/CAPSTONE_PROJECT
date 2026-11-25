@@ -150,7 +150,7 @@ export function CompareSheet({ items, onClose }: { items: CompareItem[]; onClose
   const colMin = 'min-w-[10.5rem]'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 sm:px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-primary-950/60 backdrop-blur-sm sm:px-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
@@ -158,11 +158,14 @@ export function CompareSheet({ items, onClose }: { items: CompareItem[]; onClose
         className="bg-white w-full sm:max-w-4xl sm:rounded-2xl max-h-[94vh] flex flex-col shadow-2xl"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">Compare schools</h2>
-          <button onClick={onClose} aria-label="Close comparison" className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
+        <div className="relative overflow-hidden sm:rounded-t-2xl shrink-0">
+        <div className="flex items-center justify-between gap-3 px-5 py-4 bg-gradient-to-br from-primary-600 to-primary-800">
+          <h2 className="text-lg font-bold text-white">Compare schools</h2>
+          <button onClick={onClose} aria-label="Close comparison" className="p-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white">
             <X size={18} />
           </button>
+        </div>
+        <div className="ph-stripe h-1 w-full" />
         </div>
 
         <div className="overflow-auto">
