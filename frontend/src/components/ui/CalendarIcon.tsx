@@ -1,26 +1,25 @@
-/** A flat tear-off calendar (red top, two rings, month and day) that shows the given date. No background, just the calendar. */
+/** A flat tear-off calendar (red header with the month, big day on white) for the given date, on a turquoise tile the same size as the hub icon tiles. */
 export default function CalendarIcon({ date, className = 'hidden sm:flex' }: { date: Date; className?: string }) {
   const month = date.toLocaleString('en-US', { month: 'long' }).toUpperCase()
   const day = date.getDate()
   return (
-    <span className={`${className} shrink-0 items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#a0692f] to-[#5e3b1c] shadow-md shadow-[#5e3b1c]/30`}>
-    <svg viewBox="0 0 100 100" className="w-full h-full p-1" role="img" aria-label={`${month} ${day}`} xmlns="http://www.w3.org/2000/svg">
-      {/* white page with a soft shadow */}
-      <rect x="9" y="17" width="82" height="76" rx="13" fill="#000" opacity="0.08" transform="translate(0 2)" />
-      <rect x="9" y="17" width="82" height="76" rx="13" fill="#ffffff" />
-      {/* red header */}
-      <path d="M9 30a13 13 0 0 1 13-13h56a13 13 0 0 1 13 13v14H9z" fill="#f04438" />
-      {/* the two rings */}
-      <rect x="27" y="7" width="8" height="22" rx="4" fill="#3f5156" />
-      <rect x="65" y="7" width="8" height="22" rx="4" fill="#3f5156" />
-      <circle cx="31" cy="31" r="5.2" fill="none" stroke="#ffffff" strokeWidth="2.4" />
-      <circle cx="69" cy="31" r="5.2" fill="none" stroke="#ffffff" strokeWidth="2.4" />
-      <rect x="27" y="7" width="8" height="22" rx="4" fill="#3f5156" />
-      <rect x="65" y="7" width="8" height="22" rx="4" fill="#3f5156" />
-      {/* month and day */}
-      <text x="50" y="62" textAnchor="middle" fontSize={month.length > 7 ? 11.5 : month.length > 5 ? 15 : 17} fontWeight="700" fill="#3f5156" fontFamily="inherit">{month}</text>
-      <text x="50" y="89" textAnchor="middle" fontSize="30" fontWeight="800" fill="#3f5156" fontFamily="inherit">{day}</text>
-    </svg>
+    <span className={`${className} shrink-0 items-center justify-center w-14 h-14 rounded-2xl bg-[#4dd0d4] shadow-md shadow-[#1d8f93]/30`}>
+      <svg viewBox="0 0 100 100" className="w-full h-full" role="img" aria-label={`${month} ${day}`} xmlns="http://www.w3.org/2000/svg">
+        {/* soft shadow of the page on the tile */}
+        <rect x="21" y="27" width="64" height="62" rx="5" fill="#0b6f73" opacity="0.35" />
+        {/* white page */}
+        <rect x="18" y="22" width="64" height="62" rx="5" fill="#ffffff" />
+        {/* red header with the month */}
+        <path d="M18 27a5 5 0 0 1 5-5h54a5 5 0 0 1 5 5v18H18z" fill="#ff5252" />
+        <text x="50" y="40" textAnchor="middle" fontSize={month.length > 7 ? 9.5 : month.length > 5 ? 11.5 : 13} fontWeight="800" fill="#ffffff" fontFamily="inherit">{month}</text>
+        {/* the two rings */}
+        <circle cx="31" cy="23" r="3.2" fill="#ffffff" />
+        <circle cx="69" cy="23" r="3.2" fill="#ffffff" />
+        <rect x="28" y="10" width="6" height="17" rx="3" fill="#3f5156" />
+        <rect x="66" y="10" width="6" height="17" rx="3" fill="#3f5156" />
+        {/* the day */}
+        <text x="50" y="76" textAnchor="middle" fontSize="30" fontWeight="800" fill="#3f5156" fontFamily="inherit">{day}</text>
+      </svg>
     </span>
   )
 }
