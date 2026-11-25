@@ -737,12 +737,12 @@ export default function YouthDashboardPage() {
       <section>
         <h2 className="section-title mb-4">Explore</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <QuickLink to="/programs"      icon={FolderOpen}   label="Programs"      />
-          <QuickLink to="/events"        icon={CalendarDays} label="Events"        />
-          <QuickLink to="/community"     icon={Users}        label="Community"     />
-          <QuickLink to="/opportunities" icon={Briefcase}    label="Opportunities" />
-          <QuickLink to="/library"       icon={BookOpen}     label="Resources"     />
-          <QuickLink to="/badges"        icon={Award}        label="Badges"        />
+          <QuickLink to="/programs"      icon={FolderOpen}   label="Programs"      tone="blue" />
+          <QuickLink to="/events"        icon={CalendarDays} label="Events"        tone="indigo" />
+          <QuickLink to="/community"     icon={Users}        label="Community"     tone="green" />
+          <QuickLink to="/opportunities" icon={Briefcase}    label="Opportunities" tone="rose" />
+          <QuickLink to="/library"       icon={BookOpen}     label="Resources"     tone="amber" />
+          <QuickLink to="/badges"        icon={Award}        label="Badges"        tone="teal" />
         </div>
       </section>
     </div>
@@ -751,16 +751,27 @@ export default function YouthDashboardPage() {
 
 // ─── Pieces ───────────────────────────────────────────────────────────────────
 
-function QuickLink({ to, icon: Icon, label }: { to: string; icon: any; label: string }) {
+// A light tint per link: soft box, matching border, icon and label.
+const QUICK_TONES = {
+  blue:   { box: 'bg-blue-50 border-blue-200 hover:border-blue-400',       icon: 'bg-white text-blue-600',     label: 'text-blue-800' },
+  indigo: { box: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400', icon: 'bg-white text-indigo-600',   label: 'text-indigo-800' },
+  green:  { box: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400', icon: 'bg-white text-emerald-600', label: 'text-emerald-800' },
+  rose:   { box: 'bg-rose-50 border-rose-200 hover:border-rose-400',       icon: 'bg-white text-rose-600',     label: 'text-rose-800' },
+  amber:  { box: 'bg-amber-50 border-amber-200 hover:border-amber-400',    icon: 'bg-white text-amber-600',    label: 'text-amber-800' },
+  teal:   { box: 'bg-teal-50 border-teal-200 hover:border-teal-400',       icon: 'bg-white text-teal-600',     label: 'text-teal-800' },
+}
+
+function QuickLink({ to, icon: Icon, label, tone }: { to: string; icon: any; label: string; tone: keyof typeof QUICK_TONES }) {
+  const t = QUICK_TONES[tone]
   return (
     <Link
       to={to}
-      className="group bg-white border border-ink-100 hover:border-primary-300 hover:bg-primary-50/60 rounded-2xl p-4 flex flex-col items-center gap-2.5 text-center transition-all"
+      className={cn('group border rounded-2xl p-4 flex flex-col items-center gap-2.5 text-center transition-all hover:-translate-y-0.5 hover:shadow-md', t.box)}
     >
-      <span className="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-primary-50 group-hover:bg-primary-600 text-primary-700 group-hover:text-white transition-colors">
+      <span className={cn('inline-flex items-center justify-center w-10 h-10 rounded-xl shadow-sm', t.icon)}>
         <Icon size={18} />
       </span>
-      <span className="font-semibold text-xs text-ink-800 group-hover:text-primary-700 transition-colors leading-tight">{label}</span>
+      <span className={cn('font-semibold text-xs leading-tight', t.label)}>{label}</span>
     </Link>
   )
 }
