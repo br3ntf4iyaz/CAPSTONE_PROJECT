@@ -6,7 +6,7 @@ import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
 import OrgCalendarWidget from '@/components/ui/OrgCalendarWidget'
 import ImageLightbox from '@/components/ui/ImageLightbox'
-import { ComplianceBadge, ComplianceMeter, ExemplaryAward } from '@/components/ui/ComplianceBadge'
+import { ComplianceBadge, ComplianceMeter, ExemplaryAward, compliancePercent, complianceTile } from '@/components/ui/ComplianceBadge'
 import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
 import SKOfficialProfile from '../components/SKOfficialProfile'
 import { shrinkImage } from '@/utils/shrinkImage'
@@ -379,8 +379,8 @@ function OfficialCard({
 function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: () => void }) {
   const total = barangay.submitted_count + barangay.pending_count + barangay.overdue_count
   // same calculation as before, but rounding can no longer show 100% (or 0%) unless it is exactly true
-  const raw = total > 0 ? Math.round((barangay.submitted_count / total) * 100) : 0
-  const pct = barangay.submitted_count === total && total > 0 ? 100 : barangay.submitted_count > 0 ? Math.min(99, Math.max(1, raw)) : 0
+  const pct = compliancePercent(barangay.submitted_count, total)
+  const tile = complianceTile(pct)
 
   // Always the 10 seats of THIS barangay, in order: Chairperson, 7 Kagawads, Secretary, Treasurer
   const officials: SKOfficial[] = barangay.officials ?? [
@@ -495,10 +495,10 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             </button>
           </div>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center overflow-hidden">
+            <div className={cn('w-16 h-16 sm:w-20 sm:h-20 shrink-0 rounded-2xl flex items-center justify-center overflow-hidden', tile.ring, barangay.logo_url ? 'bg-white/20' : tile.bg)} title={`Compliance ${pct}%`}>
               {barangay.logo_url
                 ? <img src={barangay.logo_url} alt={`${barangay.barangay_name} logo`} className="w-full h-full object-cover" />
-                : <Award size={32} className="text-white" />
+                : <tile.Icon size={34} className={tile.icon} />
               }
             </div>
             <div className="min-w-0">
@@ -657,7 +657,8 @@ function BarangayCard({
   const queryClient = useQueryClient()
 
   const total = b.submitted_count + b.pending_count + b.overdue_count
-  const pct = total > 0 ? Math.round((b.submitted_count / total) * 100) : 0
+  const pct = compliancePercent(b.submitted_count, total)
+  const tile = complianceTile(pct)
   const notYet = b.pending_count + b.overdue_count
 
   const uploadLogoMutation = useMutation({
@@ -690,10 +691,10 @@ function BarangayCard({
       >
         <div className="flex items-center gap-4 min-w-0">
           {/* Logo / icon — bigger so uploaded logos are visible */}
-          <div className="relative w-14 h-14 rounded-2xl bg-primary-100 flex items-center justify-center flex-shrink-0 overflow-hidden group">
+          <div className={cn('relative w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden group', tile.ring, b.logo_url ? 'bg-primary-100' : tile.bg)} title={`Compliance ${pct}%`}>
             {b.logo_url
               ? <img src={b.logo_url} alt={b.barangay_name} className="w-full h-full object-cover" />
-              : <Users size={24} className="text-primary-600" />
+              : <tile.Icon size={26} className={tile.icon} />
             }
             {canEditLogo && (
               <button
@@ -742,9 +743,9 @@ function BarangayCard({
             {/* Mobile compliance summary */}
             <div className="flex items-center gap-2 mt-1 sm:hidden">
               <div className="flex-1 h-1.5 bg-ink-200 rounded-full overflow-hidden max-w-[80px]">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: `${pct}%` }} />
+                <div className={cn('h-full rounded-full', tile.bar)} style={{ width: `${pct}%` }} />
               </div>
-              <span className="text-xs font-semibold text-ink-600">{pct}%</span>
+              <span className={cn('text-xs font-semibold whitespace-nowrap', tile.text)}>{pct}%</span>
             </div>
           </div>
         </div>
@@ -753,9 +754,9 @@ function BarangayCard({
           {/* Progress bar — desktop */}
           <div className="hidden sm:flex items-center gap-2">
             <div className="w-24 h-2 bg-ink-200 rounded-full overflow-hidden">
-              <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+              <div className={cn('h-full rounded-full transition-all', tile.bar)} style={{ width: `${pct}%` }} />
             </div>
-            <span className="text-sm font-semibold text-ink-700 w-9">{pct}%</span>
+            <span className={cn('text-sm font-semibold min-w-[2.75rem] whitespace-nowrap', tile.text)}>{pct}%</span>
           </div>
           <div className="hidden sm:flex gap-1.5">
             <span className="badge badge-green text-xs">{b.submitted_count} done</span>

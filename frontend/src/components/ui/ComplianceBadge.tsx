@@ -132,3 +132,24 @@ export function ExemplaryAward() {
 }
 
 export { LEVELS as COMPLIANCE_LEVELS }
+
+const TILES: Record<ComplianceLevel, { bg: string; ring: string; icon: string }> = {
+  full: { bg: 'bg-gradient-to-br from-emerald-500 to-emerald-700 shadow-md shadow-emerald-500/40', ring: 'ring-2 ring-amber-300', icon: 'text-amber-200' },
+  high: { bg: 'bg-gradient-to-br from-emerald-400 to-teal-600', ring: 'ring-2 ring-emerald-300', icon: 'text-white' },
+  moderate: { bg: 'bg-gradient-to-br from-amber-300 to-yellow-500', ring: 'ring-2 ring-amber-300', icon: 'text-amber-950' },
+  low: { bg: 'bg-gradient-to-br from-orange-400 to-red-400', ring: 'ring-2 ring-orange-300', icon: 'text-white' },
+  none: { bg: 'bg-gradient-to-br from-slate-300 to-slate-500', ring: 'ring-2 ring-slate-300', icon: 'text-white' },
+}
+
+/** The same percentage everywhere in the directory (rounding can never show 100% or 0% unless it is exactly true). */
+export function compliancePercent(submitted: number, total: number): number {
+  if (total <= 0 || submitted <= 0) return 0
+  if (submitted === total) return 100
+  return Math.min(99, Math.max(1, Math.round((submitted / total) * 100)))
+}
+
+/** Colours and icon for a barangay's icon tile, matching its compliance level. */
+export function complianceTile(pct: number) {
+  const level = complianceLevel(pct)
+  return { ...TILES[level], Icon: LEVELS[level].Icon, bar: LEVELS[level].bar, text: LEVELS[level].text, level }
+}
