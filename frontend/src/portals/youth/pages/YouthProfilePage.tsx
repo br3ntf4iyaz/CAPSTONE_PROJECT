@@ -15,6 +15,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { QueryError } from '@/components/ui/QueryError'
 import { cn, formatDate } from '@/utils'
 import { MyApplicationsCard } from '../components/MyApplicationsCard'
+import ImageCropper from '@/components/ui/ImageCropper'
 
 interface Profile {
   id: number
@@ -78,6 +79,7 @@ const LUCENA_BARANGAYS = [
 function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: string }) {
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null) // the chosen photo, until the person has framed it
 
   const uploadAvatar = useMutation({
     mutationFn: (file: File) => {
@@ -92,6 +94,7 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
       qc.setQueryData(['me'], updated)
       authStore.setUser(updated)
       toast.success('Avatar updated!')
+      setCropFile(null)
     },
     onError: () => toast.error('Failed to upload avatar.'),
   })
@@ -121,10 +124,18 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
         className="hidden"
         onChange={e => {
           const file = e.target.files?.[0]
-          if (file) uploadAvatar.mutate(file)
+          if (file) setCropFile(file)
           e.target.value = ''
         }}
       />
+      {cropFile && (
+        <ImageCropper
+          file={cropFile}
+          title="Adjust your profile photo"
+          onCancel={() => setCropFile(null)}
+          onConfirm={cropped => uploadAvatar.mutate(cropped)}
+        />
+      )}
     </div>
   )
 }
