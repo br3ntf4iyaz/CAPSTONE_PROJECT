@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook, Crown } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
@@ -288,11 +288,11 @@ function OfficialCard({
         // the council is calm navy; the chairperson is the most colourful card: bright blue, a thick yellow frame,
         // the red-yellow-blue stripe of the system and warm glows
         featured
-          ? 'max-w-[14rem] border-4 border-accent-400 ring-4 ring-accent-400/30 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800 text-white shadow-2xl shadow-accent-500/40 pt-5 sm:pt-6'
+          ? 'max-w-[14rem] border-[3px] border-accent-400 ring-4 ring-accent-400/25 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 pt-6 sm:pt-7'
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
-      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
+      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured && 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30')}>
         {showPhoto ? (
           <button
             type="button"
@@ -320,9 +320,14 @@ function OfficialCard({
           </span>
         )}
       </div>
-      {featured && <div aria-hidden className="ph-stripe pointer-events-none absolute inset-x-0 top-0 h-2" />}
-      {featured && <div aria-hidden className="pointer-events-none absolute -top-8 -left-8 h-28 w-28 rounded-full bg-alert-500/35 blur-2xl" />}
-      <div aria-hidden className={cn('pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full blur-2xl', featured ? 'bg-accent-400/50' : 'bg-white/10')} />
+      {featured && (
+        // red | yellow | white stripe: visible on the blue, unlike a blue segment
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 flex h-2.5">
+          <span className="flex-1 bg-alert-500" /><span className="flex-1 bg-accent-400" /><span className="flex-1 bg-white" />
+        </div>
+      )}
+      {featured && <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_55%)]" />}
+      {!featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />}
       <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
         className={cn(
@@ -330,7 +335,7 @@ function OfficialCard({
           o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : 'bg-white/20 text-white border border-white/25',
         )}
       >
-        {o.position_display}
+        {o.position === 'chairperson' && <Crown size={12} className="mr-1 inline -mt-0.5" />}{o.position_display}
       </p>
       {onOpen && (
         <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
