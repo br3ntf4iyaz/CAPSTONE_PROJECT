@@ -74,7 +74,6 @@ import AdminLoginPage from '@/portals/admin/pages/AdminLoginPage'
 const AdminDashPage        = lazy(() => import('@/portals/admin/pages/AdminDashPage'))
 const AdminProjectsPage    = lazy(() => import('@/portals/admin/pages/AdminProjectsPage'))
 const AdminYORPPage        = lazy(() => import('@/portals/admin/pages/AdminYORPPage'))
-const AdminMembershipPage  = lazy(() => import('@/portals/admin/pages/AdminMembershipPage'))
 const AdminSKTrackerPage   = lazy(() => import('@/portals/admin/pages/AdminSKTrackerPage'))
 const AdminAnalyticsPage   = lazy(() => import('@/portals/admin/pages/AdminAnalyticsPage'))
 const AdminCalendarPage    = lazy(() => import('@/portals/admin/pages/AdminCalendarPage'))
@@ -243,7 +242,7 @@ export default function App() {
         <Route path="/admin"                 element={<Wrap><AdminDashPage /></Wrap>} />
         <Route path="/admin/projects"        element={<Wrap><AdminProjectsPage /></Wrap>} />
         <Route path="/admin/yorp"            element={<Wrap><AdminYORPPage /></Wrap>} />
-        <Route path="/admin/membership"      element={<Wrap><AdminMembershipPage /></Wrap>} />
+        <Route path="/admin/membership"      element={<Navigate to="/admin/yorp?tab=members" replace />} />
         <Route path="/admin/sk-tracker"      element={<Navigate to="/admin/sk-compliance?tab=other" replace />} />
         <Route path="/admin/sk-officials"    element={<Wrap><AdminSKOfficialsPage /></Wrap>} />
         <Route path="/admin/analytics"       element={<Wrap><AdminAnalyticsPage /></Wrap>} />

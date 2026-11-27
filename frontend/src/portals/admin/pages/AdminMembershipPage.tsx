@@ -132,7 +132,7 @@ function Detail({ app, onClose, onDone }: { app: OrgApplicationRow; onClose: () 
   )
 }
 
-export default function AdminMembershipPage() {
+export default function AdminMembershipPage({ embedded = false }: { embedded?: boolean }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('pending')
   const [q, setQ] = useState('')
@@ -168,8 +168,8 @@ export default function AdminMembershipPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="page-title">Organization Membership Verification</h1>
-        <p className="page-subtitle">Applications made in LYDOP to join youth organizations. The officers of each organization review and approve them; LYDO oversees, can step in when an organization has no officer account, and can revoke a membership. Only people with a verified account can apply.</p>
+        {!embedded && <h1 className="page-title">Member applications</h1>}
+        <p className={embedded ? 'text-sm text-gray-500' : 'page-subtitle'}>Applications made in LYDOP to join youth organizations. The officers of each organization review and approve them; LYDO oversees, can step in when an organization has no officer account, and can revoke a membership. Only people with a verified account can apply.</p>
       </div>
 
       <AccountGroupTabs value={group} onChange={setGroup} types={everyone.map(a => a.applicant_type)} />

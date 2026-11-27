@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Users, Plus, Download, ChevronDown, ChevronUp, CheckCircle2, X, Filter, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -9,6 +10,7 @@ import { formatDate, cn, toArray } from '@/utils'
 import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 import { useYORPDecisionIntegrity } from '@/api/ledger'
 import { OrgApplicationsPanel } from '@/portals/youth/components/OrgJoin'
+import AdminMembershipPage from './AdminMembershipPage'
 
 interface YouthOrg {
   id: number
@@ -311,7 +313,7 @@ function DecisionBox({ orgId }: { orgId: number }) {
   )
 }
 
-export default function AdminYORPPage() {
+function OrganizationsTab() {
   const qc = useQueryClient()
   const [expanded, setExpanded] = useState<number | null>(null)
   const [filters, setFilters] = useState({ classification: '', sub_classification: '', registration_category: '', barangay: '' })
@@ -382,8 +384,8 @@ export default function AdminYORPPage() {
     <div className="space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="page-title">Youth Organization Registry (YORP)</h1>
-          <p className="page-subtitle">{filtered.length} organizations</p>
+          <h2 className="text-lg font-bold text-gray-900">Organizations (YORP registry)</h2>
+          <p className="text-sm text-gray-500">{filtered.length} organizations. LYDO verifies and registers the organizations themselves here.</p>
         </div>
         <div className="flex gap-2">
           <button onClick={exportCSV} className="btn-secondary btn-sm">
@@ -626,6 +628,46 @@ export default function AdminYORPPage() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/** One place for everything about youth organizations: the organizations themselves (registered and verified by LYDO) and the people who apply to join them (reviewed by the organization's officers). */
+export default function AdminYORPPage() {
+  const [params, setParams] = useSearchParams()
+  const tab: 'orgs' | 'members' = params.get('tab') === 'members' ? 'members' : 'orgs'
+  const pendingOrgs = useQuery<number>({
+    queryKey: ['admin-yorp-pending-count'],
+    queryFn: () => apiClient.get('/youth-orgs/').then(r => toArray<{ status: string }>(r.data).filter(o => o.status === 'pending').length),
+    refetchInterval: 60000,
+  })
+  const waitingMembers = useQuery<number>({
+    queryKey: ['admin-membership-waiting-count'],
+    queryFn: () => apiClient.get('/youth-orgs/membership-applications/').then(r => toArray<{ status: string }>(r.data).filter(a => a.status === 'pending' || a.status === 'reviewing').length),
+    refetchInterval: 60000,
+  })
+  const tabs = [
+    { key: 'orgs' as const, label: 'Organizations (YORP)', hint: 'Verify and register organizations', badge: pendingOrgs.data ?? 0 },
+    { key: 'members' as const, label: 'Member applications', hint: 'People applying to join an organization', badge: waitingMembers.data ?? 0 },
+  ]
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="page-title">Youth Organizations</h1>
+        <p className="page-subtitle">Organizations are verified by LYDO. Members are approved by the officers of each organization.</p>
+      </div>
+      <div className="flex flex-wrap gap-2 border-b border-gray-200" role="tablist" aria-label="Youth organizations">
+        {tabs.map(t => (
+          <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} title={t.hint}
+            onClick={() => setParams(t.key === 'orgs' ? {} : { tab: t.key }, { replace: true })}
+            className={cn('-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors',
+              tab === t.key ? 'border-primary-600 text-primary-700' : 'border-transparent text-gray-500 hover:text-gray-800')}>
+            {t.label}
+            {t.badge > 0 && <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white">{t.badge}</span>}
+          </button>
+        ))}
+      </div>
+      {tab === 'orgs' ? <OrganizationsTab /> : <AdminMembershipPage embedded />}
     </div>
   )
 }

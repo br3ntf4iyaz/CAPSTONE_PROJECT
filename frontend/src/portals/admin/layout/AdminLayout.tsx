@@ -158,7 +158,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard',        icon: LayoutDashboard, to: '/admin' },
   { label: 'Programs',          icon: FolderOpen,     to: '/admin/programs' },
   { label: 'Project Monitoring', icon: CheckCheck,   to: '/admin/projects' },
-  { label: 'Youth Orgs / YORP', icon: Users,          to: '/admin/yorp' },
+  { label: 'Youth Organizations', icon: Users,        to: '/admin/yorp' },
   { label: 'Youth Participation', icon: UserCheck,     to: '/admin/participation' },
   { label: 'SK Officials',     icon: Users,           to: '/admin/sk-officials' },
   { label: 'SK Compliance Monitoring', icon: Landmark, to: '/admin/sk-compliance' },
@@ -172,7 +172,6 @@ const NAV_ITEMS = [
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
   { label: 'Applications',     icon: ClipboardList,  to: '/admin/applications' },
   { label: 'Account Verification', icon: Shield,       to: '/admin/verification' },
-  { label: 'Membership Verification', icon: UserCheck, to: '/admin/membership' },
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
@@ -212,8 +211,8 @@ export default function AdminLayout() {
         '/admin/applications:jobs': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
         '/admin/applications:scholarships': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
-        '/admin/membership': mem.filter(m => m.status === 'pending' || m.status === 'reviewing').length,
-        '/admin/yorp': orgs.filter(o => o.status === 'pending').length,
+        // one entry for organizations and for the people applying to join them; the tabs inside show each one
+        '/admin/yorp': orgs.filter(o => o.status === 'pending').length + mem.filter(m => m.status === 'pending' || m.status === 'reviewing').length,
         '/admin/support': tix.filter(t => t.status === 'open').length,
       }
     },
