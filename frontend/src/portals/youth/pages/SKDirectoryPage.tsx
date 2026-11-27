@@ -267,7 +267,7 @@ function FeedbackModal({ barangayName, onClose }: { barangayName: string; onClos
 function OfficialCard({
   o, featured = false, light = false, onZoom, canEdit = false, busy = false, onPick, onRemove, onRename, onOpen,
 }: {
-  light?: boolean   // the Secretary and Treasurer: a light card with a blue frame, so they read as a different group
+  light?: boolean   // the Secretary and Treasurer: a full-colour TEAL card, so they read as a different group from the navy kagawads
   onOpen?: () => void
   onRename?: (name: string) => void
   o: SKOfficial
@@ -289,7 +289,7 @@ function OfficialCard({
         // the council is calm navy; the chairperson is the most colourful card: bright blue, a thick yellow frame,
         // the red-yellow-blue stripe of the system and warm glows
         light
-          ? 'border-2 border-primary-500 border-b-[5px] border-b-accent-400 bg-gradient-to-b from-white to-primary-50 text-primary-900 shadow-md shadow-primary-600/15 hover:shadow-lg hover:shadow-primary-600/25 hover:-translate-y-0.5'
+          ? 'border-teal-700 border-b-[5px] border-b-accent-400 bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-700/30 hover:shadow-lg hover:shadow-teal-700/40 hover:-translate-y-0.5'
           : featured
           ? 'max-w-[14rem] border-[3px] border-accent-400 ring-4 ring-accent-400/25 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 pt-6 sm:pt-7'
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
@@ -330,18 +330,18 @@ function OfficialCard({
         </div>
       )}
       {featured && <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_55%)]" />}
-      {!featured && !light && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />}
-      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', light ? 'text-primary-900' : 'text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
+      {!featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />}
+      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', 'text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
         className={cn(
           'relative mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : light ? 'bg-primary-600 text-white' : 'bg-white/20 text-white border border-white/25',
+          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : light ? 'bg-white text-teal-800 shadow-sm' : 'bg-white/20 text-white border border-white/25',
         )}
       >
         {o.position === 'chairperson' && <Crown size={12} className="mr-1 inline -mt-0.5" />}{o.position_display}
       </p>
       {onOpen && (
-        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : light ? 'border-primary-300 bg-white text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
+        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : light ? 'border-white/60 text-white hover:bg-white hover:text-teal-700' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
           View profile
         </button>
       )}
@@ -352,7 +352,7 @@ function OfficialCard({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50', light ? 'bg-primary-600 text-white hover:bg-primary-700' : 'bg-white text-primary-700 hover:bg-primary-50')}
+            className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50', light ? 'bg-white text-teal-700 hover:bg-teal-50' : 'bg-white text-primary-700 hover:bg-primary-50')}
           >
             <Camera size={12} /> {busy ? 'Saving...' : showPhoto ? 'Change picture' : 'Upload picture'}
           </button>
@@ -363,7 +363,7 @@ function OfficialCard({
               disabled={busy}
               aria-label={`Remove the picture of ${o.name}`}
               title="Remove the picture"
-              className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-50', light ? 'border-ink-300 text-ink-500 hover:bg-red-50 hover:text-red-600' : 'border-white/50 text-white hover:bg-red-500 hover:border-red-500')}
+              className={cn('inline-flex h-6 w-6 items-center justify-center rounded-full border disabled:opacity-50', 'border-white/50 text-white hover:bg-red-500 hover:border-red-500')}
             >
               <Trash2 size={12} />
             </button>
@@ -375,7 +375,7 @@ function OfficialCard({
               if (n && n !== o.name) onRename?.(n)
             }}
             disabled={busy}
-            className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50', light ? 'border-primary-300 text-primary-700 hover:bg-primary-50' : 'border-white/50 text-white hover:bg-white/15')}
+            className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold disabled:opacity-50', 'border-white/50 text-white hover:bg-white/15')}
           >
             Edit name
           </button>
@@ -645,7 +645,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
 
           {(secretary.length > 0 || treasurer.length > 0) && (
             <div>
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-primary-700 mb-3 flex items-center gap-2"><span className="h-3 w-1 rounded-full bg-primary-500" />SK Secretary and Treasurer</h4>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-primary-700 mb-3 flex items-center gap-2"><span className="h-3 w-1 rounded-full bg-teal-500" />SK Secretary and Treasurer</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} light onZoom={() => setZoomKey(o.key)} {...editProps(o)} />)}
               </div>
