@@ -285,17 +285,17 @@ function OfficialCard({
     <article
       className={cn(
         // every card in a grid has the same width and height, whatever the name length
-        'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 h-full w-full transition-shadow',
+        'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-1.5 h-full w-full transition-shadow',
         // the council is calm navy; the chairperson is the most colourful card: bright blue, a thick yellow frame,
         // the red-yellow-blue stripe of the system and warm glows
         light
           ? 'border-teal-700 border-b-[5px] border-b-accent-400 bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-700/30 hover:shadow-lg hover:shadow-teal-700/40 hover:-translate-y-0.5'
           : featured
-          ? 'max-w-[14rem] border-[3px] border-accent-400 ring-4 ring-accent-400/25 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 pt-6 sm:pt-7'
+          ? 'max-w-[14rem] border-[3px] border-accent-400 ring-4 ring-accent-400/25 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 p-2 pt-5'
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
-      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30' : 'ring-1 ring-white/40 shadow-lg shadow-black/30')}>
+      <div className={cn('relative w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'aspect-[4/5] ring-4 ring-accent-400 shadow-lg shadow-primary-900/30' : 'aspect-[4/5]')}>
         {showPhoto ? (
           <button
             type="button"
@@ -323,8 +323,11 @@ function OfficialCard({
           </span>
         )}
         {/* the name on the picture, over a dark fade, like a trading card */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-2 pb-5 pt-12 text-center">
-          <h4 className={cn('font-extrabold leading-tight break-words text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]', featured ? 'text-lg' : 'text-[15px]')}>{o.name}</h4>
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2 pb-2 pt-10 text-center">
+          <h4 className={cn('font-extrabold leading-tight break-words text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]', featured ? 'text-lg' : 'text-sm')}>{o.name}</h4>
+          <p className={cn('mt-0.5 text-[10px] font-semibold uppercase tracking-wider', o.position === 'chairperson' ? 'text-accent-300' : 'text-white/75')}>
+            {o.position === 'chairperson' && <Crown size={10} className="mr-1 inline -mt-0.5" />}{o.position_display}
+          </p>
         </div>
       </div>
       {featured && (
@@ -333,18 +336,8 @@ function OfficialCard({
           <span className="flex-1 bg-alert-500" /><span className="flex-1 bg-accent-400" /><span className="flex-1 bg-white" />
         </div>
       )}
-      {featured && <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_55%)]" />}
-      {!featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />}
-      <p
-        className={cn(
-          'relative z-10 -mt-3 mb-0 inline-block whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide shadow-lg shadow-black/30',
-          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900' : light ? 'bg-white text-teal-800' : 'bg-white text-primary-800',
-        )}
-      >
-        {o.position === 'chairperson' && <Crown size={12} className="mr-1 inline -mt-0.5" />}{o.position_display}
-      </p>
       {onOpen && (
-        <button type="button" onClick={onOpen} className={cn('relative mt-3 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : light ? 'border-white/60 text-white hover:bg-white hover:text-teal-700' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
+        <button type="button" onClick={onOpen} className={cn('relative mt-1.5 w-full rounded-lg py-1.5 text-[11px] font-semibold transition-colors', featured ? 'bg-accent-400 text-primary-900 hover:bg-accent-300' : 'bg-white/15 text-white hover:bg-white hover:text-primary-800')}>
           View profile
         </button>
       )}
