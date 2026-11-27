@@ -155,8 +155,25 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
                 submitted_by=self.request.user,
             )
             ensure_default_requirements(org)
+            self._notify_new_registration(org)
         else:
             serializer.save(status='approved')
+
+    def _notify_new_registration(self, org):
+        """LYDO is told a new organization waits for verification, and the leader is told it was received. Never blocks the registration."""
+        who = self.request.user.full_name or self.request.user.email
+        try:
+            create_notification(self.request.user, 'Organization submitted',
+                                f'"{org.name}" is Pending Verification. Only you and LYDO can see it until LYDO verifies it. You will be notified of the decision.',
+                                'system', link='/organizations')
+        except Exception:
+            pass
+        try:
+            from django.contrib.auth import get_user_model
+            for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
+                create_notification(admin, 'New organization to verify', f'{who} registered "{org.name}". Review it under Youth Orgs / YORP.', 'system', link='/admin/yorp')
+        except Exception:
+            pass
 
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):

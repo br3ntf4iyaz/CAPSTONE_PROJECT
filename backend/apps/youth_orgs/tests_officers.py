@@ -115,3 +115,10 @@ class OfficersAndOwnershipTests(TestCase):
         self.assertTrue(self.lc.get(BASE).data[0]['is_mine'])
         for c in (self.oc, self.skc, self.anon):
             self.assertFalse(c.get(BASE).data[0]['is_mine'])
+
+    def test_lydo_and_the_leader_are_notified_when_an_organization_is_registered(self):
+        from apps.notifications.models import Notification
+        self.create('Org A')
+        self.assertTrue(Notification.objects.filter(user=self.admin, title='New organization to verify', message__contains='Org A').exists())
+        self.assertTrue(Notification.objects.filter(user=self.leader, title='Organization submitted').exists())
+        self.assertFalse(Notification.objects.filter(user=self.other).exists())

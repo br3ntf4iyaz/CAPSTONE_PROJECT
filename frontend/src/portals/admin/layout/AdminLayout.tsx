@@ -203,6 +203,7 @@ export default function AdminLayout() {
       ])
       const sch = await list('/applications/scholarship/')
       const mem = await list('/youth-orgs/membership-applications/')
+      const orgs = await list('/youth-orgs/')
       const skq = await apiClient.get('/compliance/sk/queue/').then(r => (r.data?.to_verify?.length ?? 0) + (r.data?.ready_to_publish?.length ?? 0)).catch(() => 0)
       return {
         '/admin/sk-compliance': skq,
@@ -212,6 +213,7 @@ export default function AdminLayout() {
         '/admin/applications:scholarships': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
         '/admin/membership': mem.filter(m => m.status === 'pending' || m.status === 'reviewing').length,
+        '/admin/yorp': orgs.filter(o => o.status === 'pending').length,
         '/admin/support': tix.filter(t => t.status === 'open').length,
       }
     },
