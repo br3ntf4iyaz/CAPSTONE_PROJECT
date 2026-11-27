@@ -598,6 +598,46 @@ function RequirementChecklist({ org }: { org: MySubmission }) {
   )
 }
 
+/** What the leader submitted, read-only: shown on a rejected organization so they can see what was sent before deleting or registering again. */
+function SubmittedDetails({ id }: { id: number }) {
+  const { data: o, isLoading } = useQuery<{
+    name: string; acronym: string; classification: string; sub_classification: string; barangay: string; description: string
+    contact_person: string; contact_email: string; contact_phone: string; my_position: string; mission: string
+    officers: { id: number; position_label: string; name: string; is_public: boolean }[]
+  }>({ queryKey: ['manage-org', id], queryFn: () => apiClient.get(`/youth-orgs/${id}/manage/`).then(r => r.data) })
+  if (isLoading) return <p className="mt-2 text-xs text-ink-500">Loading the details…</p>
+  if (!o) return null
+  const rows: [string, string | undefined][] = [
+    ['Organization name', o.name + (o.acronym ? ` (${o.acronym})` : '')],
+    ['Classification', CLASS_LABELS[o.classification] ?? o.classification],
+    ['Type', SUBCLASS_LABELS[o.sub_classification] ?? o.sub_classification],
+    ['Barangay', o.barangay],
+    ['Your position', o.my_position],
+    ['Contact person', o.contact_person],
+    ['Email', o.contact_email],
+    ['Phone', o.contact_phone],
+  ]
+  return (
+    <div className="mt-2 rounded-xl border border-ink-100 bg-ink-50/50 p-3 text-sm">
+      <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-ink-500">What you submitted</p>
+      <dl className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-1">
+        {rows.filter(([, v]) => v).map(([k, v]) => (
+          <div key={k} className="contents"><dt className="text-ink-500">{k}</dt><dd className="break-words font-medium text-ink-800">{v}</dd></div>
+        ))}
+      </dl>
+      {o.description && <p className="mt-2 whitespace-pre-line text-ink-700"><span className="text-ink-500">Description: </span>{o.description}</p>}
+      {o.officers.length > 0 && (
+        <div className="mt-2">
+          <p className="text-ink-500">Officers</p>
+          <ul className="mt-0.5 space-y-0.5">
+            {o.officers.map(x => <li key={x.id} className="text-ink-800"><span className="font-medium">{x.name}</span> <span className="text-xs text-ink-500">· {x.position_label}</span></li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function MySubmissions({ onManage }: { onManage: (id: number) => void }) {
   const qc = useQueryClient()
   const [confirmId, setConfirmId] = useState<number | null>(null)
@@ -635,6 +675,7 @@ function MySubmissions({ onManage }: { onManage: (id: number) => void }) {
               <p className="text-xs text-ink-600 bg-ink-50 rounded-lg px-3 py-2 mt-2">{s.admin_notes}</p>
             )}
             {s.status === 'pending' && <p className="mt-2 text-xs text-ink-500">Visible only to you and LYDO until it is verified.</p>}
+            {s.status === 'rejected' && <SubmittedDetails id={s.id} />}
             {s.status === 'rejected' ? (
               confirmId === s.id ? (
                 <div className="mt-2 space-y-2 rounded-xl border border-red-100 bg-red-50/60 p-3">
