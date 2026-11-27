@@ -644,7 +644,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             )}
             {barangay.contact_phone && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500 shadow-md shadow-emerald-500/30 flex items-center justify-center shrink-0"><Phone size={18} className="text-white" /></div>
+                <div className="w-10 h-10 rounded-xl bg-accent-400 shadow-md shadow-accent-500/40 flex items-center justify-center shrink-0"><Phone size={18} className="text-primary-900" /></div>
                 <div>
                   <p className="text-xs text-ink-500 font-medium">Phone</p>
                   <a href={`tel:${barangay.contact_phone}`} className="font-semibold text-sm text-primary-700 hover:underline">{barangay.contact_phone}</a>
