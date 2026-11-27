@@ -7,7 +7,7 @@ import {
   BookOpen, Briefcase, ShieldCheck, ShieldAlert, FileText,
   CheckCircle2, RotateCcw, Edit3, Users, Award,
   Activity, MessageSquare, Trophy, PlayCircle, Heart, Trash2,
-  Building2,
+  Building2, ChevronRight,
 } from 'lucide-react'
 import apiClient from '@/api/client'
 import { communityApi } from '@/api/community'
@@ -554,7 +554,9 @@ export default function YouthDashboardPage() {
           >
             <ul className="space-y-3">
               {visibleEvents.map(event => (
-                <li key={event.id} className="group flex items-start gap-4 p-3 -mx-3 rounded-xl hover:bg-primary-50/60 transition-colors">
+                <li key={event.id}>
+                <Link to="/events" aria-label={'See ' + event.title + ' and all events'} title="See all events"
+                  className="group flex items-start gap-4 p-3 -mx-3 rounded-xl hover:bg-primary-50/60 focus-visible:bg-primary-50/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-300 transition-colors">
                   <CalendarIcon date={new Date(event.start_datetime)} className="flex" />
                   <div className="flex-1 min-w-0">
                     <span className="chip-primary text-[10px] mb-1.5">
@@ -572,6 +574,8 @@ export default function YouthDashboardPage() {
                       )}
                     </p>
                   </div>
+                  <ChevronRight size={16} className="mt-1 shrink-0 text-ink-300 transition-colors group-hover:text-primary-600" aria-hidden />
+                </Link>
                 </li>
               ))}
             </ul>
