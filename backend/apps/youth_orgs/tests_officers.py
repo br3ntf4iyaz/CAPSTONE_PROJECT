@@ -122,3 +122,13 @@ class OfficersAndOwnershipTests(TestCase):
         self.assertTrue(Notification.objects.filter(user=self.admin, title='New organization to verify', message__contains='Org A').exists())
         self.assertTrue(Notification.objects.filter(user=self.leader, title='Organization submitted').exists())
         self.assertFalse(Notification.objects.filter(user=self.other).exists())
+
+    def test_only_lydo_can_delete_an_organization_and_it_is_logged(self):
+        self.create('Fake Org')
+        org = YouthOrganization.objects.get(name='Fake Org')
+        for c in (self.lc, self.oc, self.skc, self.anon):
+            self.assertIn(c.delete(f'{BASE}{org.pk}/').status_code, (401, 403, 404))
+        self.assertTrue(YouthOrganization.objects.filter(pk=org.pk).exists())
+        self.assertEqual(self.ac.delete(f'{BASE}{org.pk}/').status_code, 204)
+        self.assertFalse(YouthOrganization.objects.filter(pk=org.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(action='org_deleted', details__organization='Fake Org').exists())

@@ -175,6 +175,17 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         except Exception:
             pass
 
+    def perform_destroy(self, instance):
+        """LYDO removes an organization for good (sample or wrong entries). Its officers, documents and applications go with it; the audit log keeps who did it."""
+        self._audit(self.request, 'org_deleted', instance, status=instance.status, registration=instance.registration_category,
+                    applications=instance.membership_applications.count())
+        if instance.logo:
+            try:
+                instance.logo.delete(save=False)
+            except Exception:
+                pass
+        instance.delete()
+
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]

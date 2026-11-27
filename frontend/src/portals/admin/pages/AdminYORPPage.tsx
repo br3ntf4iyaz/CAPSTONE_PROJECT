@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Plus, Download, ChevronDown, ChevronUp, CheckCircle2, X, Filter } from 'lucide-react'
+import { Users, Plus, Download, ChevronDown, ChevronUp, CheckCircle2, X, Filter, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -202,6 +202,16 @@ function DecisionBox({ orgId }: { orgId: number }) {
   const { data: org } = useOrgDetail(orgId)
   const [notes, setNotes] = useState<string | null>(null)
   const [category, setCategory] = useState('lydo')
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const remove = useMutation({
+    mutationFn: () => apiClient.delete(`/youth-orgs/${orgId}/`),
+    onSuccess: () => {
+      toast.success('Organization deleted.')
+      qc.invalidateQueries({ queryKey: ['admin-youth-orgs'] })
+      qc.invalidateQueries({ queryKey: ['youth-orgs-directory'] })
+    },
+    onError: () => toast.error('Could not delete the organization.'),
+  })
 
   const decide = useMutation({
     mutationFn: (action: 'approve' | 'reject') =>
@@ -255,6 +265,20 @@ function DecisionBox({ orgId }: { orgId: number }) {
       </div>
 
       <PublicProfileEditor key={`${org.id}-${org.status}-${org.is_active}`} org={org} />
+
+      <div className="rounded-xl border border-red-100 bg-red-50/50 p-3">
+        {!confirmDelete ? (
+          <button type="button" onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700"><Trash2 size={14} /> Delete this organization…</button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-sm text-red-800">Delete <strong>{org.name}</strong> for good? Its officers, documents and membership applications are deleted with it. This cannot be undone. The deletion is kept in the audit log.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setConfirmDelete(false)} className="btn-secondary btn-sm text-xs">Keep it</button>
+              <button type="button" onClick={() => remove.mutate()} disabled={remove.isPending} className="btn-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 text-xs">{remove.isPending ? 'Deleting…' : 'Yes, delete'}</button>
+            </div>
+          </div>
+        )}
+      </div>
 
       <label className="block">
         <span className="text-xs text-gray-500">Note to the organization (required when rejecting)</span>
