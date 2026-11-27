@@ -60,3 +60,18 @@ class DeleteNotificationTests(APITestCase):
         self.client.force_authenticate(self.user)
         self.assertEqual(self.client.put(self.url(self.mine[0]), {'title': 'x'}).status_code, 405)
         self.assertEqual(self.client.patch(self.url(self.mine[0]), {'title': 'x'}).status_code, 405)
+
+
+class AdminDeleteNotificationTests(APITestCase):
+    def setUp(self):
+        self.admin = User.objects.create_user(email='ad@x.com', password='p', role='lgu_admin', is_active=True)
+        self.other_admin = User.objects.create_user(email='ad2@x.com', password='p', role='lgu_admin', is_active=True)
+        self.note = Notification.objects.create(user=self.admin, title='New event registration', message='m', notification_type='system', link='/admin/calendar?event=1')
+        self.theirs = Notification.objects.create(user=self.other_admin, title='x', message='m', notification_type='system')
+
+    def test_an_admin_deletes_only_their_own_notification(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.delete(f'/api/notifications/{self.theirs.id}/').status_code, 404)
+        self.assertEqual(self.client.delete(f'/api/notifications/{self.note.id}/').status_code, 204)
+        self.assertFalse(Notification.objects.filter(id=self.note.id).exists())
+        self.assertTrue(Notification.objects.filter(id=self.theirs.id).exists())

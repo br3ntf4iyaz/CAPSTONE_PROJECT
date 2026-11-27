@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import toast from 'react-hot-toast'
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom'
 import { Navigate } from 'react-router-dom'
 import {
   LayoutDashboard, FolderOpen, Users, ClipboardCheck, BarChart3,
   CalendarDays, BookOpen, ClipboardList, GraduationCap, UserCog, Library,
   Briefcase, Bell, Shield, LogOut, ChevronLeft, ChevronRight, Menu,
-  Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy, Landmark, Scale,
+  Newspaper, FileText, CheckCheck, X, History, UserCheck, LifeBuoy, Landmark, Scale, MoreVertical, Trash2,
 } from 'lucide-react'
 import { useAuthStore, authStore } from '@/store/authStore'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -30,7 +32,11 @@ function AdminNotificationBell() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
+  const [menu, setMenu] = useState<{ id: number; top: number; right: number } | null>(null)
+  const [confirmId, setConfirmId] = useState<number | null>(null)
   const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => { if (!open) { setMenu(null); setConfirmId(null) } }, [open])
 
   const { data: notifications = [] } = useQuery<AdminNotification[]>({
     queryKey: ['admin-notifications-bell'],
@@ -55,9 +61,21 @@ function AdminNotificationBell() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin-notifications-bell'] }),
   })
 
+  // delete ONE notification of the signed-in admin (the server refuses anyone else's and the announcements)
+  const deleteNotif = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/notifications/${id}/`),
+    onSuccess: () => {
+      setConfirmId(null)
+      qc.invalidateQueries({ queryKey: ['admin-notifications-bell'] })
+      qc.invalidateQueries({ queryKey: ['admin-notifications'] })
+      toast.success('Notification deleted successfully.')
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not delete the notification. Please try again.'),
+  })
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('[data-notif-portal]')) setOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -112,10 +130,28 @@ function AdminNotificationBell() {
                     if (n.link) { setOpen(false); navigate(n.link) }
                   }}
                   className={cn(
-                    'px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors',
+                    'group relative px-4 py-3 pr-11 cursor-pointer hover:bg-gray-50 transition-colors',
                     !n.is_read && 'bg-blue-50/50'
                   )}
                 >
+                  <button
+                    type="button"
+                    aria-label="Notification options"
+                    aria-haspopup="menu"
+                    onClick={e => {
+                      e.stopPropagation()
+                      if (menu?.id === n.id) { setMenu(null); return }
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setMenu({ id: n.id, top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) })
+                    }}
+                    className={cn(
+                      'absolute top-2.5 right-2 inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-all hover:bg-gray-200 hover:text-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-400',
+                      'sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100',
+                      menu?.id === n.id && 'sm:opacity-100 bg-gray-200 text-gray-800',
+                    )}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
                   <div className="flex items-start gap-2.5">
                     <div className={cn(
                       'w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5',
@@ -138,6 +174,43 @@ function AdminNotificationBell() {
               ))
             )}
           </div>
+
+          {menu && createPortal(
+            <div data-notif-portal>
+              <div className="fixed inset-0 z-[60]" onMouseDown={e => { e.stopPropagation(); setMenu(null) }} />
+              <div role="menu" className="fixed z-[61] min-w-[11rem] rounded-xl border border-gray-100 bg-white py-1 shadow-xl" style={{ top: menu.top, right: menu.right }}>
+                <button
+                  role="menuitem"
+                  onClick={() => { setConfirmId(menu.id); setMenu(null) }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-xs font-semibold text-red-600 transition-colors hover:bg-red-50"
+                >
+                  <Trash2 size={14} /> Delete this notification
+                </button>
+              </div>
+            </div>,
+            document.body,
+          )}
+
+          {confirmId !== null && createPortal(
+            <div data-notif-portal className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
+              onMouseDown={e => { e.stopPropagation(); if (!deleteNotif.isPending) setConfirmId(null) }}>
+              <div role="alertdialog" aria-modal="true" aria-labelledby="admin-del-notif-title" onMouseDown={e => e.stopPropagation()}
+                className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl">
+                <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600"><Trash2 size={22} /></span>
+                <h3 id="admin-del-notif-title" className="text-lg font-bold text-gray-900">Delete Notification?</h3>
+                <p className="mt-1.5 text-sm text-gray-600">Are you sure you want to delete this notification? This action cannot be undone.</p>
+                <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-center">
+                  <button onClick={() => setConfirmId(null)} disabled={deleteNotif.isPending}
+                    className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60">Cancel</button>
+                  <button onClick={() => deleteNotif.mutate(confirmId)} disabled={deleteNotif.isPending}
+                    className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
+                    {deleteNotif.isPending ? 'Deleting…' : 'Delete Notification'}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
 
           <div className="border-t border-gray-100 px-4 py-2.5">
             <Link
