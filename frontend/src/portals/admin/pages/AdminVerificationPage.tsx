@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, formatDateTime, cn } from '@/utils'
 import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 import { useIDDecisionIntegrity } from '@/api/ledger'
+import { AccountGroupTabs, inGroup, type AccountGroup } from '../components/AccountGroupTabs'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -26,7 +27,7 @@ interface VerificationRecord {
   has_residency_doc?: boolean
   residency_doc_url?: string | null
   history?: { id: number; action: string; note: string; created_at: string }[]
-  applicant?: { name: string; email: string; birthdate: string | null; age: number | null; sex: string; phone: string; barangay: string; municipality: string; province: string; is_minor: boolean }
+  applicant?: { name: string; email: string; birthdate: string | null; age: number | null; sex: string; phone: string; barangay: string; municipality: string; province: string; is_minor: boolean; youth_type?: string }
   is_verified: boolean
   ai_verdict: string
   ai_confidence: number | null
@@ -466,7 +467,8 @@ export default function AdminVerificationPage() {
   const params = tab === 'all' ? undefined : { status: tab === 'spot' ? 'approved' : tab }
   const { data: integrity } = useIDDecisionIntegrity()
 
-  const { data: records = [], isLoading } = useQuery<VerificationRecord[]>({
+  const [group, setGroup] = useState<AccountGroup>('all')
+  const { data: rawRecords = [], isLoading } = useQuery<VerificationRecord[]>({
     queryKey: ['admin-verifications', tab],
     queryFn: () =>
       apiClient.get('/verification/admin/', { params }).then(r => {
@@ -476,7 +478,8 @@ export default function AdminVerificationPage() {
       }),
   })
 
-  const { data: allRecords = [] } = useQuery<VerificationRecord[]>({
+  const records = rawRecords.filter(r => inGroup(group, r.applicant?.youth_type))
+  const { data: everyRecord = [] } = useQuery<VerificationRecord[]>({
     queryKey: ['admin-verifications', 'all'],
     queryFn: () =>
       apiClient.get('/verification/admin/').then(r => {
@@ -485,6 +488,7 @@ export default function AdminVerificationPage() {
       }),
   })
 
+  const allRecords = everyRecord.filter(r => inGroup(group, r.applicant?.youth_type))
   const pendingCount   = allRecords.filter(r => r.status === 'pending').length
   const reviewingCount = allRecords.filter(r => r.status === 'reviewing').length
 
@@ -599,6 +603,8 @@ export default function AdminVerificationPage() {
       </div>
 
       <AcceptedIdTypes />
+
+      <AccountGroupTabs value={group} onChange={g => { setGroup(g); setSelectedIds(new Set()) }} types={everyRecord.map(r => r.applicant?.youth_type)} />
 
       {/* Tabs */}
       <div className="flex gap-1 flex-wrap">

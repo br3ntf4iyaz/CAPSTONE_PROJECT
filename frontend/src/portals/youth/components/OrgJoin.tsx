@@ -16,6 +16,7 @@ export interface OrgApplicationRow {
   organization_name: string
   applicant_name: string
   applicant_email: string
+  applicant_type?: string
   message: string
   status: AppStatus
   status_display: string

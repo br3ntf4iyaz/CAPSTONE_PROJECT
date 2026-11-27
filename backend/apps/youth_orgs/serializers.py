@@ -251,6 +251,7 @@ class OrgMembershipApplicationSerializer(serializers.ModelSerializer):
     applicant_name = serializers.SerializerMethodField()
     applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
+    applicant_type = serializers.CharField(source='applicant.youth_type', read_only=True)
     reference_number = serializers.CharField(read_only=True)
     history = OrgMembershipEventSerializer(source='events', many=True, read_only=True)
     snapshot = serializers.SerializerMethodField()
@@ -258,7 +259,7 @@ class OrgMembershipApplicationSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrgMembershipApplication
         fields = ['id', 'reference_number', 'organization', 'organization_name', 'applicant_name', 'applicant_email', 'message', 'status', 'status_display',
-                  'decision_note', 'snapshot', 'privacy_consent_at', 'history', 'created_at', 'updated_at', 'decided_at']
+                  'decision_note', 'applicant_type', 'snapshot', 'privacy_consent_at', 'history', 'created_at', 'updated_at', 'decided_at']
         read_only_fields = fields
 
     def get_snapshot(self, obj):

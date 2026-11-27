@@ -59,7 +59,7 @@ def applicant_info(user):
         today = date.today()
         age = today.year - born.year - ((today.month, today.day) < (born.month, born.day))
     return {
-        "name": user.full_name or user.email, "email": user.email,
+        "name": user.full_name or user.email, "email": user.email, "youth_type": getattr(user, "youth_type", "") or "",
         "birthdate": born, "age": age, "sex": getattr(p, "gender", ""),
         "phone": getattr(p, "phone", ""), "barangay": getattr(p, "barangay", ""),
         "municipality": getattr(p, "municipality", ""), "province": getattr(p, "province", ""),

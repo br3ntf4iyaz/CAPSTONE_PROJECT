@@ -6,6 +6,7 @@ import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { QueryError } from '@/components/ui/QueryError'
 import { cn } from '@/utils'
+import { AccountGroupTabs, inGroup, type AccountGroup } from '../components/AccountGroupTabs'
 import { APP_STATUS, AppHistory, type AppStatus, type OrgApplicationRow } from '@/portals/youth/components/OrgJoin'
 
 type Tab = 'all' | AppStatus
@@ -112,13 +113,15 @@ export default function AdminMembershipPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('pending')
   const [q, setQ] = useState('')
+  const [group, setGroup] = useState<AccountGroup>('all')
   const [open, setOpen] = useState<number | null>(null)
   const list = useQuery<OrgApplicationRow[]>({
     queryKey: ['admin-membership-applications'],
     queryFn: () => apiClient.get('/youth-orgs/membership-applications/').then(r => r.data),
     refetchInterval: 20000,
   })
-  const all = list.data ?? []
+  const everyone = list.data ?? []
+  const all = useMemo(() => everyone.filter(a => inGroup(group, a.applicant_type)), [everyone, group])
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: all.length }
     for (const a of all) c[a.status] = (c[a.status] ?? 0) + 1
@@ -140,6 +143,8 @@ export default function AdminMembershipPage() {
         <h1 className="page-title">Organization Membership Verification</h1>
         <p className="page-subtitle">Applications to join youth organizations. Only people with a verified account can apply.</p>
       </div>
+
+      <AccountGroupTabs value={group} onChange={setGroup} types={everyone.map(a => a.applicant_type)} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         {TABS.map(t => (
