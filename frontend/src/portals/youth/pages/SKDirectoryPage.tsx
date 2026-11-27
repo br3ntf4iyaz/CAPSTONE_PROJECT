@@ -285,10 +285,11 @@ function OfficialCard({
       className={cn(
         // every card in a grid has the same width and height, whatever the name length
         'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 h-full w-full transition-shadow',
-        // every card is full blue; the chairperson is the deepest navy with a yellow ring so that one stands out
+        // the council is calm navy; the chairperson is the most colourful card: bright blue, a thick yellow frame,
+        // the red-yellow-blue stripe of the system and warm glows
         featured
-          ? 'max-w-[14rem] border-primary-950 ring-2 ring-accent-400 bg-gradient-to-br from-primary-800 to-primary-950 text-white shadow-xl shadow-primary-900/40'
-          : 'border-primary-600 bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-md shadow-primary-600/25 hover:shadow-lg hover:shadow-primary-600/35 hover:-translate-y-0.5',
+          ? 'max-w-[14rem] border-4 border-accent-400 ring-4 ring-accent-400/30 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-800 text-white shadow-2xl shadow-accent-500/40 pt-5 sm:pt-6'
+          : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
       <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
@@ -319,7 +320,9 @@ function OfficialCard({
           </span>
         )}
       </div>
-      <div aria-hidden className={cn('pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full blur-2xl', featured ? 'bg-accent-400/30' : 'bg-white/10')} />
+      {featured && <div aria-hidden className="ph-stripe pointer-events-none absolute inset-x-0 top-0 h-2" />}
+      {featured && <div aria-hidden className="pointer-events-none absolute -top-8 -left-8 h-28 w-28 rounded-full bg-alert-500/35 blur-2xl" />}
+      <div aria-hidden className={cn('pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full blur-2xl', featured ? 'bg-accent-400/50' : 'bg-white/10')} />
       <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
         className={cn(
