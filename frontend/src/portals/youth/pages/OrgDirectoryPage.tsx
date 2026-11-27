@@ -246,11 +246,9 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
                       <p className="whitespace-pre-line text-sm leading-6 text-ink-700">{org.how_to_join}</p>
                     </div>
                   )}
-                  {(org.facebook_url || org.contact_email || org.contact_phone) && (
+                  {org.facebook_url && (
                     <div className="flex flex-wrap gap-2">
-                      {org.facebook_url && <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>}
-                      {org.contact_email && <a href={'mailto:' + org.contact_email} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Mail size={13} /> Email</a>}
-                      {org.contact_phone && <a href={'tel:' + org.contact_phone} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Phone size={13} /> Call</a>}
+                      <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>
                     </div>
                   )}
                   {org.can_manage ? (
