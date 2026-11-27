@@ -23,7 +23,7 @@ from .documents import DOCUMENT_TYPES
 from .models import ScholarshipApplication, ScholarshipApplicationDocument
 from .scholarship_logic import application_state, document_requirements
 from .scholarship_serializers import (
-    ScholarshipApplicationSerializer, ScholarshipReviewSerializer, collect_documents, parse_form_data,
+    ScholarshipApplicationSerializer, ScholarshipReviewSerializer, collect_documents, id_details, parse_form_data,
 )
 
 OPEN_STATES = ('open', 'closing_soon')
@@ -108,6 +108,9 @@ class ScholarshipApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMix
         missing = [r['label'] for r in reqs if r['required'] and r['key'] not in have]
         if missing:
             raise ValidationError({'documents': 'Please upload: ' + '; '.join(missing) + '.'})
+        idd = id_details(request.data)
+        if 'valid_id' in have and not idd['confirmed']:
+            raise ValidationError({'documents': 'Please confirm that the ID you submitted is yours and the copy is accurate.'})
 
         try:
             with transaction.atomic():
@@ -117,8 +120,9 @@ class ScholarshipApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMix
                     consent_given=True,
                 )
                 for key, f in docs:
+                    extra = {'id_type': idd['id_type'], 'id_type_other': idd['id_type_other'], 'source': idd['source']} if key == 'valid_id' else {}
                     ScholarshipApplicationDocument.objects.create(
-                        application=app, doc_type=key, original_name=(f.name or '')[:255], file=f)
+                        application=app, doc_type=key, original_name=(f.name or '')[:255], file=f, **extra)
         except IntegrityError:
             raise ValidationError({'detail': 'You already applied to this scholarship.'})
 
@@ -184,10 +188,16 @@ class ScholarshipApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMix
         message = bleach.clean((request.data.get('message') or '').strip(), tags=[], strip=True)[:1000]
         if not docs and not message:
             raise ValidationError({'detail': 'Please attach a file or write a message.'})
+        idd = id_details(request.data)
+        if any(k == 'valid_id' for k, _ in docs) and not idd['confirmed']:
+            raise ValidationError({'detail': 'Please confirm that the ID you submitted is yours and the copy is accurate.'})
         with transaction.atomic():
             for key, f in docs:
+                if key != 'other':  # a new copy replaces the old one, which stays in the history
+                    app.documents.filter(doc_type=key, superseded=False).update(superseded=True)
+                extra = {'id_type': idd['id_type'], 'id_type_other': idd['id_type_other'], 'source': idd['source']} if key == 'valid_id' else {}
                 ScholarshipApplicationDocument.objects.create(
-                    application=app, doc_type=key, original_name=(f.name or '')[:255], file=f)
+                    application=app, doc_type=key, original_name=(f.name or '')[:255], file=f, **extra)
             app.applicant_message = message
             app.status = 'under_review'
             app.save(update_fields=['applicant_message', 'status', 'updated_at'])
@@ -201,6 +211,40 @@ class ScholarshipApplicationViewSet(mixins.CreateModelMixin, mixins.ListModelMix
                 message=f'{app.reference_number} sent the requested documents.', notification_type='system',
                 link='/admin/scholarship-applications')
         app = self.get_queryset().get(pk=app.pk)  # reload so the new documents are included
+        return Response(self.get_serializer(app).data)
+
+    @action(detail=True, methods=['post'], url_path=r'documents/(?P<doc_id>[0-9]+)/review', permission_classes=[IsAuthenticated, IsAdminRole])
+    def review_document(self, request, pk=None, doc_id=None):
+        """LYDO decides about ONE document: verified, needs revision or invalid. The applicant only has to replace that document."""
+        app = self.get_object()
+        doc = get_object_or_404(ScholarshipApplicationDocument, pk=doc_id, application=app)
+        decision = str(request.data.get('status', ''))
+        note = bleach.clean(str(request.data.get('note', '') or '').strip(), tags=[], strip=True)[:1000]
+        if decision not in ('verified', 'needs_revision', 'invalid'):
+            raise ValidationError({'detail': 'Choose verified, needs revision or invalid.'})
+        if doc.superseded:
+            raise ValidationError({'detail': 'This copy was already replaced by a newer one. Review the newer copy.'})
+        if decision != 'verified' and len(note) < 5:
+            raise ValidationError({'note': 'Write what is wrong, so the applicant knows what to replace.'})
+        if decision != 'verified' and app.status not in ('submitted', 'under_review', 'for_compliance'):
+            raise ValidationError({'detail': 'This application is already decided or withdrawn.'})
+        label = DOCUMENT_TYPES.get(doc.doc_type, doc.doc_type)
+        with transaction.atomic():
+            doc.review_status, doc.review_note, doc.reviewed_by, doc.reviewed_at = decision, note, request.user, timezone.now()
+            doc.save(update_fields=['review_status', 'review_note', 'reviewed_by', 'reviewed_at'])
+            if decision != 'verified':
+                app.status, app.admin_remarks, app.reviewed_at = 'for_compliance', f'{label}: {note}', timezone.now()
+                app.save(update_fields=['status', 'admin_remarks', 'reviewed_at', 'updated_at'])
+        AuditLog.objects.create(
+            user=request.user, action='scholarship_document_reviewed', model_name='ScholarshipApplicationDocument', object_id=doc.pk,
+            ip_address=get_client_ip(request), details={'reference': app.reference_number, 'document': doc.doc_type, 'decision': decision, 'note': note})
+        if decision == 'verified':
+            _notify(app.applicant, f'{label} verified', f'Your {label.lower()} for "{app.scholarship_title}" was verified.')
+        else:
+            what = 'needs a new copy' if decision == 'invalid' else 'needs a correction'
+            _notify(app.applicant, f'{label} {what}',
+                    f'Your {label.lower()} for "{app.scholarship_title}" {what}. {note} Open My Applications to replace it. You do not need to apply again.')
+        app = self.get_queryset().get(pk=app.pk)
         return Response(self.get_serializer(app).data)
 
     @action(detail=True, methods=['get'], url_path=r'documents/(?P<doc_id>[0-9]+)')

@@ -55,7 +55,7 @@ class ScholarshipApplicationTests(APITestCase):
 
     def payload(self, **over):
         data = {'scholarship': self.sch.id, 'personal': json.dumps(PERSONAL), 'education': json.dumps(EDUCATION),
-                'family': json.dumps(FAMILY), 'consent_given': 'true', 'doc_valid_id': png('id.png'), 'doc_grades': png('g.png')}
+                'family': json.dumps(FAMILY), 'consent_given': 'true', 'id_confirmed': 'true', 'doc_valid_id': png('id.png'), 'doc_grades': png('g.png')}
         data.update(over)
         return {k: v for k, v in data.items() if v is not None}
 
@@ -126,7 +126,7 @@ class ScholarshipApplicationTests(APITestCase):
         self.assertEqual(self.client.patch(f'{self.URL}{app_id}/review/', {'status': 'for_compliance'}, format='json').status_code, 400)
         self.client.patch(f'{self.URL}{app_id}/review/', {'status': 'for_compliance', 'admin_remarks': 'Blurry ID'}, format='json')
         self.client.force_authenticate(self.user)
-        r = self.client.post(f'{self.URL}{app_id}/comply/', {'doc_valid_id': png('new.png'), 'message': 'Sent'}, format='multipart')
+        r = self.client.post(f'{self.URL}{app_id}/comply/', {'doc_valid_id': png('new.png'), 'id_confirmed': 'true', 'message': 'Sent'}, format='multipart')
         self.assertEqual(r.status_code, 200, r.data)
         self.assertEqual(r.data['status'], 'under_review')
         self.assertEqual(len(r.data['documents']), 3)

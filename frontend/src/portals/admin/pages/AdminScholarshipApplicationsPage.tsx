@@ -2,12 +2,91 @@ import { useState } from 'react'
 import { AccountGroupTabs, inGroup, type AccountGroup } from '../components/AccountGroupTabs'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GraduationCap, Save, FileText, Eye, ChevronDown, Search } from 'lucide-react'
+import { GraduationCap, Save, FileText, Eye, ChevronDown, Search, Download, ShieldCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
-import { openPrivateFile } from '@/components/ui/SecureImage'
+import { openPrivateFile, fetchPrivateFile, SecureImage } from '@/components/ui/SecureImage'
 import { cn, formatDateTime, toArray } from '@/utils'
-import { SCHOLARSHIP_STATUS, apiErrorMessage, type ScholarshipApplication, type ScholarshipAppStatus } from '@/portals/youth/scholarshipApps'
+import { SCHOLARSHIP_STATUS, apiErrorMessage, type ScholarshipApplication, type ScholarshipAppStatus, type ScholarshipDocument } from '@/portals/youth/scholarshipApps'
+
+const DOC_BADGE: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'Waiting for review', cls: 'bg-gray-100 text-gray-600' },
+  verified: { label: 'Verified', cls: 'bg-emerald-100 text-emerald-800' },
+  needs_revision: { label: 'Needs revision', cls: 'bg-orange-100 text-orange-800' },
+  invalid: { label: 'Invalid', cls: 'bg-red-100 text-red-700' },
+}
+
+/** One submitted document: look at it, download it, and decide about it. A copy that was replaced stays visible as history. */
+function DocReview({ a, d, closed }: { a: ScholarshipApplication; d: ScholarshipDocument; closed: boolean }) {
+  const qc = useQueryClient()
+  const [pick, setPick] = useState<'needs_revision' | 'invalid' | null>(null)
+  const [note, setNote] = useState('')
+  const isId = d.doc_type === 'valid_id'
+  const isImage = /\.(jpe?g|png)$/i.test(d.original_name)
+  const badge = DOC_BADGE[d.review_status ?? 'pending']
+  const decide = useMutation({
+    mutationFn: (v: { status: string; note?: string }) => apiClient.post(`/applications/scholarship/${a.id}/documents/${d.id}/review/`, v),
+    onSuccess: (_r, v) => {
+      toast.success(v.status === 'verified' ? 'Marked as verified.' : 'Saved. The applicant was told what to replace.')
+      setPick(null); setNote('')
+      qc.invalidateQueries({ queryKey: ['admin-scholarship-applications'] })
+    },
+    onError: (e: any) => toast.error(apiErrorMessage(e)),
+  })
+  const download = async () => {
+    try {
+      const url = await fetchPrivateFile(d.url)
+      const el = document.createElement('a')
+      el.href = url
+      el.download = d.original_name
+      el.click()
+    } catch { toast.error('Could not download the file.') }
+  }
+  return (
+    <li className={cn('rounded-xl border p-3 space-y-2', isId ? 'border-primary-200 bg-primary-50/30' : 'border-gray-100', d.superseded && 'opacity-70')}>
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        {isId ? <ShieldCheck size={14} className="text-primary-600" /> : <FileText size={14} className="text-primary-600" />}
+        <span className="font-semibold text-gray-800">{isId ? 'Applicant Identification Document' : d.label}</span>
+        {d.superseded ? <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">Earlier copy (replaced)</span>
+          : <span className={cn('rounded-full px-2 py-0.5 text-xs font-semibold', badge.cls)}>{badge.label}</span>}
+      </div>
+      {isId && (
+        <dl className="grid gap-x-4 gap-y-0.5 text-xs sm:grid-cols-2">
+          <div className="flex gap-2"><dt className="text-gray-500">Applicant:</dt><dd className="font-medium text-gray-800">{a.personal.full_name}</dd></div>
+          <div className="flex gap-2"><dt className="text-gray-500">ID type:</dt><dd className="font-medium text-gray-800">{d.id_type === 'other_gov' && d.id_type_other ? d.id_type_other : (d.id_type_label || 'Not stated')}</dd></div>
+          <div className="flex gap-2"><dt className="text-gray-500">Submitted:</dt><dd className="font-medium text-gray-800">{formatDateTime(d.uploaded_at)}</dd></div>
+          <div className="flex gap-2"><dt className="text-gray-500">How:</dt><dd className="font-medium text-gray-800">{d.source === 'camera' ? 'Scanned with the camera' : 'Uploaded file'}</dd></div>
+        </dl>
+      )}
+      {isId && isImage && <SecureImage src={d.url} alt="Submitted ID" className="max-h-56 w-full rounded-lg border border-gray-200 bg-white object-contain" />}
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <span className="break-all text-gray-600">{d.original_name}</span>
+        <button type="button" className="inline-flex items-center gap-1 text-primary-700 hover:underline" onClick={() => openPrivateFile(d.url).catch(() => toast.error('Could not open the file.'))}><Eye size={12} /> Open in viewer</button>
+        <button type="button" className="inline-flex items-center gap-1 text-primary-700 hover:underline" onClick={download}><Download size={12} /> Download</button>
+      </div>
+      {d.review_note && d.review_status !== 'verified' && <p className="rounded-lg bg-white p-2 text-xs text-gray-700 border border-gray-100"><strong>Remark:</strong> {d.review_note}</p>}
+      {!d.superseded && !closed && (
+        pick ? (
+          <div className="space-y-2">
+            <textarea className="input w-full text-sm" rows={2} maxLength={1000} value={note} onChange={e => setNote(e.target.value)}
+              placeholder={pick === 'invalid' ? 'Why is this not acceptable? (the applicant reads it)' : 'What must be corrected? e.g. The ID is blurry. Please send a clearer image.'} />
+            <div className="flex gap-2">
+              <button type="button" disabled={note.trim().length < 5 || decide.isPending} onClick={() => decide.mutate({ status: pick, note })}
+                className="rounded-lg bg-orange-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">{decide.isPending ? 'Saving…' : pick === 'invalid' ? 'Mark invalid and ask for a new copy' : 'Request revision'}</button>
+              <button type="button" onClick={() => setPick(null)} className="text-xs font-semibold text-gray-500">Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button type="button" disabled={decide.isPending || d.review_status === 'verified'} onClick={() => decide.mutate({ status: 'verified' })} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">Mark as verified</button>
+            <button type="button" onClick={() => { setPick('needs_revision'); setNote('') }} className="rounded-lg border border-orange-300 px-3 py-1.5 text-xs font-semibold text-orange-700">Needs revision</button>
+            <button type="button" onClick={() => { setPick('invalid'); setNote('') }} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-700">Invalid</button>
+          </div>
+        )
+      )}
+    </li>
+  )
+}
 
 const REVIEW_STATUSES: ScholarshipAppStatus[] = ['submitted', 'under_review', 'for_compliance', 'approved', 'rejected']
 
@@ -69,17 +148,9 @@ function Row({ a }: { a: ScholarshipApplication }) {
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">Documents ({a.documents.length})</p>
             {a.documents.length === 0 && <p className="text-sm text-gray-500">No documents uploaded.</p>}
-            <ul className="space-y-1">
-              {a.documents.map(d => (
-                <li key={d.id} className="flex flex-wrap items-center gap-2 text-sm">
-                  <FileText size={14} className="text-primary-600" />
-                  <span className="text-gray-500">{d.label}:</span>
-                  <span className="font-medium text-gray-800 break-all">{d.original_name}</span>
-                  <button type="button" className="text-primary-700 hover:underline inline-flex items-center gap-1 text-xs"
-                    onClick={() => openPrivateFile(d.url).catch(() => toast.error('Could not open the file.'))}>
-                    <Eye size={12} /> View
-                  </button>
-                </li>
+            <ul className="space-y-2">
+              {[...a.documents].sort((x, y) => Number(y.doc_type === 'valid_id') - Number(x.doc_type === 'valid_id')).map(d => (
+                <DocReview key={d.id} a={a} d={d} closed={locked || a.status === 'approved' || a.status === 'rejected'} />
               ))}
             </ul>
           </div>

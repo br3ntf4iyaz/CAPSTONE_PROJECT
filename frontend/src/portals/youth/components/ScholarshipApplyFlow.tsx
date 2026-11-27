@@ -9,6 +9,7 @@ import { cn } from '@/utils'
 import { LUCENA_BARANGAYS } from '../pages/YouthRegisterPage'
 import { apiErrorMessage } from '../scholarshipApps'
 import VerifyGate from './VerifyGate'
+import IdDocumentInput, { EMPTY_ID, ID_TYPE_OPTIONS, appendIdFields, type IdDoc } from './IdDocumentInput'
 
 export interface ApplyScholarship {
   id: number
@@ -176,6 +177,7 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
   const [education, setEducation] = useState<Section>({})
   const [family, setFamily] = useState<Section>({})
   const [files, setFiles] = useState<Record<string, File[]>>({})
+  const [idDoc, setIdDoc] = useState<IdDoc>(EMPTY_ID)
   const [consent, setConsent] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [serverError, setServerError] = useState('')
@@ -197,7 +199,12 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
 
   const docErrors = () => {
     const e: Record<string, string> = {}
-    for (const d of s.document_requirements) if (d.required && !(files[d.key]?.length)) e[d.key] = 'This document is required.'
+    for (const d of s.document_requirements) {
+      if (d.key === 'valid_id') {
+        if (d.required && !idDoc.file) e.valid_id = 'Please submit your valid ID: scan it with the camera or upload it.'
+        else if (idDoc.file && !idDoc.confirmed) e.valid_id = 'Please confirm that this ID is yours and the copy is accurate.'
+      } else if (d.required && !(files[d.key]?.length)) e[d.key] = 'This document is required.'
+    }
     return e
   }
   const validateStep = (i: number): boolean => {
@@ -221,6 +228,7 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
       fd.append('family', JSON.stringify(family))
       fd.append('consent_given', 'true')
       for (const [k, list] of Object.entries(files)) list.forEach(f => fd.append(`doc_${k}`, f))
+      appendIdFields(fd, idDoc)
       return apiClient.post('/applications/scholarship/', fd, { headers: { 'Content-Type': undefined as unknown as string } })
     },
     onSuccess: res => {
@@ -320,12 +328,15 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
               {step === 3 && (
                 <>
                   <h3 className="font-bold text-primary-900 border-l-4 border-primary-500 pl-2">Documentary requirements</h3>
-                  <p className="text-xs text-ink-500">Upload PDF, JPG or PNG files, up to 5 MB each. Items marked * are required for this scholarship.</p>
+                  <p className="text-xs text-ink-500">Upload PDF, JPG or PNG files, up to 5 MB each. Items marked * are required for this scholarship. Your valid ID can also be scanned with the camera.</p>
                   {s.document_requirements.length === 0 && (
                     <p className="text-sm text-ink-600 rounded-xl bg-ink-50 p-4">This scholarship does not ask for documents. You can continue.</p>
                   )}
                   <div className="space-y-2.5">
-                    {s.document_requirements.map(d => (
+                    {s.document_requirements.map(d => d.key === 'valid_id' ? (
+                      <IdDocumentInput key={d.key} required={d.required} error={errors.valid_id} value={idDoc}
+                        onChange={v => { setIdDoc(v); setErrors(({ valid_id: _x, ...r }) => r) }} />
+                    ) : (
                       <DocSlot key={d.key} label={d.label} help={d.help} required={d.required} files={files[d.key] ?? []} error={errors[d.key]}
                         onAdd={f => { setFiles(prev => ({ ...prev, [d.key]: [...(prev[d.key] ?? []), f] })); setErrors(({ [d.key]: _x, ...r }) => r) }}
                         onReplace={(i, f) => setFiles(prev => ({ ...prev, [d.key]: (prev[d.key] ?? []).map((x, j) => (j === i ? f : x)) }))}
@@ -357,8 +368,15 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
                       <h4 className="text-sm font-bold text-ink-800">Documents</h4>
                       <button type="button" onClick={() => setStep(3)} className="text-xs font-semibold text-primary-700 inline-flex items-center gap-1"><Pencil size={11} /> Edit</button>
                     </div>
-                    {Object.values(files).flat().length === 0 && <p className="text-sm text-ink-500">No documents attached.</p>}
+                    {Object.values(files).flat().length === 0 && !idDoc.file && <p className="text-sm text-ink-500">No documents attached.</p>}
                     <ul className="space-y-1">
+                      {idDoc.file && (
+                        <li className="flex flex-wrap items-center gap-2 text-sm">
+                          <FileText size={13} className="text-primary-600" /> <span className="text-ink-500">Valid ID{idDoc.idType ? ` (${ID_TYPE_OPTIONS.find(o => o[0] === idDoc.idType)?.[1]}${idDoc.idType === 'other_gov' && idDoc.idOther ? ': ' + idDoc.idOther : ''})` : ''}:</span>
+                          <span className="font-medium text-ink-800 break-all">{idDoc.file.name}</span>
+                          <span className="text-xs text-ink-400">{idDoc.source === 'camera' ? 'scanned with the camera' : 'uploaded'}</span>
+                        </li>
+                      )}
                       {s.document_requirements.flatMap(d => (files[d.key] ?? []).map((f, i) => (
                         <li key={d.key + i} className="flex flex-wrap items-center gap-2 text-sm">
                           <FileText size={13} className="text-primary-600" /> <span className="text-ink-500">{d.label}:</span>

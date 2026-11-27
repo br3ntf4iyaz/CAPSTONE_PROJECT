@@ -106,6 +106,18 @@ def parse_form_data(data, scholarship):
     return personal, education, family
 
 
+def id_details(data):
+    """The optional kind of ID the applicant picked, how the copy was made, and their confirmation. Raises when the choice is not valid."""
+    from .documents import ID_TYPES
+    id_type = str(data.get('valid_id_type', '') or '').strip()
+    if id_type and id_type not in ID_TYPES:
+        raise serializers.ValidationError({'documents': 'Choose one of the listed kinds of ID.'})
+    other = bleach.clean(str(data.get('valid_id_other', '') or '').strip(), tags=[], strip=True)[:60]
+    source = 'camera' if str(data.get('valid_id_source', '')).lower() == 'camera' else 'upload'
+    confirmed = str(data.get('id_confirmed', '')).lower() in ('1', 'true', 'on')
+    return {'id_type': id_type, 'id_type_other': other if id_type == 'other_gov' else '', 'source': source, 'confirmed': confirmed}
+
+
 def collect_documents(files, allowed_keys):
     """Validate the uploaded files named doc_<type>. Returns [(doc_type, file)]."""
     out = []
@@ -129,7 +141,14 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ScholarshipApplicationDocument
-        fields = ['id', 'doc_type', 'label', 'original_name', 'url', 'uploaded_at']
+        fields = ['id', 'doc_type', 'label', 'original_name', 'url', 'uploaded_at', 'id_type', 'id_type_label', 'id_type_other', 'source',
+                  'review_status', 'review_note', 'reviewed_at', 'superseded']
+
+    id_type_label = serializers.SerializerMethodField()
+
+    def get_id_type_label(self, obj):
+        from .documents import ID_TYPES
+        return ID_TYPES.get(obj.id_type, '')
 
     def get_label(self, obj):
         return DOCUMENT_TYPES.get(obj.doc_type, obj.doc_type)

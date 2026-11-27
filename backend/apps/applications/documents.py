@@ -25,3 +25,19 @@ DOCUMENT_HELP = {
     'id_picture': 'A recent passport-style photo, 2 x 2 inches, with your face clearly visible and a plain background.',
     'other': 'Anything else that supports your application, such as a recommendation letter or a certificate. Only upload what the scholarship asks for.',
 }
+
+
+# The kinds of ID a young person may submit as their valid ID. None of them is required in particular: any of these is accepted.
+ID_TYPES = {
+    'philsys': 'Philippine National ID / PhilSys ID',
+    'passport': 'Passport',
+    'drivers_license': "Driver's License",
+    'umid': 'UMID',
+    'postal': 'Postal ID',
+    'voters': "Voter's Certification",
+    'school_id': 'School ID',
+    'other_gov': 'Other Government-Issued ID',
+}
+
+# What LYDO decides about one submitted document
+DOC_REVIEW = {'pending': 'Waiting for review', 'verified': 'Verified', 'needs_revision': 'Needs revision', 'invalid': 'Invalid'}

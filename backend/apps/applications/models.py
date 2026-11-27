@@ -116,6 +116,17 @@ class ScholarshipApplicationDocument(models.Model):
     original_name = models.CharField(max_length=255)
     file = models.FileField(upload_to=scholarship_doc_path, storage=private_storage)
     uploaded_at = models.DateTimeField(auto_now_add=True)
+    # valid ID details (only the kind of ID, never its number) and how the copy was made
+    id_type = models.CharField(max_length=20, blank=True)
+    id_type_other = models.CharField(max_length=60, blank=True)
+    source = models.CharField(max_length=10, blank=True)  # 'camera' or 'upload'
+    # LYDO's decision about this one document, and the note the applicant reads
+    review_status = models.CharField(max_length=15, default='pending')
+    review_note = models.TextField(blank=True)
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    # replaced by a newer copy: kept for the history, no longer the current one
+    superseded = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['id']

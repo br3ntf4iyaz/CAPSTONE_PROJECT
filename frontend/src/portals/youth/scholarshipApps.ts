@@ -11,6 +11,14 @@ export interface ScholarshipDocument {
   original_name: string
   url: string
   uploaded_at: string
+  id_type?: string
+  id_type_label?: string
+  id_type_other?: string
+  source?: string
+  review_status?: 'pending' | 'verified' | 'needs_revision' | 'invalid'
+  review_note?: string
+  reviewed_at?: string | null
+  superseded?: boolean
 }
 
 export interface ScholarshipApplication {

@@ -6,6 +6,14 @@ import apiClient from '@/api/client'
 import { cn, formatDate } from '@/utils'
 import { fetchPrivateFile } from '@/components/ui/SecureImage'
 import { SCHOLARSHIP_STATUS, apiErrorMessage, type ScholarshipApplication } from '../scholarshipApps'
+import IdDocumentInput, { EMPTY_ID, appendIdFields, type IdDoc } from './IdDocumentInput'
+
+const REVIEW_BADGE: Record<string, { label: string; cls: string }> = {
+  pending: { label: 'Waiting for review', cls: 'bg-ink-100 text-ink-600' },
+  verified: { label: 'Verified', cls: 'bg-emerald-100 text-emerald-800' },
+  needs_revision: { label: 'Needs revision', cls: 'bg-orange-100 text-orange-800' },
+  invalid: { label: 'Invalid', cls: 'bg-red-100 text-red-700' },
+}
 
 const STEPS = ['Submitted', 'Under review', 'Decision']
 
@@ -41,7 +49,10 @@ export default function ScholarshipApplicationCard({ app }: { app: ScholarshipAp
   const [open, setOpen] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
+  const [idDoc, setIdDoc] = useState<IdDoc>(EMPTY_ID)
   const [error, setError] = useState('')
+  // the current valid ID, when LYDO asked for a better copy of it
+  const idToFix = app.documents.find(d => d.doc_type === 'valid_id' && !d.superseded && (d.review_status === 'needs_revision' || d.review_status === 'invalid'))
   const fileRef = useRef<HTMLInputElement>(null)
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['my-scholarship-applications'] })
@@ -52,10 +63,11 @@ export default function ScholarshipApplicationCard({ app }: { app: ScholarshipAp
     mutationFn: () => {
       const fd = new FormData()
       files.forEach(f => fd.append('doc_other', f))
+      appendIdFields(fd, idDoc)
       fd.append('message', message)
       return apiClient.post(`/applications/scholarship/${app.id}/comply/`, fd, { headers: { 'Content-Type': undefined as unknown as string } })
     },
-    onSuccess: () => { toast.success('Sent to LYDO. Your application is back under review.'); setFiles([]); setMessage(''); setError(''); refresh() },
+    onSuccess: () => { toast.success('Sent to LYDO. Your application is back under review.'); setFiles([]); setMessage(''); setIdDoc(EMPTY_ID); setError(''); refresh() },
     onError: (e: any) => setError(apiErrorMessage(e)),
   })
   const withdraw = useMutation({
@@ -99,7 +111,13 @@ export default function ScholarshipApplicationCard({ app }: { app: ScholarshipAp
 
       {app.status === 'for_compliance' && (
         <div className="rounded-xl border border-orange-200 bg-white p-3 space-y-2.5">
-          <p className="text-sm font-semibold text-ink-800">Send the missing documents</p>
+          <p className="text-sm font-semibold text-ink-800">{idToFix ? 'Replace your ID' : 'Send the missing documents'}</p>
+          {idToFix && (
+            <>
+              <p className="text-xs text-ink-600">You only need to replace the ID. The rest of your application stays as it is, and your earlier copy is kept in the history.</p>
+              <IdDocumentInput required value={idDoc} onChange={setIdDoc} hint="Take a clear photo of the whole ID, or upload a better copy." />
+            </>
+          )}
           <textarea className="input w-full" rows={2} placeholder="Message to LYDO (optional)" value={message} onChange={e => setMessage(e.target.value)} maxLength={1000} />
           {files.map((f, i) => (
             <div key={i} className="flex items-center gap-2 rounded-lg bg-ink-50 px-2.5 py-1.5 text-xs">
@@ -111,7 +129,7 @@ export default function ScholarshipApplicationCard({ app }: { app: ScholarshipAp
             onChange={e => { addFile(e.target.files?.[0]); e.target.value = '' }} />
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-secondary btn-sm gap-1.5" onClick={() => fileRef.current?.click()}><Paperclip size={13} /> Attach file</button>
-            <button type="button" className="btn-primary btn-sm gap-1.5" disabled={comply.isPending || (!files.length && !message.trim())} onClick={() => { setError(''); comply.mutate() }}>
+            <button type="button" className="btn-primary btn-sm gap-1.5" disabled={comply.isPending || (!files.length && !message.trim() && !idDoc.file) || (!!idDoc.file && !idDoc.confirmed)} onClick={() => { setError(''); comply.mutate() }}>
               <Send size={13} /> {comply.isPending ? 'Sending...' : 'Send to LYDO'}
             </button>
           </div>
@@ -143,15 +161,22 @@ export default function ScholarshipApplicationCard({ app }: { app: ScholarshipAp
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-ink-400 mb-1">Submitted documents</p>
             {app.documents.length === 0 && <p className="text-ink-500 text-xs">No documents.</p>}
-            <ul className="space-y-1">
-              {app.documents.map(d => (
-                <li key={d.id} className="flex flex-wrap items-center gap-2 text-xs">
-                  <FileText size={13} className="text-primary-600" />
-                  <span className="text-ink-500">{d.label}:</span>
-                  <span className="font-medium text-ink-800 break-all">{d.original_name}</span>
-                  <button type="button" onClick={() => openDocument(d.url)} className="text-primary-700 hover:underline inline-flex items-center gap-1"><Eye size={12} /> View</button>
-                </li>
-              ))}
+            <ul className="space-y-1.5">
+              {app.documents.map(d => {
+                const rb = REVIEW_BADGE[d.review_status ?? 'pending']
+                return (
+                  <li key={d.id} className={cn('text-xs', d.superseded && 'opacity-70')}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <FileText size={13} className="text-primary-600" />
+                      <span className="text-ink-500">{d.label}{d.id_type_label ? ` (${d.id_type === 'other_gov' && d.id_type_other ? d.id_type_other : d.id_type_label})` : ''}:</span>
+                      <span className="font-medium text-ink-800 break-all">{d.original_name}</span>
+                      <button type="button" onClick={() => openDocument(d.url)} className="text-primary-700 hover:underline inline-flex items-center gap-1"><Eye size={12} /> View</button>
+                      {d.superseded ? <span className="rounded-full bg-ink-100 px-2 py-0.5 font-semibold text-ink-500">Earlier copy</span> : <span className={cn('rounded-full px-2 py-0.5 font-semibold', rb.cls)}>{rb.label}</span>}
+                    </div>
+                    {d.review_note && d.review_status !== 'verified' && <p className="ml-5 mt-0.5 text-ink-600">LYDO: {d.review_note}</p>}
+                  </li>
+                )
+              })}
             </ul>
           </div>
         </div>
