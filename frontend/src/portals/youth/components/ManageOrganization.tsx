@@ -9,10 +9,12 @@ import { ACCENT_OPTIONS, ACCENTS } from '../orgAccent'
 import { apiErrorMessage } from '../scholarshipApps'
 import OfficersEditor, { type OfficerRow } from './OfficersEditor'
 import { OrgApplicationsPanel } from './OrgJoin'
+import OrgLogoField from './OrgLogoField'
 
 interface Owned {
   id: number; name: string; acronym: string; status: 'pending' | 'approved' | 'rejected'; admin_notes: string; is_active: boolean
   registration_category: string; registration_number: string
+  logo_url: string | null
   description: string; contact_person: string; contact_email: string; contact_phone: string
   mission: string; membership_requirements: string; how_to_join: string; facebook_url: string
   accepting_members: boolean; application_mode: 'in_app' | 'external' | 'contact'; external_apply_url: string; accent: string
@@ -103,6 +105,7 @@ export default function ManageOrganization({ orgId, onClose }: { orgId: number; 
 
           {org && tab === 'details' && (
             <div className="space-y-3">
+              <OrgLogoField orgId={orgId} name={org.name} logoUrl={org.logo_url} onChanged={refresh} />
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="block"><span className="text-xs font-medium text-ink-600">Acronym</span>
                   <input className="input mt-0.5 w-full" maxLength={30} value={f.acronym ?? ''} onChange={e => set('acronym', e.target.value)} /></label>

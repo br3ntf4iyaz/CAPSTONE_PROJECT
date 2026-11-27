@@ -11,6 +11,7 @@ import SKSocialEditor, { type SKSocial } from '@/components/ui/SKSocialEditor'
 import SKOfficialProfile from '../components/SKOfficialProfile'
 import { RequirementActions, StateBadge, SubmitDocumentModal, useMyChecklist, type MyRequirement } from '../components/RequirementSubmit'
 import { shrinkImage } from '@/utils/shrinkImage'
+import ImageCropper from '@/components/ui/ImageCropper'
 import { useAuthStore } from '@/store/authStore'
 import { formatDate, cn } from '@/utils'
 
@@ -281,6 +282,7 @@ function OfficialCard({
 }) {
   const [broken, setBroken] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [cropFile, setCropFile] = useState<File | null>(null) // the chosen picture, until it is framed
   const showPhoto = !!o.photo_url && !broken
   return (
     <article
@@ -401,10 +403,14 @@ function OfficialCard({
             className="hidden"
             onChange={e => {
               const f = e.target.files?.[0]
-              if (f) onPick?.(f)
+              if (f) setCropFile(f)
               e.target.value = ''
             }}
           />
+          {cropFile && (
+            <ImageCropper file={cropFile} title={'Adjust the picture of ' + o.name} aspect={4 / 5} outputSize={1000}
+              onCancel={() => setCropFile(null)} onConfirm={f => { setCropFile(null); onPick?.(f) }} />
+          )}
         </div>
       )}
     </article>
@@ -512,6 +518,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
   const [zoomKey, setZoomKey] = useState<string | null>(null)
   const [groupZoom, setGroupZoom] = useState(false)
   const groupFile = useRef<HTMLInputElement>(null)
+  const [groupCrop, setGroupCrop] = useState<File | null>(null) // the chosen group picture, until it is framed
   const groupPhoto = useMutation({
     mutationFn: async (file: File | null) => {
       const fd = new FormData()
@@ -597,7 +604,11 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
                       className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 disabled:opacity-50"><Trash2 size={11} /></button>
                   )}
                   <input ref={groupFile} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                    onChange={e => { const f = e.target.files?.[0]; if (f) groupPhoto.mutate(f); e.target.value = '' }} />
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setGroupCrop(f); e.target.value = '' }} />
+                  {groupCrop && (
+                    <ImageCropper file={groupCrop} title="Adjust the council picture" aspect={4 / 3} outputSize={1600}
+                      onCancel={() => setGroupCrop(null)} onConfirm={f => { setGroupCrop(null); groupPhoto.mutate(f) }} />
+                  )}
                 </div>
               )}
             </div>

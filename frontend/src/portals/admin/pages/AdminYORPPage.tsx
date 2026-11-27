@@ -12,6 +12,7 @@ import { useYORPDecisionIntegrity } from '@/api/ledger'
 import { OrgApplicationsPanel } from '@/portals/youth/components/OrgJoin'
 import AdminMembershipPage from './AdminMembershipPage'
 import { ACCENT_OPTIONS } from '@/portals/youth/orgAccent'
+import OrgLogoField from '@/portals/youth/components/OrgLogoField'
 
 interface YouthOrg {
   id: number
@@ -97,6 +98,7 @@ interface OrgDetail {
   registration_valid_until?: string | null
   source_url?: string
   accent?: string
+  logo_url?: string | null
   officers?: { id: number; position_label: string; name: string; is_public: boolean }[]
 }
 
@@ -164,6 +166,11 @@ function PublicProfileEditor({ org }: { org: OrgDetail }) {
     <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
       <p className="font-medium text-gray-700">Public profile</p>
       <p className="text-xs text-gray-500">Shown to everyone, even visitors without an account. An organization is listed publicly only when it is approved and active.</p>
+      <OrgLogoField orgId={org.id} name={org.name} logoUrl={org.logo_url} onChanged={() => {
+        qc.invalidateQueries({ queryKey: ['admin-youth-orgs'] })
+        qc.invalidateQueries({ queryKey: ['admin-org-detail', org.id] })
+        qc.invalidateQueries({ queryKey: ['youth-orgs-directory'] })
+      }} />
       <div className="grid gap-2 sm:grid-cols-3">
         <label className="block"><span className="text-xs text-gray-500">Acronym (optional)</span>
           <input className="input mt-1 w-full" maxLength={30} value={f.acronym} onChange={e => setF(p => ({ ...p, acronym: e.target.value }))} /></label>

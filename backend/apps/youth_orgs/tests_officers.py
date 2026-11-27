@@ -149,3 +149,41 @@ class OfficersAndOwnershipTests(TestCase):
         self.ac.post(f'{BASE}{ok.pk}/approve/', {'registration_category': 'lydo'}, format='json')
         self.assertEqual(self.lc.post(f'{BASE}{ok.pk}/delete-mine/').status_code, 400)
         self.assertTrue(YouthOrganization.objects.filter(pk=ok.pk).exists())
+
+    def test_the_leader_or_lydo_sets_and_removes_the_logo_and_nobody_else_can(self):
+        import io, shutil, tempfile
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from django.test import override_settings
+        from PIL import Image
+        self.create('Logo Org')
+        org = YouthOrganization.objects.get(name='Logo Org')
+        url = f'{BASE}{org.pk}/logo/'
+
+        def png(name='logo.png'):
+            buf = io.BytesIO()
+            Image.new('RGB', (30, 30), 'blue').save(buf, 'PNG')
+            return SimpleUploadedFile(name, buf.getvalue(), content_type='image/png')
+
+        tmp = tempfile.mkdtemp()
+        try:
+            with override_settings(MEDIA_ROOT=tmp):
+                self.assertEqual(self.oc.post(url, {'logo': png()}, format='multipart').status_code, 404)  # someone else's
+                self.assertEqual(self.anon.post(url, {'logo': png()}, format='multipart').status_code, 401)
+                bad = SimpleUploadedFile('x.png', b'not an image', content_type='image/png')
+                self.assertEqual(self.lc.post(url, {'logo': bad}, format='multipart').status_code, 400)
+                self.assertEqual(self.lc.post(url, {}, format='multipart').status_code, 400)
+                r = self.lc.post(url, {'logo': png()}, format='multipart')
+                self.assertEqual(r.status_code, 200, r.data)
+                self.assertTrue(r.data['logo_url'])
+                org.refresh_from_db()
+                first = org.logo.name
+                r = self.ac.post(url, {'logo': png('two.png')}, format='multipart')  # LYDO may change it too
+                self.assertEqual(r.status_code, 200)
+                org.refresh_from_db()
+                self.assertNotEqual(org.logo.name, first)
+                self.assertEqual(self.lc.delete(url).status_code, 200)
+                org.refresh_from_db()
+                self.assertFalse(org.logo)
+                self.assertTrue(AuditLog.objects.filter(action='org_logo_changed').exists())
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

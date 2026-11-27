@@ -138,6 +138,7 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
         <ImageCropper
           file={cropFile}
           title="Adjust your profile photo"
+          round
           onCancel={() => setCropFile(null)}
           onConfirm={cropped => uploadAvatar.mutate(cropped)}
         />

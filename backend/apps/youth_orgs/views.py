@@ -11,6 +11,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
+from apps.accounts.uploads import IMAGE_EXTS, check_upload
 from apps.notifications.views import create_notification
 
 from . import membership
@@ -189,7 +190,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application', 'manage', 'set_officers', 'delete_mine'):
+        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application', 'manage', 'set_officers', 'delete_mine', 'logo'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -221,6 +222,35 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             off.save_officers(org, rows, request.user)
         self._audit(request, 'org_officers_changed', org, count=len(rows))
         return Response(off.officers_for(org, request, True))
+
+    @action(detail=True, methods=['post', 'delete'], url_path='logo', permission_classes=[IsAuthenticated],
+            parser_classes=[MultiPartParser, FormParser, JSONParser])
+    def logo(self, request, pk=None):
+        """The leader who registered the organization, or LYDO, sets or removes its logo."""
+        org = get_object_or_404(YouthOrganization, pk=pk)
+        if not (IsAdminRole().has_permission(request, self) or org.submitted_by_id == request.user.id):
+            return Response({'detail': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+        if request.method == 'POST':
+            f = request.FILES.get('logo')
+            if f is None:
+                return Response({'detail': 'Choose a picture.'}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                check_upload(f, IMAGE_EXTS, 5 * 1024 * 1024, field='logo')
+            except DRFValidationError as exc:
+                return Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
+        if org.logo:  # no old copy is kept
+            try:
+                org.logo.delete(save=False)
+            except Exception:
+                pass
+        if request.method == 'POST':
+            org.logo = f
+        else:
+            org.logo = None
+        org.save()
+        self._audit(request, 'org_logo_changed', org, removed=request.method == 'DELETE')
+        url = request.build_absolute_uri(org.logo.url) if org.logo else None
+        return Response({'logo_url': url})
 
     @action(detail=True, methods=['post'], url_path='delete-mine', permission_classes=[IsAuthenticated])
     def delete_mine(self, request, pk=None):
