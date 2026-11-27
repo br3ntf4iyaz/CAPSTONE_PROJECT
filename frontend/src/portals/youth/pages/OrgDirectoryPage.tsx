@@ -271,7 +271,7 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
                 LYDO registers and verifies youth organizations. Membership is decided by <strong>the organization itself</strong>, not by LYDO.
               </p>
               {org.membership_requirements && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>Requirements: </strong>{org.membership_requirements}</p>}
-              {org.how_to_join && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>How to join: </strong>{org.how_to_join}</p>}
+              {org.how_to_join && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line">{org.how_to_join}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 {org.facebook_url && (
                   <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>
@@ -302,7 +302,7 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
                     Apply / Join via the organization&apos;s link <ExternalLink size={14} />
                   </a>
                 ) : org.application_mode === 'contact' ? (
-                  <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">To join, please contact the organization directly using the details above.</p>
+                  org.how_to_join ? null : <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">To join, please contact the organization directly using the details above.</p>
                 ) : (
                   <>
                     <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
