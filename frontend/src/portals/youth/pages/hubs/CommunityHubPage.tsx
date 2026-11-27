@@ -323,6 +323,7 @@ export default function CommunityHubPage() {
             description="Browse recognized youth organizations across Lucena. See what they do, join, or send an inquiry."
             icon={Building2}
             image="/images/icons/youth-orgs.png"
+            imageClass="scale-[1.45]"
             to="/organizations"
             accent="accent"
             badge={visibleOrgs.length > 0 ? `${visibleOrgs.length} organizations` : undefined}
@@ -871,12 +872,13 @@ function PhotoGrid({ images }: { images: CommunityPostImage[] }) {
 }
 
 function HubCard({
-  title, description, icon: Icon, image, to, accent = 'primary', badge, samples,
+  title, description, icon: Icon, image, imageClass, to, accent = 'primary', badge, samples,
 }: {
   title: string
   description: string
   icon: React.ElementType
   image?: string  // a picture used in place of the line icon
+  imageClass?: string  // to enlarge a picture that has a lot of empty margin
   to: string
   accent?: 'primary' | 'accent' | 'neutral'
   badge?: string
@@ -897,8 +899,8 @@ function HubCard({
       <div aria-hidden className="pointer-events-none absolute -bottom-16 -right-12 h-44 w-44 rounded-full bg-accent-400/20 blur-2xl" />
       <div className="relative flex items-start justify-between mb-5">
         {image ? (
-          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-md p-1.5">
-            <img src={image} alt="" className="w-full h-full object-contain" />
+          <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white shadow-md p-1.5 overflow-hidden">
+            <img src={image} alt="" className={cn('w-full h-full object-contain', imageClass)} />
           </span>
         ) : (
           <span className={cn('inline-flex items-center justify-center w-14 h-14 rounded-2xl shadow-md transition-colors', iconCls)}>
