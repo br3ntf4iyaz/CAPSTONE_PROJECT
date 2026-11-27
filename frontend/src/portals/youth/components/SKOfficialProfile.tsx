@@ -16,8 +16,8 @@ export interface ProfileOfficial {
 /** The profile wears the same colours as the official's card in the directory. */
 const TONES = {
   chair:   { header: 'bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700', panel: 'sm:border-[3px] border-accent-400 sm:ring-4 sm:ring-accent-400/25', photo: 'border-4 border-accent-400 shadow-lg shadow-primary-900/30', link: 'text-primary-700', sub: 'text-primary-100' },
-  council: { header: 'bg-gradient-to-br from-primary-700 to-primary-900', panel: '', photo: 'border-[3px] border-accent-400 shadow-md shadow-black/20', link: 'text-primary-700', sub: 'text-primary-100' },
-  officer: { header: 'bg-gradient-to-br from-teal-500 to-teal-700', panel: 'sm:border-b-[6px] border-b-accent-400', photo: 'border-[3px] border-accent-400 shadow-md shadow-black/20', link: 'text-teal-700', sub: 'text-teal-50' },
+  council: { header: 'bg-gradient-to-br from-primary-700 to-primary-900', panel: '', photo: 'border-2 border-white/60 shadow-lg shadow-black/30', link: 'text-primary-700', sub: 'text-primary-100' },
+  officer: { header: 'bg-gradient-to-br from-teal-500 to-teal-700', panel: 'sm:border-b-[6px] border-b-accent-400', photo: 'border-2 border-white/60 shadow-lg shadow-black/30', link: 'text-teal-700', sub: 'text-teal-50' },
 }
 
 const safeHref = (v?: string) => (v && /^https:\/\/(www\.facebook\.com|m\.me|www\.messenger\.com|fb\.watch)\//.test(v) ? v : undefined)

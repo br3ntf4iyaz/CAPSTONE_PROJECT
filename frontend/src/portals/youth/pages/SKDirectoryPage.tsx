@@ -295,7 +295,7 @@ function OfficialCard({
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
-      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30' : 'ring-[3px] ring-accent-400 shadow-md shadow-black/20')}>
+      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30' : 'ring-1 ring-white/40 shadow-lg shadow-black/30')}>
         {showPhoto ? (
           <button
             type="button"
@@ -310,7 +310,7 @@ function OfficialCard({
               onError={() => setBroken(true)}
               className="h-full w-full object-cover object-top transition-transform duration-200 group-hover:scale-105"
             />
-            <span className="absolute bottom-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100 transition-opacity">
+            <span className="absolute top-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100 transition-opacity">
               <ZoomIn size={14} />
             </span>
           </button>
@@ -322,6 +322,10 @@ function OfficialCard({
             <Facebook size={14} />
           </span>
         )}
+        {/* the name on the picture, over a dark fade, like a trading card */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent px-2 pb-5 pt-12 text-center">
+          <h4 className={cn('font-extrabold leading-tight break-words text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]', featured ? 'text-lg' : 'text-[15px]')}>{o.name}</h4>
+        </div>
       </div>
       {featured && (
         // red | yellow | white stripe: visible on the blue, unlike a blue segment
@@ -331,17 +335,16 @@ function OfficialCard({
       )}
       {featured && <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.22),transparent_55%)]" />}
       {!featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-32 w-32 rounded-full bg-white/10 blur-2xl" />}
-      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', 'text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
         className={cn(
-          'relative mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : light ? 'bg-white text-teal-800 shadow-sm' : 'bg-white/20 text-white border border-white/25',
+          'relative z-10 -mt-3 mb-0 inline-block whitespace-nowrap rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide shadow-lg shadow-black/30',
+          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900' : light ? 'bg-white text-teal-800' : 'bg-white text-primary-800',
         )}
       >
         {o.position === 'chairperson' && <Crown size={12} className="mr-1 inline -mt-0.5" />}{o.position_display}
       </p>
       {onOpen && (
-        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : light ? 'border-white/60 text-white hover:bg-white hover:text-teal-700' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
+        <button type="button" onClick={onOpen} className={cn('relative mt-3 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : light ? 'border-white/60 text-white hover:bg-white hover:text-teal-700' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
           View profile
         </button>
       )}
