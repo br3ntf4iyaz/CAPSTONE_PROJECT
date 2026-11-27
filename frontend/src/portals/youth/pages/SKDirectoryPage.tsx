@@ -285,9 +285,10 @@ function OfficialCard({
       className={cn(
         // every card in a grid has the same width and height, whatever the name length
         'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 h-full w-full transition-shadow',
+        // every card is full blue; the chairperson is the deepest navy with a yellow ring so that one stands out
         featured
-          ? 'max-w-[14rem] border-primary-800 bg-gradient-to-br from-primary-600 to-primary-900 text-white shadow-lg shadow-primary-900/25'
-          : 'border-primary-100 border-t-4 border-t-primary-500 bg-gradient-to-b from-primary-50 to-white shadow-md shadow-primary-600/10 hover:shadow-lg hover:shadow-primary-600/15',
+          ? 'max-w-[14rem] border-primary-950 ring-2 ring-accent-400 bg-gradient-to-br from-primary-800 to-primary-950 text-white shadow-xl shadow-primary-900/40'
+          : 'border-primary-600 bg-gradient-to-br from-primary-500 to-primary-700 text-white shadow-md shadow-primary-600/25 hover:shadow-lg hover:shadow-primary-600/35 hover:-translate-y-0.5',
       )}
     >
       <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
@@ -318,18 +319,18 @@ function OfficialCard({
           </span>
         )}
       </div>
-      {featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full bg-accent-400/25 blur-2xl" />}
-      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', featured ? 'text-base text-white' : 'text-sm text-primary-900')}>{o.name}</h4>
+      <div aria-hidden className={cn('pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full blur-2xl', featured ? 'bg-accent-400/30' : 'bg-white/10')} />
+      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center text-white', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
       <p
         className={cn(
           'relative mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : 'bg-primary-100 text-primary-700',
+          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : 'bg-white/20 text-white border border-white/25',
         )}
       >
         {o.position_display}
       </p>
       {onOpen && (
-        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-white/40 text-white hover:bg-white/15' : 'border-primary-300 bg-white text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600')}>
+        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-accent-400/70 text-accent-300 hover:bg-white/10' : 'border-white/50 text-white hover:bg-white hover:text-primary-700')}>
           View profile
         </button>
       )}
@@ -340,7 +341,7 @@ function OfficialCard({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-full bg-primary-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-primary-700 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
           >
             <Camera size={12} /> {busy ? 'Saving...' : showPhoto ? 'Change picture' : 'Upload picture'}
           </button>
@@ -351,7 +352,7 @@ function OfficialCard({
               disabled={busy}
               aria-label={`Remove the picture of ${o.name}`}
               title="Remove the picture"
-              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-ink-200 text-ink-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+              className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/50 text-white hover:bg-red-500 hover:border-red-500 disabled:opacity-50"
             >
               <Trash2 size={12} />
             </button>
@@ -363,7 +364,7 @@ function OfficialCard({
               if (n && n !== o.name) onRename?.(n)
             }}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-full border border-primary-200 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-50 disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-full border border-white/50 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/15 disabled:opacity-50"
           >
             Edit name
           </button>
