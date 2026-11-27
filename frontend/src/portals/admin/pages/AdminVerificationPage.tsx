@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ShieldCheck, Eye, X, CheckCircle2, XCircle,
-  Brain, AlertCircle, Download, CheckSquare, Settings2, RotateCcw,
+  Brain, AlertCircle, Download, CheckSquare, Settings2, RotateCcw, Trash2,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { SecureImage } from '@/components/ui/SecureImage'
@@ -104,6 +104,12 @@ function ReviewModal({ record, onClose, onAction }: {
 
   const canAct = record.status === 'pending' || record.status === 'reviewing' || record.status === 'rejected' || record.status === 'revision'
   const noteOk = notes.trim().length >= 5
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const remove = useMutation({
+    mutationFn: () => apiClient.delete(`/verification/admin/${record.id}/`),
+    onSuccess: () => { toast.success('Rejected record deleted. The person can verify again.'); onAction(); onClose() },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not delete'),
+  })
   const openResidency = async () => {
     try {
       const res = await apiClient.get(record.residency_doc_url as string, { responseType: 'blob' })
@@ -349,6 +355,22 @@ function ReviewModal({ record, onClose, onAction }: {
           </div>
         )}
 
+        {record.status === 'rejected' && (
+          <div className="rounded-xl border border-red-100 bg-red-50/50 p-3">
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} className="text-sm font-semibold text-red-700 inline-flex items-center gap-1.5"><Trash2 size={14} /> Delete this rejected record…</button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-red-800">Delete this rejected verification and its photos for good? This cannot be undone. The person can verify again from the start. The deletion is kept in the audit log.</p>
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setConfirmDelete(false)} className="btn-secondary btn-sm">Keep it</button>
+                  <button onClick={() => remove.mutate()} disabled={remove.isPending} className="btn-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">{remove.isPending ? 'Deleting…' : 'Yes, delete'}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 justify-end pt-1">
           <button onClick={onClose} className="btn-secondary btn-sm">Close</button>
           {record.status === 'suspended' && (
@@ -460,6 +482,11 @@ export default function AdminVerificationPage() {
   const qc = useQueryClient()
   const [tab, setTab] = useState<TabKey>('all')
   const [selected, setSelected] = useState<VerificationRecord | null>(null)
+  const rowDelete = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/verification/admin/${id}/`),
+    onSuccess: () => { toast.success('Rejected record deleted.'); qc.invalidateQueries({ queryKey: ['admin-verifications'] }) },
+    onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not delete'),
+  })
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [bulkNotes, setBulkNotes] = useState('')
   const [bulkPendingAction, setBulkPendingAction] = useState<'approved' | 'rejected' | null>(null)
@@ -751,6 +778,17 @@ export default function AdminVerificationPage() {
                       >
                         <Eye size={12} /> Review
                       </button>
+                      {rec.status === 'rejected' && (
+                        <button
+                          type="button"
+                          title="Delete this rejected record"
+                          aria-label={`Delete the rejected record of ${rec.user_name}`}
+                          onClick={() => { if (window.confirm(`Delete the rejected verification of ${rec.user_name} for good? The photos are removed and this cannot be undone.`)) rowDelete.mutate(rec.id) }}
+                          className="ml-1 inline-flex rounded-lg border border-red-200 p-1.5 text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 )

@@ -278,8 +278,33 @@ class AdminVerificationListView(APIView):
 
 
 class AdminVerificationDetailView(APIView):
-    """PATCH /api/verification/admin/<id>/  — manually approve or reject."""
+    """PATCH /api/verification/admin/<id>/  — manually approve or reject.  DELETE — remove a REJECTED record for good."""
     permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def delete(self, request, pk):
+        try:
+            v = IDVerification.objects.select_related("user").get(pk=pk)
+        except IDVerification.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        if v.status != IDVerification.Status.REJECTED:
+            return Response({"detail": "Only a rejected verification can be deleted."}, status=status.HTTP_400_BAD_REQUEST)
+        info = {"target_user": v.user.email, "reference": v.reference_number, "id_type": v.id_type, "note": v.admin_notes}
+        files = [f for f in (v.id_image, v.id_back_image, v.selfie_image, v.residency_doc) if f]
+        with transaction.atomic():
+            v.delete()
+        for f in files:  # the ID photos go too, they are not kept after the record is gone
+            try:
+                f.storage.delete(f.name)
+            except Exception:
+                pass
+        try:
+            from apps.accounts.models import AuditLog
+            from apps.accounts.views import get_client_ip
+            AuditLog.objects.create(user=request.user, action="verification_deleted", model_name="IDVerification", object_id=pk,
+                                    ip_address=get_client_ip(request), details=info)
+        except Exception:
+            pass
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     def patch(self, request, pk):
         try:

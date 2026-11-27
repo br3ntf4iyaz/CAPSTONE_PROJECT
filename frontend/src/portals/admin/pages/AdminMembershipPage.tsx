@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, X, CheckCircle2, XCircle, RotateCcw, Ban, Eye } from 'lucide-react'
+import { Search, X, CheckCircle2, XCircle, RotateCcw, Ban, Eye, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { PageSpinner } from '@/components/ui/Spinner'
@@ -47,6 +47,12 @@ function Detail({ app, onClose, onDone }: { app: OrgApplicationRow; onClose: () 
     onSuccess: () => { toast.success('Saved. The applicant was notified.'); onDone(); onClose() },
     onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not save.')),
   })
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const remove = useMutation({
+    mutationFn: () => apiClient.post(`/youth-orgs/${app.organization}/delete-application/`, { application: app.id }),
+    onSuccess: () => { toast.success('Rejected application deleted.'); onDone(); onClose() },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not delete.')),
+  })
   const st = APP_STATUS[app.status]
   const options = ACTIONS.filter(a => ALLOWED[app.status].includes(a.status))
   const snap = app.snapshot ?? {}
@@ -77,6 +83,22 @@ function Detail({ app, onClose, onDone }: { app: OrgApplicationRow; onClose: () 
         {app.message && <div className="rounded-xl bg-ink-50 p-3 text-sm text-ink-700"><p className="mb-0.5 text-[11px] font-semibold uppercase text-ink-500">Why they want to join</p>{app.message}</div>}
         {app.decision_note && <div className="rounded-xl border border-ink-100 p-3 text-sm text-ink-700"><p className="mb-0.5 text-[11px] font-semibold uppercase text-ink-500">Latest note</p>{app.decision_note}</div>}
         <div><p className="mb-1 text-xs font-semibold uppercase text-ink-500">History</p><AppHistory rows={app.history} /></div>
+
+        {app.status === 'declined' && (
+          <div className="rounded-xl border border-red-100 bg-red-50/50 p-3">
+            {!confirmDelete ? (
+              <button onClick={() => setConfirmDelete(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700"><Trash2 size={14} /> Delete this rejected application…</button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-red-800">Delete this rejected application and its history for good? This cannot be undone. The person may apply again. The deletion is kept in the audit log.</p>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setConfirmDelete(false)} className="btn-secondary btn-sm">Keep it</button>
+                  <button onClick={() => remove.mutate()} disabled={remove.isPending} className="btn-sm rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">{remove.isPending ? 'Deleting…' : 'Yes, delete'}</button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {options.length > 0 && (
           <div className="space-y-2 border-t border-ink-100 pt-3">
@@ -134,6 +156,11 @@ export default function AdminMembershipPage() {
       (!s || [a.applicant_name, a.applicant_email, a.organization_name, a.reference_number, a.snapshot?.barangay ?? ''].some(v => v.toLowerCase().includes(s))))
   }, [all, tab, q])
   const current = all.find(a => a.id === open) ?? null
+  const rowDelete = useMutation({
+    mutationFn: (a: OrgApplicationRow) => apiClient.post(`/youth-orgs/${a.organization}/delete-application/`, { application: a.id }),
+    onSuccess: () => { toast.success('Rejected application deleted.'); qc.invalidateQueries({ queryKey: ['admin-membership-applications'] }) },
+    onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not delete.')),
+  })
 
   if (list.isLoading) return <PageSpinner />
   if (list.isError) return <QueryError onRetry={() => list.refetch()} />
@@ -179,7 +206,14 @@ export default function AdminMembershipPage() {
                   <td>{a.snapshot?.barangay || '—'}</td>
                   <td className="text-ink-500">{fmt(a.created_at)}</td>
                   <td><span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold', st.cls)}>{st.label}</span></td>
-                  <td><button onClick={() => setOpen(a.id)} className="btn-secondary btn-sm">Review</button></td>
+                  <td className="whitespace-nowrap">
+                    <button onClick={() => setOpen(a.id)} className="btn-secondary btn-sm">Review</button>
+                    {a.status === 'declined' && (
+                      <button type="button" title="Delete this rejected application" aria-label={`Delete the rejected application of ${a.applicant_name}`}
+                        onClick={() => { if (window.confirm(`Delete the rejected application of ${a.applicant_name} for good? This cannot be undone.`)) rowDelete.mutate(a) }}
+                        className="ml-1 inline-flex rounded-lg border border-red-200 p-1.5 text-red-600 hover:bg-red-50"><Trash2 size={13} /></button>
+                    )}
+                  </td>
                 </tr>
               )
             })}

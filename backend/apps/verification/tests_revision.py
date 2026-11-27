@@ -81,3 +81,15 @@ class VerificationLifecycleTests(TestCase):
         self.assertTrue(row['has_residency_doc'])
         self.assertIn('/file/residency_doc/', row['residency_doc_url'])
         self.assertEqual(row['applicant']['email'], 'p@t.local')
+
+    def test_only_a_rejected_record_can_be_deleted_by_an_admin_and_it_is_logged(self):
+        self.v.id_image.save('front.jpg', SimpleUploadedFile('front.jpg', b'x'), save=True)
+        self.assertEqual(self.ac.delete(self.url).status_code, 400)  # still under review
+        self.patch('rejected', 'The photo is not of a real ID')
+        self.assertEqual(self.pc.delete(self.url).status_code, 403)
+        self.assertEqual(self.ac.delete(self.url).status_code, 204)
+        self.assertFalse(IDVerification.objects.filter(pk=self.v.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(action='verification_deleted').exists())
+        fresh = APIClient()
+        fresh.force_authenticate(User.objects.get(pk=self.person.pk))
+        self.assertEqual(fresh.get('/api/verification/').data['status'], 'none')  # the person starts again

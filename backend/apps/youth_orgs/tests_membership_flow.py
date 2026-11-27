@@ -137,3 +137,16 @@ class MembershipFlowTests(TestCase):
         self.assertEqual(snap['email'], 'p@t.local')  # the name and email always come from the account
         self.ac.post(self.decide, {'application': app_id, 'status': 'revision', 'note': 'Fix the number'}, format='json')
         self.assertEqual(self.apply(contact_phone='call me <b>').status_code, 400)
+
+    def test_lydo_can_delete_only_a_rejected_application_and_it_is_logged(self):
+        self.verify()
+        app_id = self.apply().data['id']
+        url = f'/api/youth-orgs/{self.org.pk}/delete-application/'
+        self.assertEqual(self.ac.post(url, {'application': app_id}, format='json').status_code, 400)  # not rejected yet
+        self.ac.post(self.decide, {'application': app_id, 'status': 'declined', 'note': 'Not eligible yet'}, format='json')
+        self.assertEqual(self.lc.post(url, {'application': app_id}, format='json').status_code, 403)
+        self.assertEqual(self.pc.post(url, {'application': app_id}, format='json').status_code, 403)
+        self.assertEqual(self.ac.post(url, {'application': app_id}, format='json').status_code, 204)
+        self.assertFalse(OrgMembershipApplication.objects.exists())
+        self.assertTrue(AuditLog.objects.filter(action='org_membership_deleted').exists())
+        self.assertEqual(self.apply().status_code, 201)  # the person may apply again

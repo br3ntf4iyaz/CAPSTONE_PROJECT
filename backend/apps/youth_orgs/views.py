@@ -315,6 +315,18 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         self._audit(request, 'org_membership_decided', org, application=app.pk, decision=new, reference=app.reference_number)
         return Response(OrgMembershipApplicationSerializer(app, context={'is_admin': is_lydo}).data)
 
+    @action(detail=True, methods=['post'], url_path='delete-application', permission_classes=[IsAuthenticated, IsAdminRole])
+    def delete_application(self, request, pk=None):
+        """LYDO removes a REJECTED application for good (the audit log keeps who did it). The person may apply again."""
+        org = get_object_or_404(YouthOrganization, pk=pk)
+        app = get_object_or_404(OrgMembershipApplication, pk=request.data.get('application') or 0, organization=org)
+        if app.status != 'declined':
+            return Response({'detail': 'Only a rejected application can be deleted.'}, status=status.HTTP_400_BAD_REQUEST)
+        info = {'reference': app.reference_number, 'applicant': app.applicant.email, 'note': app.decision_note}
+        app.delete()
+        self._audit(request, 'org_membership_deleted', org, **info)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=['get'], url_path='membership-applications', permission_classes=[IsAuthenticated, IsAdminRole])
     def all_membership_applications(self, request):
         """LYDO's Organization Membership Verification list: every application, newest first."""
