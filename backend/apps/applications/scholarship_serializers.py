@@ -144,12 +144,13 @@ class ScholarshipApplicationSerializer(serializers.ModelSerializer):
     documents = DocumentSerializer(many=True, read_only=True)
     status_display = serializers.CharField(source='get_status_display', read_only=True)
     applicant_email = serializers.CharField(source='applicant.email', read_only=True)
+    applicant_type = serializers.CharField(source='applicant.youth_type', read_only=True)
 
     class Meta:
         model = ScholarshipApplication
         fields = [
             'id', 'reference_number', 'scholarship', 'scholarship_title', 'personal', 'education', 'family',
-            'status', 'status_display', 'admin_remarks', 'applicant_message', 'documents', 'applicant_email',
+            'status', 'status_display', 'admin_remarks', 'applicant_message', 'documents', 'applicant_email', 'applicant_type',
             'submitted_at', 'updated_at', 'reviewed_at',
         ]
         read_only_fields = fields

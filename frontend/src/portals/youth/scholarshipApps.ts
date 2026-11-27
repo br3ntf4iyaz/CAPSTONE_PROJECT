@@ -26,6 +26,7 @@ export interface ScholarshipApplication {
   admin_remarks: string
   applicant_message: string
   documents: ScholarshipDocument[]
+  applicant_type?: string
   applicant_email: string
   submitted_at: string
   updated_at: string

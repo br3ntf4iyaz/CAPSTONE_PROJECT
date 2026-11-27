@@ -20,6 +20,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
     reviewed_by_name = serializers.SerializerMethodField()
     approved_by_name = serializers.SerializerMethodField()
     revoked_by_name = serializers.SerializerMethodField()
+    applicant_type = serializers.CharField(source='applicant.youth_type', read_only=True)
 
     # Only an administrator sees these. The applicant never gets the AI findings or the administrator's private working.
     ADMIN_ONLY = ['ai_status', 'ai_results', 'ai_started_at', 'ai_completed_at', 'file_names', 'opened_docs', 'manual_checks',
@@ -36,7 +37,7 @@ class ApplicationSerializer(serializers.ModelSerializer):
             'status', 'submitted_at', 'admin_note', 'reviewed_at',
             'ai_status', 'ai_results', 'ai_started_at', 'ai_completed_at', 'file_names', 'opened_docs', 'manual_checks',
             'ai_override_note', 'rejected_items', 'approval_blockers', 'reviewed_by_name', 'approved_at', 'approved_by_name',
-            'revoked_at', 'revoked_by_name', 'revocation_reason',
+            'revoked_at', 'revoked_by_name', 'revocation_reason', 'applicant_type',
         ]
         read_only_fields = ['id', 'title', 'status', 'submitted_at', 'document_url', 'id_document_url', 'id_document_back_url',
                             'selfie_url', 'admin_note', 'reviewed_at', 'resubmit_count', 'previous_note',

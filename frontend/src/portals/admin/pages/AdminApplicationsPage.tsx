@@ -6,9 +6,11 @@ import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { openPrivateFile, SecureImage } from '@/components/ui/SecureImage'
 import { cn, formatDateTime } from '@/utils'
+import { AccountGroupTabs, inGroup, type AccountGroup } from '../components/AccountGroupTabs'
 
 interface Application {
   id: number
+  applicant_type?: string
   kind: 'job' | 'scholarship'
   title: string
   full_name: string
@@ -426,10 +428,12 @@ export default function AdminApplicationsPage({ embedded = false }: { embedded?:
   const [status, setStatus] = useState('')
   const [kind, setKind] = useState('')
   const [q, setQ] = useState('')
-  const { data = [], isLoading } = useQuery<Application[]>({
+  const [group, setGroup] = useState<AccountGroup>('all')
+  const { data: everyone = [], isLoading } = useQuery<Application[]>({
     queryKey: ['admin-applications'],
     queryFn: () => apiClient.get('/applications/').then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? [])),
   })
+  const data = useMemo(() => everyone.filter(a => inGroup(group, a.applicant_type)), [everyone, group])
 
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase()

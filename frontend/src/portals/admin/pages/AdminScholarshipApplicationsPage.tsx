@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AccountGroupTabs, inGroup, type AccountGroup } from '../components/AccountGroupTabs'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { GraduationCap, Save, FileText, Eye, ChevronDown, Search } from 'lucide-react'
@@ -128,11 +129,14 @@ export default function AdminScholarshipApplicationsPage({ embedded = false }: {
     queryKey: ['admin-scholarships-list'],
     queryFn: () => apiClient.get('/scholarships/').then(r => toArray(r.data)),
   })
-  const { data = [], isLoading, isError } = useQuery<ScholarshipApplication[]>({
+  const [group, setGroup] = useState<AccountGroup>('all')
+  const { data: everyone = [], isLoading, isError } = useQuery<ScholarshipApplication[]>({
     queryKey: ['admin-scholarship-applications', status, scholarship, q],
     queryFn: () => apiClient.get('/applications/scholarship/', { params: { status: status || undefined, scholarship: scholarship || undefined, q: q || undefined } })
       .then(r => toArray<ScholarshipApplication>(r.data)),
   })
+
+  const data = everyone.filter(a => inGroup(group, a.applicant_type))
 
   return (
     <div className="space-y-5">
@@ -146,6 +150,8 @@ export default function AdminScholarshipApplicationsPage({ embedded = false }: {
           <Link to="/admin/jobs-schools" className="font-semibold text-primary-700 hover:underline">Jobs, Scholarships &amp; Schools</Link>.
         </p>
       </div>
+
+      <AccountGroupTabs value={group} onChange={setGroup} types={everyone.map(a => a.applicant_type)} />
 
       <div className="flex flex-wrap gap-2">
         <div className="relative flex-1 min-w-[200px]">
