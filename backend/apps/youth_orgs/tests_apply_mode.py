@@ -66,3 +66,18 @@ class ApplyModeTests(TestCase):
         o.refresh_from_db()
         self.assertEqual((o.application_mode, o.external_apply_url, o.registration_number), ('external', 'https://forms.gle/abc', 'YORP-1'))
         self.assertEqual(self.pc.patch(url, {'application_mode': 'contact'}, format='json').status_code, 403)
+
+    def test_an_sk_official_and_a_leader_can_join_another_organization_but_not_their_own(self):
+        sk = User.objects.create_user(email='sk@t.local', password='x', role='youth', youth_type='sk', is_active=True)
+        IDVerification.objects.create(user=sk, id_type='umid', status='approved')
+        org = self.org('Someone Elses', submitted_by=self.leader)
+        own = self.org('Own', submitted_by=sk)
+        c = APIClient()
+        c.force_authenticate(sk)
+        self.assertEqual(c.post(f'/api/youth-orgs/{org.pk}/apply/', {'consent': 'true'}, format='json').status_code, 201)  # another organization
+        self.assertEqual(c.post(f'/api/youth-orgs/{own.pk}/apply/', {'consent': 'true'}, format='json').status_code, 400)  # their own
+        other = User.objects.create_user(email='ld2@t.local', password='x', role='youth', youth_type='youth_org_leader', is_active=True)
+        IDVerification.objects.create(user=other, id_type='umid', status='approved')
+        c2 = APIClient()
+        c2.force_authenticate(other)
+        self.assertEqual(c2.post(f'/api/youth-orgs/{org.pk}/apply/', {'consent': 'true'}, format='json').status_code, 201)

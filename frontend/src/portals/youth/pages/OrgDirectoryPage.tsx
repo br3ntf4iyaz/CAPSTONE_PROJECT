@@ -256,12 +256,6 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
                       <p className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800"><ShieldCheck size={12} /> Your Organization</p>
                       <button type="button" onClick={() => onManage(org.id)} className="btn-primary w-full">Manage Organization</button>
                     </div>
-                  ) : (viewer.isLeader || viewer.isSK) ? (
-                    <p className="rounded-xl bg-primary-50 p-3 text-[13px] leading-5 text-primary-900">
-                      {viewer.isSK
-                        ? 'This is a monitoring and partnership view. Reach out to the organization using the details above.'
-                        : 'Want to work together? Reach out to the organization using the details above to collaborate.'}
-                    </p>
                   ) : !isOpen(org) ? (
                     <p className="rounded-xl bg-ink-50 p-3 text-center text-sm font-semibold text-ink-600">Membership is closed right now.</p>
                   ) : org.application_mode === 'external' && org.external_apply_url ? (
@@ -902,12 +896,7 @@ export default function OrgDirectoryPage() {
                               className="rounded-full border-2 border-primary-300 bg-primary-50 px-3 py-1 text-[11px] font-semibold text-primary-800 hover:border-primary-500">
                               Manage Organization
                             </button>
-                          ) : viewer.isLeader ? (
-                            <button type="button" onClick={e => { e.stopPropagation(); setSelectedId(org.id) }}
-                              className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
-                              Contact / Collaborate
-                            </button>
-                          ) : viewer.isSK ? null : isOpen(org) && org.application_mode === 'external' && org.external_apply_url ? (
+                          ) : isOpen(org) && org.application_mode === 'external' && org.external_apply_url ? (
                             <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                               className="inline-flex items-center gap-1 rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
                               Apply via link <ExternalLink size={11} />
