@@ -120,236 +120,191 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
     queryFn: () => apiClient.get(`/youth-orgs/${orgId}/`).then(r => r.data),
   })
 
+  // one look for every section: a small capital title, then text of one size
+  const Section = ({ title, aside, children }: { title: string; aside?: React.ReactNode; children: React.ReactNode }) => (
+    <section className="border-t border-ink-100 pt-5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.08em] text-ink-500">{title}</h3>
+        {aside}
+      </div>
+      {children}
+    </section>
+  )
+  const Fact = ({ icon: Icon, label, children }: { icon: typeof MapPin; label: string; children: React.ReactNode }) => (
+    <div className="flex items-start gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-50 text-primary-600"><Icon size={16} /></span>
+      <div className="min-w-0">
+        <p className="text-xs text-ink-500">{label}</p>
+        <div className="text-sm font-semibold leading-5 text-ink-900">{children}</div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-      <div
-        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
-        onClick={e => e.stopPropagation()}
-      >
+      <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
         {isLoading ? (
           <div className="p-10 text-center text-ink-500">Loading…</div>
         ) : org ? (
           <>
-            {/* Header */}
-            <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-6 pt-8 pb-10 text-white">
-              <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors">
+            {/* Header: stays in place, the content below scrolls under it */}
+            <div className="relative shrink-0 bg-gradient-to-br from-primary-600 to-primary-800 px-6 pb-6 pt-6 text-white">
+              <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
                 <X size={16} />
               </button>
-              {org.logo_url ? (
-                <img
-                  src={org.logo_url}
-                  alt={org.name}
-                  className="w-14 h-14 rounded-2xl object-cover border-2 border-white/30 mb-4"
-                />
-              ) : (
-                <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center mb-4">
-                  <Users size={26} className="text-white" />
-                </div>
-              )}
-              <h2 className="font-display font-extrabold text-xl leading-tight mb-1">{org.name}{org.acronym ? <span className="ml-2 text-base font-bold text-white/80">({org.acronym})</span> : null}</h2>
-              <div className="flex flex-wrap gap-2 mt-2">
-                <span className="text-xs font-semibold bg-white/20 px-2.5 py-1 rounded-full">
-                  {SUBCLASS_LABELS[org.sub_classification] ?? 'Youth Organization'}
-                </span>
-                <span className="text-xs font-semibold bg-white/20 px-2.5 py-1 rounded-full">
-                  {CLASS_LABELS[org.classification] ?? org.classification}
-                </span>
-                {org.is_compliant && (
-                  <span className="text-xs font-semibold bg-emerald-400/30 px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <CheckCheck size={11} /> Compliant
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Info cards */}
-            <div className="-mt-5 mx-4 bg-white rounded-2xl border border-ink-100 shadow-sm p-4 space-y-3">
-              {org.barangay && (
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <MapPin size={14} className="text-primary-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-ink-500">Barangay</p>
-                    <p className="font-semibold text-ink-900">{org.barangay}</p>
-                  </div>
-                </div>
-              )}
-              {org.contact_person && (
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <Users size={14} className="text-primary-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-ink-500">Key officer / contact person</p>
-                    <p className="font-semibold text-ink-900">{org.contact_person}</p>
-                  </div>
-                </div>
-              )}
-              {org.contact_email && (
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <Mail size={14} className="text-primary-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-ink-500">Email</p>
-                    <a href={`mailto:${org.contact_email}`} className="font-semibold text-primary-700 hover:underline">{org.contact_email}</a>
-                  </div>
-                </div>
-              )}
-              {org.contact_phone && (
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                    <Phone size={14} className="text-primary-600" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-ink-500">Phone</p>
-                    <a href={`tel:${org.contact_phone}`} className="font-semibold text-primary-700 hover:underline">{org.contact_phone}</a>
-                  </div>
-                </div>
-              )}
-              <div className="flex items-center gap-3 text-sm">
-                <div className="w-8 h-8 rounded-xl bg-primary-50 flex items-center justify-center flex-shrink-0">
-                  <Award size={14} className="text-primary-600" />
-                </div>
-                <div>
-                  <p className="text-xs text-ink-500">Verification</p>
-                  <p className="font-semibold text-ink-900">{REG_LABELS[org.registration_category] ?? org.registration_category}</p>
-                  {org.registration_number && <p className="text-xs text-ink-600">Registration no. <span className="font-mono font-semibold">{org.registration_number}</span></p>}
-                  {org.registration_valid_until && <p className="text-xs text-ink-600">Valid until {new Date(org.registration_valid_until).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>}
-                </div>
-              </div>
-            </div>
-
-            {/* Description */}
-            {org.description && (
-              <div className="px-4 pt-4">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">About</p>
-                <p className="text-sm text-ink-700 leading-relaxed">{org.description}</p>
-              </div>
-            )}
-            {org.mission && (
-              <div className="px-4 pt-4">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Mission and objectives</p>
-                <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{org.mission}</p>
-              </div>
-            )}
-
-            {(org.source_url || org.registration_category === 'not_registered') && (
-              <div className="px-4 pt-4">
-                <p className="rounded-xl border border-ink-100 bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
-                  {org.registration_category === 'not_registered' && <><strong className="text-ink-700">Not yet confirmed by LYDO.</strong> This listing is for information only and may change once LYDO confirms the details.{' '}</>}
-                  {org.source_url && <><strong className="text-ink-700">Source:</strong>{' '}<a href={org.source_url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary-700 underline">{org.source_url}</a></>}
-                </p>
-              </div>
-            )}
-
-            {/* Executive board: the leader and LYDO also see the private positions */}
-            {(org.officers?.length ?? 0) > 0 && (
-              <div className="px-4 pt-4">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Officers</p>
-                <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                  {org.officers!.map(o => (
-                    <li key={o.id} className="text-sm">
-                      <span className="block font-semibold text-ink-900">{o.name}</span>
-                      <span className="text-xs text-ink-500">{o.position_label}{!o.is_public && <span className="ml-1 rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-600">Private</span>}</span>
-                    </li>
-                  ))}
-                </ul>
-                {org.can_manage && <p className="mt-1 text-[11px] text-ink-500">Officers marked Private are visible only to you and LYDO.</p>}
-              </div>
-            )}
-
-            {/* Membership: recruitment status, requirements, and how to apply (the organization decides how) */}
-            <div className="px-4 pt-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">How to join</p>
-                <MembershipBadge org={org} />
-              </div>
-              <p className="mt-2 rounded-xl bg-primary-50/60 border border-primary-100 p-2.5 text-xs leading-relaxed text-primary-900">
-                LYDO registers and verifies youth organizations. Membership is decided by <strong>the organization itself</strong>, not by LYDO.
-              </p>
-              {org.membership_requirements && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>Requirements: </strong>{org.membership_requirements}</p>}
-              {org.how_to_join && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line">{org.how_to_join}</p>}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {org.facebook_url && (
-                  <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>
-                )}
-                {org.contact_email && (
-                  <a href={`mailto:${org.contact_email}`} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Mail size={12} /> Email</a>
-                )}
-                {org.contact_phone && (
-                  <a href={`tel:${org.contact_phone}`} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Phone size={12} /> Call</a>
-                )}
-              </div>
-              {org.can_manage ? (
-                <div className="mt-3 space-y-2">
-                  <p className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800"><ShieldCheck size={12} /> Your Organization</p>
-                  <button type="button" onClick={() => onManage(org.id)} className="btn-primary w-full">Manage Organization</button>
-                </div>
-              ) : (viewer.isLeader || viewer.isSK) ? (
-                <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">
-                  {viewer.isSK
-                    ? 'This is a monitoring and partnership view. Reach out to the organization using the details above.'
-                    : 'Want to work together? Reach out to the organization using the details above to collaborate.'}
-                </p>
-              ) : (
-                !isOpen(org) ? (
-                  <p className="mt-3 rounded-xl bg-ink-50 p-3 text-center text-sm font-semibold text-ink-600">Membership is closed right now.</p>
-                ) : org.application_mode === 'external' && org.external_apply_url ? (
-                  <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" className="btn-primary mt-3 flex w-full items-center justify-center gap-1.5">
-                    Apply / Join via the organization&apos;s link <ExternalLink size={14} />
-                  </a>
-                ) : org.application_mode === 'contact' ? (
-                  org.how_to_join ? null : <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">To join, please contact the organization directly using the details above.</p>
+              <div className="flex items-start gap-4 pr-10">
+                {org.logo_url ? (
+                  <img src={org.logo_url} alt={org.name} className="h-14 w-14 shrink-0 rounded-2xl border-2 border-white/30 object-cover" />
                 ) : (
-                  <>
-                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
-                      {org.has_officer_reviewer === false
-                        ? 'You can apply here in LYDOP. This organization has no officer account in LYDOP yet, so LYDO will pass your application on to the organization. LYDO does not approve memberships.'
-                        : 'You can apply here in LYDOP. The officers of this organization review your application and decide whether to approve it. LYDO does not approve memberships.'}
-                    </p>
-                    <button type="button" onClick={() => onJoin({ id: org.id, name: org.name })} className="btn-primary mt-2 w-full">Apply for membership in LYDOP</button>
-                  </>
-                )
-              )}
-            </div>
-            {org.can_manage && <div className="pt-4"><OrgApplicationsPanel orgId={org.id} /></div>}
-
-            {/* Accomplishments / Activities */}
-            {org.accomplishments.length > 0 && (
-              <div className="px-4 pt-5 pb-6">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-3">
-                  Activities & Accomplishments ({org.accomplishments.length})
-                </p>
-                <div className="space-y-3">
-                  {org.accomplishments.map(a => (
-                    <div key={a.id} className="flex gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-accent-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Award size={14} className="text-accent-600" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-ink-900">{a.title}</p>
-                        {a.date_achieved && (
-                          <p className="text-xs text-ink-400 flex items-center gap-1 mt-0.5">
-                            <Calendar size={11} />
-                            {new Date(a.date_achieved).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}
-                          </p>
-                        )}
-                        {a.description && <p className="text-xs text-ink-600 mt-1 leading-relaxed">{a.description}</p>}
-                      </div>
-                    </div>
-                  ))}
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-white/30 bg-white/20"><Users size={26} className="text-white" /></div>
+                )}
+                <div className="min-w-0">
+                  <h2 className="font-display text-xl font-extrabold leading-snug">{org.name}{org.acronym ? <span className="ml-2 text-base font-bold text-white/80">({org.acronym})</span> : null}</h2>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">{SUBCLASS_LABELS[org.sub_classification] ?? 'Youth Organization'}</span>
+                    <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">{CLASS_LABELS[org.classification] ?? org.classification}</span>
+                    {org.is_compliant && (
+                      <span className="flex items-center gap-1 rounded-full bg-emerald-400/30 px-2.5 py-1 text-[11px] font-semibold"><CheckCheck size={11} /> Compliant</span>
+                    )}
+                  </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {org.accomplishments.length === 0 && (
-              <div className="px-4 pt-4 pb-6 text-center text-ink-400 text-sm">
-                <Award size={28} className="mx-auto mb-2 opacity-30" />
-                No activities recorded yet.
+            <div className="flex-1 space-y-5 overflow-y-auto p-6">
+              {/* Key facts */}
+              <div className="grid gap-x-6 gap-y-4 rounded-2xl border border-ink-100 bg-ink-50/50 p-4 sm:grid-cols-2">
+                <Fact icon={Award} label="Verification">
+                  <p>{REG_LABELS[org.registration_category] ?? org.registration_category}</p>
+                  {org.registration_number && <p className="mt-0.5 text-xs font-normal text-ink-600">Registration no. <span className="font-mono font-semibold">{org.registration_number}</span></p>}
+                  {org.registration_valid_until && <p className="text-xs font-normal text-ink-600">Valid until {new Date(org.registration_valid_until).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>}
+                </Fact>
+                {org.barangay && <Fact icon={MapPin} label="Barangay">{org.barangay}</Fact>}
+                {org.contact_person && <Fact icon={Users} label="Key officer / contact person">{org.contact_person}</Fact>}
+                {org.contact_email && <Fact icon={Mail} label="Email"><a href={'mailto:' + org.contact_email} className="break-all text-primary-700 hover:underline">{org.contact_email}</a></Fact>}
+                {org.contact_phone && <Fact icon={Phone} label="Phone"><a href={'tel:' + org.contact_phone} className="text-primary-700 hover:underline">{org.contact_phone}</a></Fact>}
               </div>
-            )}
+
+              {(org.description || org.mission) && (
+                <Section title="About">
+                  {org.description && <p className="text-sm leading-6 text-ink-700">{org.description}</p>}
+                  {org.mission && (
+                    <>
+                      <h4 className="mb-1 mt-3 text-sm font-bold text-ink-900">Mission and objectives</h4>
+                      <p className="whitespace-pre-line text-sm leading-6 text-ink-700">{org.mission}</p>
+                    </>
+                  )}
+                </Section>
+              )}
+
+              {(org.source_url || org.registration_category === 'not_registered') && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 text-[13px] leading-5 text-ink-700">
+                  {org.registration_category === 'not_registered' && (
+                    <>
+                      <p className="font-bold text-ink-900">Not yet confirmed by LYDO</p>
+                      <p className="mt-0.5">This listing is for information only and may change once LYDO confirms the details.</p>
+                    </>
+                  )}
+                  {org.source_url && (
+                    <p className={org.registration_category === 'not_registered' ? 'mt-2' : ''}>
+                      <span className="font-bold text-ink-900">Source: </span>
+                      <a href={org.source_url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary-700 underline">{org.source_url}</a>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {(org.officers?.length ?? 0) > 0 && (
+                <Section title="Officers">
+                  <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+                    {org.officers!.map(o => (
+                      <li key={o.id}>
+                        <p className="text-sm font-semibold leading-5 text-ink-900">{o.name}</p>
+                        <p className="text-xs text-ink-500">{o.position_label}{!o.is_public && <span className="ml-1.5 rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-600">Private</span>}</p>
+                      </li>
+                    ))}
+                  </ul>
+                  {org.can_manage && <p className="mt-2 text-xs text-ink-500">Officers marked Private are visible only to you and LYDO.</p>}
+                </Section>
+              )}
+
+              {/* Membership: how this organization takes members (the organization decides) */}
+              <Section title="How to join" aside={<MembershipBadge org={org} />}>
+                <div className="space-y-3">
+                  <p className="text-[13px] leading-5 text-ink-600">LYDO registers and verifies youth organizations. Membership is decided by <strong className="text-ink-800">the organization itself</strong>, not by LYDO.</p>
+                  {org.membership_requirements && (
+                    <div>
+                      <h4 className="mb-0.5 text-sm font-bold text-ink-900">Requirements</h4>
+                      <p className="whitespace-pre-line text-sm leading-6 text-ink-700">{org.membership_requirements}</p>
+                    </div>
+                  )}
+                  {org.how_to_join && (
+                    <div>
+                      <h4 className="mb-0.5 text-sm font-bold text-ink-900">Steps</h4>
+                      <p className="whitespace-pre-line text-sm leading-6 text-ink-700">{org.how_to_join}</p>
+                    </div>
+                  )}
+                  {(org.facebook_url || org.contact_email || org.contact_phone) && (
+                    <div className="flex flex-wrap gap-2">
+                      {org.facebook_url && <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3.5 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>}
+                      {org.contact_email && <a href={'mailto:' + org.contact_email} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Mail size={13} /> Email</a>}
+                      {org.contact_phone && <a href={'tel:' + org.contact_phone} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3.5 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Phone size={13} /> Call</a>}
+                    </div>
+                  )}
+                  {org.can_manage ? (
+                    <div className="space-y-2">
+                      <p className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800"><ShieldCheck size={12} /> Your Organization</p>
+                      <button type="button" onClick={() => onManage(org.id)} className="btn-primary w-full">Manage Organization</button>
+                    </div>
+                  ) : (viewer.isLeader || viewer.isSK) ? (
+                    <p className="rounded-xl bg-primary-50 p-3 text-[13px] leading-5 text-primary-900">
+                      {viewer.isSK
+                        ? 'This is a monitoring and partnership view. Reach out to the organization using the details above.'
+                        : 'Want to work together? Reach out to the organization using the details above to collaborate.'}
+                    </p>
+                  ) : !isOpen(org) ? (
+                    <p className="rounded-xl bg-ink-50 p-3 text-center text-sm font-semibold text-ink-600">Membership is closed right now.</p>
+                  ) : org.application_mode === 'external' && org.external_apply_url ? (
+                    <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" className="btn-primary flex w-full items-center justify-center gap-1.5">
+                      Apply / Join via the organization&apos;s link <ExternalLink size={14} />
+                    </a>
+                  ) : org.application_mode === 'contact' ? (
+                    org.how_to_join ? null : <p className="rounded-xl bg-primary-50 p-3 text-[13px] leading-5 text-primary-900">To join, please contact the organization directly using the details above.</p>
+                  ) : (
+                    <>
+                      <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[13px] leading-5 text-amber-900">
+                        {org.has_officer_reviewer === false
+                          ? 'You can apply here in LYDOP. This organization has no officer account in LYDOP yet, so LYDO will pass your application on to the organization. LYDO does not approve memberships.'
+                          : 'You can apply here in LYDOP. The officers of this organization review your application and decide whether to approve it. LYDO does not approve memberships.'}
+                      </p>
+                      <button type="button" onClick={() => onJoin({ id: org.id, name: org.name })} className="btn-primary w-full">Apply for membership in LYDOP</button>
+                    </>
+                  )}
+                </div>
+              </Section>
+              {org.can_manage && <div className="-mx-6 border-t border-ink-100 pt-2"><OrgApplicationsPanel orgId={org.id} /></div>}
+
+              <Section title={org.accomplishments.length > 0 ? 'Activities & accomplishments (' + org.accomplishments.length + ')' : 'Activities & accomplishments'}>
+                {org.accomplishments.length === 0 ? (
+                  <p className="text-sm text-ink-400">No activities recorded yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {org.accomplishments.map(a => (
+                      <div key={a.id} className="flex gap-3">
+                        <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent-50"><Award size={14} className="text-accent-600" /></span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold leading-5 text-ink-900">{a.title}</p>
+                          {a.date_achieved && (
+                            <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><Calendar size={11} />{new Date(a.date_achieved).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                          )}
+                          {a.description && <p className="mt-1 text-[13px] leading-5 text-ink-600">{a.description}</p>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Section>
+            </div>
           </>
         ) : (
           <div className="p-10 text-center text-ink-500">Organization not found.</div>
