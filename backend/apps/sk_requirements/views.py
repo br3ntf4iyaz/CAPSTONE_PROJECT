@@ -107,7 +107,7 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name', 'official_social', 'official_activities', 'group_photo'):
+        if self.action in ('upload_logo', 'chairperson_photo', 'member_photo', 'official_name', 'contact', 'official_social', 'official_activities', 'group_photo'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -280,6 +280,43 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
         barangay.save(update_fields=['sk_chairperson'])
         _audit_picture(request, barangay, f'chairperson:{name}', 'sk_name_changed')
         return Response({'sk_chairperson': name})
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='contact',
+        permission_classes=[IsAuthenticated],
+        throttle_classes=[SKPhotoThrottle],
+    )
+    def contact(self, request, pk=None):
+        """Change the public email and phone number of the barangay's SK. Verified SK of this barangay (or admin). Blank clears it."""
+        import re
+        from django.core.exceptions import ValidationError as DjangoValidationError
+        from django.core.validators import validate_email
+        barangay = self.get_object()
+        if not can_manage_council_pictures(request.user, barangay):
+            return _picture_denied(request, barangay)
+        fields = []
+        if 'contact_email' in request.data:
+            email = str(request.data.get('contact_email') or '').strip()
+            if email:
+                try:
+                    validate_email(email)
+                except DjangoValidationError:
+                    return Response({'detail': 'Please enter a valid email address.'}, status=status.HTTP_400_BAD_REQUEST)
+            barangay.contact_email = email
+            fields.append('contact_email')
+        if 'contact_phone' in request.data:
+            phone = str(request.data.get('contact_phone') or '').strip()
+            if phone and not re.fullmatch(r'[0-9+()\-\s]{7,20}', phone):
+                return Response({'detail': 'Please enter a valid phone number (digits, +, - and spaces only; up to 20 characters).'}, status=status.HTTP_400_BAD_REQUEST)
+            barangay.contact_phone = phone
+            fields.append('contact_phone')
+        if not fields:
+            return Response({'detail': 'Nothing to change.'}, status=status.HTTP_400_BAD_REQUEST)
+        barangay.save(update_fields=fields)
+        _audit_picture(request, barangay, 'contact', 'sk_contact_changed')
+        return Response({'contact_email': barangay.contact_email, 'contact_phone': barangay.contact_phone})
 
     # ------------------------------------------------------------------
     # Facebook links, public contact and public activities of ONE official

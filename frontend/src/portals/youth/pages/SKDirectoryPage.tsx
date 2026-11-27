@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook, Crown } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook, Crown, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
@@ -485,6 +485,22 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
     onOpen: () => setProfileKey(o.key),
   })
 
+  // the public email and phone of this barangay's SK: the SK (once verified) or LYDO can change them
+  const [editingContact, setEditingContact] = useState(false)
+  const [emailDraft, setEmailDraft] = useState('')
+  const [phoneDraft, setPhoneDraft] = useState('')
+  const saveContact = useMutation({
+    mutationFn: () => apiClient.post(`/sk-requirements/barangays/${barangay.id}/contact/`, { contact_email: emailDraft.trim(), contact_phone: phoneDraft.trim() }).then(r => r.data),
+    onSuccess: (d: { contact_email: string; contact_phone: string }) => {
+      toast.success('Contact details updated')
+      qc.setQueryData<SKBarangay[]>(['sk-barangays-directory'], old => old?.map(b => b.id !== barangay.id ? b : { ...b, contact_email: d.contact_email, contact_phone: d.contact_phone }))
+      qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
+      setEditingContact(false)
+    },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not save the contact details.'),
+  })
+  const startEditContact = () => { setEmailDraft(barangay.contact_email ?? ''); setPhoneDraft(barangay.contact_phone ?? ''); setEditingContact(true) }
+
   const [zoomKey, setZoomKey] = useState<string | null>(null)
   const [groupZoom, setGroupZoom] = useState(false)
   const groupFile = useRef<HTMLInputElement>(null)
@@ -590,8 +606,33 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
           <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-md shadow-primary-600/10 p-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0"><MapPin size={16} className="text-primary-600" /></div>
-              <div><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
+              <div className="min-w-0 flex-1"><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
+              {canEdit && !editingContact && (
+                <button type="button" onClick={startEditContact} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-colors">
+                  <Pencil size={11} /> Edit contact
+                </button>
+              )}
             </div>
+            {editingContact ? (
+              <form
+                className="space-y-2.5"
+                onSubmit={e => { e.preventDefault(); saveContact.mutate() }}
+              >
+                <label className="block">
+                  <span className="text-xs font-medium text-ink-500">Email</span>
+                  <input type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)} maxLength={254} placeholder="sk.barangay@lucena.gov.ph" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-medium text-ink-500">Phone</span>
+                  <input type="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} maxLength={20} placeholder="09XX XXX XXXX" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
+                </label>
+                <p className="text-[11px] text-ink-500">These are shown to the public. Leave a box empty to remove it.</p>
+                <div className="flex gap-2">
+                  <button type="submit" disabled={saveContact.isPending} className="rounded-full bg-primary-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-primary-700 disabled:opacity-60">{saveContact.isPending ? 'Saving…' : 'Save'}</button>
+                  <button type="button" onClick={() => setEditingContact(false)} disabled={saveContact.isPending} className="rounded-full border border-ink-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">Cancel</button>
+                </div>
+              </form>
+            ) : (<>
             {barangay.contact_email && (
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0"><Mail size={16} className="text-primary-600" /></div>
@@ -610,6 +651,10 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
                 </div>
               </div>
             )}
+            {canEdit && !barangay.contact_email && !barangay.contact_phone && (
+              <p className="text-sm text-ink-500">No email or phone yet. Use <strong>Edit contact</strong> to add them.</p>
+            )}
+            </>)}
           </div>
           <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-accent-400 shadow-md shadow-primary-600/10 p-4">
             <p className="text-xs font-extrabold text-primary-800 mb-2.5 uppercase tracking-wide">Compliance</p>
