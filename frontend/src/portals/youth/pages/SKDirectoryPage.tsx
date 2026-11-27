@@ -283,9 +283,17 @@ function OfficialCard({
   const showPhoto = !!o.photo_url && !broken
   return (
     <article
+      {...(onOpen ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': `View the profile of ${o.name}`,
+        onClick: (e: React.MouseEvent<HTMLElement>) => { if (!(e.target as HTMLElement).closest('button,a,input')) onOpen() },
+        onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => { if (e.key === 'Enter' && e.target === e.currentTarget) onOpen() },
+      } : {})}
       className={cn(
         // every card in a grid has the same width and height, whatever the name length
-        'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-1.5 h-full w-full transition-shadow',
+        'group/card relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-1.5 h-full w-full transition-shadow',
+        onOpen && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-400',
         // the council is calm navy; the chairperson is the most colourful card: bright blue, a thick yellow frame,
         // the red-yellow-blue stripe of the system and warm glows
         light
@@ -297,23 +305,24 @@ function OfficialCard({
     >
       <div className={cn('relative w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'aspect-[4/5] shadow-lg shadow-primary-900/30' : 'aspect-[4/5]')}>
         {showPhoto ? (
-          <button
-            type="button"
-            onClick={onZoom}
-            aria-label={`View a larger picture of ${o.name}`}
-            className="group relative h-full w-full cursor-zoom-in focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500"
-          >
+          <>
             <img
               src={o.photo_url!}
               alt={`${o.name}, ${o.position_display}`}
               loading="lazy"
               onError={() => setBroken(true)}
-              className="h-full w-full object-cover object-top transition-transform duration-200 group-hover:scale-105"
+              className="h-full w-full object-cover object-top transition-transform duration-200 group-hover/card:scale-105"
             />
-            <span className="absolute top-1.5 right-1.5 inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/55 text-white opacity-90 sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100 transition-opacity">
+            <button
+              type="button"
+              onClick={onZoom}
+              aria-label={`View a larger picture of ${o.name}`}
+              title="View larger"
+              className="absolute top-1.5 right-1.5 inline-flex h-7 w-7 cursor-zoom-in items-center justify-center rounded-full bg-black/55 text-white hover:bg-black/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
               <ZoomIn size={14} />
-            </span>
-          </button>
+            </button>
+          </>
         ) : (
           <UserIcon className="text-primary-300" size={featured ? 64 : 52} strokeWidth={1.5} aria-label="No picture yet" />
         )}
@@ -328,6 +337,9 @@ function OfficialCard({
           <p className={cn('mt-0.5 text-[10px] font-semibold uppercase tracking-wider', o.position === 'chairperson' ? 'text-accent-300' : 'text-white/75')}>
             {o.position === 'chairperson' && <Crown size={10} className="mr-1 inline -mt-0.5" />}{o.position_display}
           </p>
+          {onOpen && (
+            <p className={cn('mt-1 text-[10px] font-semibold', featured ? 'text-accent-300' : 'text-white/90')}>View profile &rarr;</p>
+          )}
         </div>
       </div>
       {featured && (
@@ -336,12 +348,6 @@ function OfficialCard({
           <span className="flex-1 bg-alert-500" /><span className="flex-1 bg-accent-400" /><span className="flex-1 bg-white" />
         </div>
       )}
-      {onOpen && (
-        <button type="button" onClick={onOpen} className={cn('relative mt-1.5 w-full rounded-lg py-1.5 text-[11px] font-semibold transition-colors', featured ? 'bg-accent-400 text-primary-900 hover:bg-accent-300' : 'bg-white/15 text-white hover:bg-white hover:text-primary-800')}>
-          View profile
-        </button>
-      )}
-
       {canEdit && (
         <div className="mt-2.5 flex w-full flex-wrap items-center justify-center gap-1.5">
           <button
