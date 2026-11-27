@@ -291,7 +291,7 @@ function OfficialCard({
         light
           ? 'border-teal-700 border-b-[5px] border-b-accent-400 bg-gradient-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-700/30 hover:shadow-lg hover:shadow-teal-700/40 hover:-translate-y-0.5'
           : featured
-          ? 'max-w-[14rem] border-primary-700 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 p-2 pt-5'
+          ? 'max-w-[14rem] border-[3px] border-accent-400 ring-4 ring-accent-400/25 bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white shadow-2xl shadow-primary-700/40 p-2 pt-5'
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
