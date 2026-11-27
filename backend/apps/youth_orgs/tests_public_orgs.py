@@ -52,3 +52,27 @@ class AddPublicOrgsTests(TestCase):
         pk = YouthOrganization.objects.first().pk
         self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'source_url': 'javascript:alert(1)'}, format='json').status_code, 400)
         self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'source_url': ''}, format='json').status_code, 200)
+
+    def test_the_demo_clubs_are_open_for_members_and_visible_to_every_kind_of_user(self):
+        from django.contrib.auth import get_user_model
+        call_command('add_public_orgs')
+        U = get_user_model()
+        sk = U.objects.create_user(email='sk@t.local', password='x', role='youth', youth_type='sk', is_active=True)
+        gy = U.objects.create_user(email='gy@t.local', password='x', role='youth', youth_type='general_youth', is_active=True)
+        leader = U.objects.create_user(email='ld@t.local', password='x', role='youth', youth_type='youth_org_leader', is_active=True)
+        for user in (None, sk, gy, leader):
+            c = APIClient()
+            if user:
+                c.force_authenticate(user)
+            rows = c.get('/api/youth-orgs/').data
+            self.assertEqual(len(rows), 3)
+            self.assertTrue(all(o['accepting_members'] for o in rows))
+
+    def test_open_existing_opens_only_an_untouched_demo_entry(self):
+        from .management.commands.add_public_orgs import OLD_HOW
+        call_command('add_public_orgs')
+        YouthOrganization.objects.filter(name='Rotaract Club of Lucena South').update(accepting_members=False, how_to_join=OLD_HOW)
+        YouthOrganization.objects.filter(name='Rotaract Club of Metro Lucena').update(accepting_members=False, how_to_join='LYDO wrote this')
+        call_command('add_public_orgs', open_existing=True)
+        self.assertTrue(YouthOrganization.objects.get(name='Rotaract Club of Lucena South').accepting_members)
+        self.assertFalse(YouthOrganization.objects.get(name='Rotaract Club of Metro Lucena').accepting_members)  # LYDO's edit is respected
