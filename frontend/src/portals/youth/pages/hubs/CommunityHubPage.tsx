@@ -323,7 +323,7 @@ export default function CommunityHubPage() {
             description="Browse recognized youth organizations across Lucena. See what they do, join, or send an inquiry."
             icon={Building2}
             image="/images/icons/youth-orgs.png"
-            imageClass="scale-[1.9]"
+            imageClass="scale-[1.65]"
             to="/organizations"
             accent="accent"
             badge={visibleOrgs.length > 0 ? `${visibleOrgs.length} organizations` : undefined}
