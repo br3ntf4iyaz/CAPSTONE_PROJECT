@@ -31,3 +31,24 @@ class AddPublicOrgsTests(TestCase):
         call_command('add_public_orgs')
         self.assertEqual(YouthOrganization.objects.get(name='Rotaract Club of Lucena South').description, 'LYDO edited this')
         self.assertEqual(YouthOrganization.objects.count(), 3)
+
+    def test_each_organization_shows_where_its_information_comes_from(self):
+        call_command('add_public_orgs')
+        for org in YouthOrganization.objects.all():
+            d = APIClient().get(f'/api/youth-orgs/{org.pk}/').data
+            self.assertTrue(d['source_url'].startswith('https://'), org.name)
+        # an entry added before the source existed gets it, and nothing else about it changes
+        YouthOrganization.objects.filter(name='Rotaract Club of Metro Lucena').update(source_url='', description='LYDO edited this')
+        call_command('add_public_orgs')
+        o = YouthOrganization.objects.get(name='Rotaract Club of Metro Lucena')
+        self.assertEqual((o.description, bool(o.source_url)), ('LYDO edited this', True))
+
+    def test_lydo_can_change_the_source_and_only_a_web_link_is_accepted(self):
+        from django.contrib.auth import get_user_model
+        call_command('add_public_orgs')
+        admin = get_user_model().objects.create_user(email='ad@t.local', password='x', role='lgu_admin', is_active=True)
+        c = APIClient()
+        c.force_authenticate(admin)
+        pk = YouthOrganization.objects.first().pk
+        self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'source_url': 'javascript:alert(1)'}, format='json').status_code, 400)
+        self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'source_url': ''}, format='json').status_code, 200)

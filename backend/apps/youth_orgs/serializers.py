@@ -133,6 +133,7 @@ class OrgDetailSerializer(serializers.ModelSerializer):
 
     facebook_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # checked and tidied in validate_facebook_url
     external_apply_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # http(s) only, checked in validate_external_apply_url
+    source_url = serializers.CharField(required=False, allow_blank=True, max_length=400)  # http(s) only
 
     def get_logo_url(self, obj):
         request = self.context.get('request')
@@ -165,6 +166,7 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'acronym',
             'registration_number',
             'registration_valid_until',
+            'source_url',
             'is_active',
             'is_compliant',
             'status',
@@ -193,6 +195,9 @@ class OrgDetailSerializer(serializers.ModelSerializer):
         if u.scheme not in ('http', 'https') or not u.hostname or '.' not in u.hostname or ' ' in value:
             raise serializers.ValidationError('Enter a web link that starts with http:// or https://.')
         return u.geturl()
+
+    def validate_source_url(self, value):
+        return self.validate_external_apply_url(value)
 
     def validate_acronym(self, value):
         return sanitize(value)
@@ -339,7 +344,7 @@ class OrgPublicDetailSerializer(OrgPublicListSerializer):
     class Meta(OrgPublicListSerializer.Meta):
         fields = OrgPublicListSerializer.Meta.fields + [
             'mission', 'membership_requirements', 'how_to_join', 'facebook_url', 'contact_email', 'contact_phone',
-            'registration_number', 'registration_valid_until', 'has_officer_reviewer', 'officers',
+            'registration_number', 'registration_valid_until', 'source_url', 'has_officer_reviewer', 'officers',
             'accomplishments', 'can_manage',
         ]
 

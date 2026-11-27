@@ -49,6 +49,8 @@ class YouthOrganization(models.Model):
     external_apply_url = models.URLField(max_length=300, blank=True)
     acronym = models.CharField(max_length=30, blank=True)
     registration_number = models.CharField(max_length=60, blank=True)  # the YORP registration number LYDO or NYC gave
+    # where the information about an organization listed by LYDO or by us comes from (a public web page), shown on its profile
+    source_url = models.URLField(max_length=400, blank=True)
     registration_valid_until = models.DateField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_compliant = models.BooleanField(default=False)

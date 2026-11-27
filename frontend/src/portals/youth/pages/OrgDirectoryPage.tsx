@@ -46,6 +46,7 @@ interface OrgDetail extends YouthOrg {
   can_manage?: boolean
   registration_number?: string
   registration_valid_until?: string | null
+  source_url?: string
   has_officer_reviewer?: boolean
   officers?: { id: number; position: string; position_label: string; name: string; is_public: boolean }[]
   contact_email: string
@@ -231,6 +232,16 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
               <div className="px-4 pt-4">
                 <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Mission and objectives</p>
                 <p className="text-sm text-ink-700 leading-relaxed whitespace-pre-line">{org.mission}</p>
+              </div>
+            )}
+
+            {org.source_url && (
+              <div className="px-4 pt-4">
+                <p className="rounded-xl border border-ink-100 bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
+                  <strong className="text-ink-700">Source of this information:</strong>{' '}
+                  <a href={org.source_url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary-700 underline">{org.source_url}</a>.
+                  {org.registration_category === 'not_registered' && ' Listed from this public page. Not yet confirmed by LYDO.'}
+                </p>
               </div>
             )}
 

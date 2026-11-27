@@ -55,9 +55,13 @@ class Command(BaseCommand):
                     accepting_members=False,
                     is_active=True,
                     status='approved',
-                    admin_notes=f'{NOTE} Source: {d["source"]}',
+                    admin_notes=NOTE,
+                    source_url=d['source'],
                 ),
             )
+            if not created and not org.source_url:  # an entry added earlier gets its source, nothing else changes
+                org.source_url = d['source']
+                org.save(update_fields=['source_url'])
             if created:
                 ensure_default_requirements(org)
                 added += 1
