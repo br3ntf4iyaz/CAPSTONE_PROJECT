@@ -47,16 +47,18 @@ export function LikeButton({ value, onPick, disabled }: {
   const close = useCallback(() => { clear(); setOpen(false); setActive(null); setShift(0) }, [])
   useEffect(() => clear, [])
 
-  // never let the picker run off the left or right edge of the screen
+  // Never let the picker run off the left or right edge of the screen. This is worked out ONCE when it opens,
+  // from the button's position and the picker's layout width, so it can never feed back into itself
+  // (measuring the animated picker and re-measuring after each shift made an endless loop on narrow phones).
   useLayoutEffect(() => {
-    if (!open || !pickerRef.current) return
-    const r = pickerRef.current.getBoundingClientRect()
+    if (!open || !pickerRef.current || !wrapRef.current) return
     const margin = 8
-    let dx = 0
-    if (r.left < margin) dx = margin - r.left
-    else if (r.right > window.innerWidth - margin) dx = window.innerWidth - margin - r.right
-    if (Math.abs(dx) > 0.5) setShift(s => s + dx)
-  }, [open, shift])
+    const wrapLeft = wrapRef.current.getBoundingClientRect().left
+    const width = pickerRef.current.offsetWidth
+    const maxLeft = Math.max(margin, window.innerWidth - margin - width)
+    const left = Math.min(Math.max(wrapLeft, margin), maxLeft)
+    setShift(Math.round(left - wrapLeft))
+  }, [open])
 
   // tapping somewhere else closes it
   useEffect(() => {
@@ -95,8 +97,8 @@ export function LikeButton({ value, onPick, disabled }: {
           ref={pickerRef}
           role="menu"
           aria-label="Choose a reaction"
-          style={{ transform: `translateX(${shift}px)` }}
-          className="absolute bottom-full left-0 mb-2 z-40 flex items-end gap-0.5 rounded-full bg-white border border-ink-100 shadow-xl px-2 py-1.5 animate-reaction-pop select-none"
+          style={{ left: shift }}
+          className="absolute bottom-full mb-2 z-40 flex items-end gap-0.5 rounded-full bg-white border border-ink-100 shadow-xl px-2 py-1.5 animate-reaction-pop select-none"
         >
           {REACTIONS.map((r, i) => {
             const isActive = active === r.key
