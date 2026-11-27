@@ -284,8 +284,10 @@ function OfficialCard({
     <article
       className={cn(
         // every card in a grid has the same width and height, whatever the name length
-        'flex flex-col items-center text-center rounded-2xl border bg-white p-3 sm:p-4 shadow-sm h-full w-full',
-        featured ? 'border-primary-200 ring-1 ring-primary-100 max-w-[14rem]' : 'border-ink-100',
+        'relative overflow-hidden flex flex-col items-center text-center rounded-2xl border p-3 sm:p-4 h-full w-full transition-shadow',
+        featured
+          ? 'max-w-[14rem] border-primary-800 bg-gradient-to-br from-primary-600 to-primary-900 text-white shadow-lg shadow-primary-900/25'
+          : 'border-primary-100 border-t-4 border-t-primary-500 bg-gradient-to-b from-primary-50 to-white shadow-md shadow-primary-600/10 hover:shadow-lg hover:shadow-primary-600/15',
       )}
     >
       <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center">
@@ -316,17 +318,18 @@ function OfficialCard({
           </span>
         )}
       </div>
-      <h4 className={cn('mt-3 font-bold text-ink-900 leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', featured ? 'text-base' : 'text-sm')}>{o.name}</h4>
+      {featured && <div aria-hidden className="pointer-events-none absolute -bottom-10 -right-10 h-28 w-28 rounded-full bg-accent-400/25 blur-2xl" />}
+      <h4 className={cn('relative mt-3 font-bold leading-snug break-words w-full min-h-[2.5rem] flex items-center justify-center', featured ? 'text-base text-white' : 'text-sm text-primary-900')}>{o.name}</h4>
       <p
         className={cn(
-          'mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
-          o.position === 'chairperson' ? 'bg-primary-600 text-white' : 'bg-primary-50 text-primary-700',
+          'relative mt-auto pt-0 inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold',
+          o.position === 'chairperson' ? 'bg-accent-400 text-primary-900 shadow-sm' : 'bg-primary-100 text-primary-700',
         )}
       >
         {o.position_display}
       </p>
       {onOpen && (
-        <button type="button" onClick={onOpen} className="mt-2 w-full rounded-full border border-primary-200 px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-50">
+        <button type="button" onClick={onOpen} className={cn('relative mt-2 w-full rounded-full border px-2.5 py-1 text-[11px] font-semibold transition-colors', featured ? 'border-white/40 text-white hover:bg-white/15' : 'border-primary-300 bg-white text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600')}>
           View profile
         </button>
       )}
@@ -558,14 +561,14 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
 
         {/* Contact + compliance (unchanged information, laid out side by side on wide screens) */}
         <div className="relative z-10 -mt-5 mx-4 sm:mx-8 grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-4 space-y-3">
+          <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-md shadow-primary-600/10 p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><MapPin size={16} className="text-primary-600" /></div>
+              <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0"><MapPin size={16} className="text-primary-600" /></div>
               <div><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
             </div>
             {barangay.contact_email && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><Mail size={16} className="text-primary-600" /></div>
+                <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0"><Mail size={16} className="text-primary-600" /></div>
                 <div className="min-w-0">
                   <p className="text-xs text-ink-500 font-medium">Email</p>
                   <a href={`mailto:${barangay.contact_email}`} className="font-semibold text-sm text-primary-700 hover:underline break-all">{barangay.contact_email}</a>
@@ -574,7 +577,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             )}
             {barangay.contact_phone && (
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-primary-50 flex items-center justify-center shrink-0"><Phone size={16} className="text-primary-600" /></div>
+                <div className="w-9 h-9 rounded-xl bg-white shadow-sm flex items-center justify-center shrink-0"><Phone size={16} className="text-primary-600" /></div>
                 <div>
                   <p className="text-xs text-ink-500 font-medium">Phone</p>
                   <a href={`tel:${barangay.contact_phone}`} className="font-semibold text-sm text-primary-700 hover:underline">{barangay.contact_phone}</a>
@@ -582,8 +585,8 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
               </div>
             )}
           </div>
-          <div className="bg-white rounded-2xl border border-ink-100 shadow-sm p-4">
-            <p className="text-xs font-semibold text-ink-500 mb-2.5 uppercase tracking-wide">Compliance</p>
+          <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-accent-400 shadow-md shadow-primary-600/10 p-4">
+            <p className="text-xs font-extrabold text-primary-800 mb-2.5 uppercase tracking-wide">Compliance</p>
             <div className="mb-3"><ComplianceBadge pct={pct} /></div>
             <div className="mb-2.5"><ComplianceMeter pct={pct} /></div>
             {pct >= 100 && <div className="mb-3"><ExemplaryAward /></div>}
@@ -596,9 +599,9 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
         </div>
 
         {/* The council */}
-        <section className="px-4 sm:px-8 py-6 space-y-7" aria-label="SK officials">
+        <section className="mt-6 px-4 sm:px-8 py-6 space-y-7 bg-gradient-to-b from-primary-50/70 to-white border-t border-primary-100" aria-label="SK officials">
           <div>
-            <h3 className="font-display font-extrabold text-xl text-ink-900">SK Officials of {barangay.barangay_name}</h3>
+            <h3 className="font-display font-extrabold text-xl text-primary-900">SK Officials of {barangay.barangay_name}</h3>
             <p className="text-sm text-ink-500">The elected and appointed members of the Sangguniang Kabataan council.</p>
             {canEdit && (
               <p className="mt-2 rounded-xl border border-primary-100 bg-primary-50 px-3 py-2 text-sm text-primary-800">
@@ -621,7 +624,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
 
           {kagawads.length > 0 && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Kagawads ({kagawads.length})</h4>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-primary-700 mb-3 flex items-center gap-2"><span className="h-3 w-1 rounded-full bg-accent-400" />SK Kagawads ({kagawads.length})</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {kagawads.map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} {...editProps(o)} />)}
               </div>
@@ -630,7 +633,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
 
           {(secretary.length > 0 || treasurer.length > 0) && (
             <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider text-ink-500 mb-3">SK Secretary and Treasurer</h4>
+              <h4 className="text-xs font-extrabold uppercase tracking-wider text-primary-700 mb-3 flex items-center gap-2"><span className="h-3 w-1 rounded-full bg-accent-400" />SK Secretary and Treasurer</h4>
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
                 {[...secretary, ...treasurer].map(o => <OfficialCard key={o.key} o={o} onZoom={() => setZoomKey(o.key)} {...editProps(o)} />)}
               </div>
@@ -732,9 +735,9 @@ function BarangayCard({
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm overflow-hidden hover:shadow-lg hover:shadow-primary-600/10 transition-shadow">
       <div role="button" tabIndex={0}
-        className="w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left hover:bg-paper-50 transition-colors"
+        className="w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-primary-50/70 to-white hover:from-primary-50 transition-colors"
         onClick={() => setExpanded(e => !e)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(x => !x) } }}
       >
@@ -790,7 +793,7 @@ function BarangayCard({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-bold text-base text-ink-900">{b.barangay_name}</p>
+              <p className="font-bold text-base text-primary-900">{b.barangay_name}</p>
               {isOwn && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold leading-none flex-shrink-0">
                   <Star size={10} className="fill-current" /> Yours
