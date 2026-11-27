@@ -353,7 +353,7 @@ function OfficialCard({
           onClick={onOpen}
           className={cn(
             'relative mt-2 mb-1 inline-flex items-center gap-1 rounded-full px-3.5 py-1 text-[11px] font-bold transition-colors',
-            featured ? 'bg-accent-400 text-primary-900 hover:bg-accent-300' : 'bg-white text-primary-800 hover:bg-primary-50',
+            featured ? 'bg-accent-400 text-primary-900 hover:bg-white active:bg-white' : 'bg-white/15 text-white hover:bg-white hover:text-primary-800 active:bg-white active:text-primary-800 focus-visible:bg-white focus-visible:text-primary-800',
           )}
         >
           View profile
