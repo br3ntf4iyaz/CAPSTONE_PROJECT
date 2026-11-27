@@ -605,7 +605,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
         <div className="relative z-10 -mt-5 mx-4 sm:mx-8 grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-md shadow-primary-600/10 p-4 space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-alert-500 shadow-md shadow-alert-500/30 flex items-center justify-center shrink-0"><MapPin size={18} className="text-white" /></div>
+              <div className="w-8 h-8 rounded-lg bg-alert-500 shadow-md shadow-alert-500/30 flex items-center justify-center shrink-0"><MapPin size={15} className="text-white" /></div>
               <div className="min-w-0 flex-1"><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
               {canEdit && !editingContact && (
                 <button type="button" onClick={startEditContact} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-colors">
@@ -635,7 +635,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             ) : (<>
             {barangay.contact_email && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary-600 shadow-md shadow-primary-600/30 flex items-center justify-center shrink-0"><Mail size={18} className="text-white" /></div>
+                <div className="w-8 h-8 rounded-lg bg-primary-600 shadow-md shadow-primary-600/30 flex items-center justify-center shrink-0"><Mail size={15} className="text-white" /></div>
                 <div className="min-w-0">
                   <p className="text-xs text-ink-500 font-medium">Email</p>
                   <a href={`mailto:${barangay.contact_email}`} className="font-semibold text-sm text-primary-700 hover:underline break-all">{barangay.contact_email}</a>
@@ -644,7 +644,7 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
             )}
             {barangay.contact_phone && (
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-accent-400 shadow-md shadow-accent-500/40 flex items-center justify-center shrink-0"><Phone size={18} className="text-primary-900" /></div>
+                <div className="w-8 h-8 rounded-lg bg-accent-400 shadow-md shadow-accent-500/40 flex items-center justify-center shrink-0"><Phone size={15} className="text-primary-900" /></div>
                 <div>
                   <p className="text-xs text-ink-500 font-medium">Phone</p>
                   <a href={`tel:${barangay.contact_phone}`} className="font-semibold text-sm text-primary-700 hover:underline">{barangay.contact_phone}</a>
