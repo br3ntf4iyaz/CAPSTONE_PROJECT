@@ -1,31 +1,29 @@
-# Draft: youth clubs in Lucena City used as DEMO entries
+# Youth and student organizations of Lucena City used as DEMO entries
 
-Status: **DEMO ONLY. NOT VERIFIED.** Updated 28 Nov 2026.
+Updated 28 Nov 2026. **Not yet confirmed by LYDO.** Only pages that were actually OPENED and READ are used as sources.
 
-## What happened
-The three clubs below were first found through a web search. When the links were opened later, **they could not be confirmed**:
+## In the system now (each found on a page that opened)
 
-- `rotaract.rotaryphilippines.com` showed "Account Suspended".
-- `dti.gov.ph` could not be reached from the user's computer or by our checker (DNS lookup failed).
-- The pages that did open (Sentinel Times, July 2024 and Nov 2025) are about the **Rotary Club of Lucena City Maharlika** (a Rotary club, not Rotaract) and the **LYDO and SK campaigns KLUSCA and TobaccOff**. None of them mentions the Rotaract clubs below.
+| Organization | What the page says | Source |
+|---|---|---|
+| Supreme Student Council - SLSU Lucena Campus | Listed under "SLSU Lucena" among the accredited student organizations of Southern Luzon State University | https://www.slsu.edu.ph/accredited-student-organizations/ |
+| University Collegiate Student Council - MSEUF | Student council of Manuel S. Enverga University Foundation. With Kaya Natin! Youth - Lucena it ran an in-kind donation drive for Severe Tropical Storm Kristine victims (articles dated 23 Oct 2024) | https://theluzonian.press/ucsc-kny-lucena-create-donation-drive-for-kristine-victims/ |
+| Kaya Natin! Youth - Lucena | Lucena chapter of Kaya Natin! Youth; ran the same donation drive with the MSEUF student council | https://theluzonian.press/ucsc-kny-lucena-create-donation-drive-for-kristine-victims/ |
 
-So the existence and details of these clubs are **not independently confirmed**. They were removed as sourced facts. In the system they are listed only by name, as "Not Yet Registered", with a visible note that LYDO has not confirmed them.
+No officers, contacts or registration numbers are claimed. All are "Not Yet Registered".
 
-## Demo entries in the system (name only)
-1. Rotaract Club of Lucena South
-2. Rotaract Club of Metro Lucena
-3. Rotaract Club of Lucena Promenade
+## Removed: could NOT be confirmed
+- Rotaract Club of Lucena South / Metro Lucena / Lucena Promenade. The pages that mentioned them did not open (hosting suspended, DNS failure). The pages that did open were about a Rotary club, not Rotaract.
 
-No projects, officers, contact numbers, emails or registration numbers are claimed.
+## Seen but not used (no readable details)
+- Facebook pages that exist but show only a title: "CSTC Integrated Council of Nurtured Students - Lucena Campus", "Youth For Coasts | Lucena", "Youth Girls Department - UPC Lucena City". Their purpose and base could not be read.
+- Boy Scouts of the Philippines - Quezon Council (office in Lucena): the page returned an error (HTTP 522) when checked, so it was not used.
 
-## Facts that WERE confirmed on pages that opened
-- The Lucena City Youth Development Office (LYDO) and the Sangguniang Kabataan launched **KLUSCA** (Kabataang Lucenahin United Synergy for Climate Action) and the **TobaccOff** campaign, with a Barra shoreline clean-up. Sentinel Times, 25 Nov 2025: https://www.sentineltimes.net/2025/11/youth-groups-in-lucena-city-lead.html (these are campaigns, not organizations)
-- The **Rotary Club of Lucena City Maharlika** (RCLCM) was newly chartered in 2024. Its first legacy project for senior citizens was held on 1 July 2024 in Pinagbayan, Pagbilao (not in Lucena City). Sentinel Times: https://sentineltimes.net/2024/07/newly-chartered-rotary-club-of-lucena.html?m=1 . A coastal clean-up and a boneless bangus workshop for out-of-school youth in Dalahican, Lucena City, was held in July 2024 (the page gives two dates, 20 and 30 July): https://www.sentineltimes.net/2024/07/rclcm-cleans-up-coast-empowers-out-of.html . This is a **Rotary** club for adults, not a youth organization.
+## Not found
+- No published list of YORP-registered youth organizations of Lucena City, and no current SK Federation officers.
 
-## What to do before the defense
-1. Ask the LYDO office for its real YORP registry (name, type, barangay, contact person, registration number and validity).
-2. Enter each organization through Admin, Youth Organizations, Add Organization.
-3. Then delete the demo clubs above.
-4. Only then mark an organization "YORP Registered" or "LYDO & NYC Verified".
-
-When presenting, say plainly that the three clubs are demo entries and the real list comes from the LYDO registry.
+## Before the defense
+1. Ask the LYDO office for its real YORP registry.
+2. Enter those organizations (Admin, Youth Organizations, Add Organization).
+3. Delete the demo entries above, or have LYDO confirm them.
+4. Say plainly in the defense that these are demo entries.
