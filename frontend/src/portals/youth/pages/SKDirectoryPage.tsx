@@ -750,13 +750,19 @@ function BarangayCard({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm overflow-hidden hover:shadow-lg hover:shadow-primary-600/10 transition-shadow">
+    <div className={cn(
+      'bg-white rounded-2xl border-2 shadow-lg shadow-primary-900/15 overflow-hidden hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary-900/25 transition-all',
+      // the card of YOUR barangay is framed in yellow
+      isOwn ? 'border-accent-400 ring-4 ring-accent-400/25' : 'border-primary-700',
+    )}>
       <div role="button" tabIndex={0}
-        className="w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-r from-primary-50/70 to-white hover:from-primary-50 transition-colors"
+        className="relative overflow-hidden w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-br from-primary-600 to-primary-800 text-white hover:from-primary-500 hover:to-primary-700 transition-colors"
         onClick={() => setExpanded(e => !e)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(x => !x) } }}
       >
-        <div className="flex items-center gap-4 min-w-0">
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+        <div aria-hidden className="pointer-events-none absolute -bottom-12 -right-10 h-36 w-36 rounded-full bg-accent-400/20 blur-2xl" />
+        <div className="relative flex items-center gap-4 min-w-0">
           {/* Logo / icon — bigger so uploaded logos are visible */}
           {b.group_photo_url ? (
             <button
@@ -808,9 +814,9 @@ function BarangayCard({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-bold text-base text-primary-900">{b.barangay_name}</p>
+              <p className="font-extrabold text-base text-white">{b.barangay_name}</p>
               {isOwn && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold leading-none flex-shrink-0">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-400 text-primary-900 text-xs font-bold leading-none flex-shrink-0 shadow-sm">
                   <Star size={10} className="fill-current" /> Yours
                 </span>
               )}
@@ -819,7 +825,7 @@ function BarangayCard({
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onViewProfile(b) }}
-                className="text-sm text-primary-600 hover:text-primary-800 hover:underline font-medium transition-colors mt-0.5 text-left"
+                className="text-sm text-accent-300 hover:text-accent-200 hover:underline font-semibold transition-colors mt-0.5 text-left"
               >
                 {b.sk_chairperson}
               </button>
@@ -827,33 +833,33 @@ function BarangayCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onViewProfile(b) }}
-              className="mt-1 ml-0 inline-flex items-center gap-1 text-xs font-semibold text-primary-700 bg-primary-50 hover:bg-primary-100 rounded-full px-2.5 py-1 transition-colors"
+              className="mt-1 ml-0 inline-flex items-center gap-1 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-full px-2.5 py-1 transition-colors"
             >
               <Users size={12} /> View SK officials
             </button>
             {/* Mobile compliance summary */}
             <div className="flex items-center gap-2 mt-1 sm:hidden">
-              <div className="flex-1 h-1.5 bg-ink-200 rounded-full overflow-hidden max-w-[80px]">
+              <div className="flex-1 h-1.5 bg-white/25 rounded-full overflow-hidden max-w-[80px]">
                 <div className={cn('h-full rounded-full', tile.bar)} style={{ width: `${pct}%` }} />
               </div>
-              <span className={cn('text-xs font-semibold whitespace-nowrap', tile.text)}>{pct}%</span>
+              <span className="text-xs font-bold whitespace-nowrap text-white">{pct}%</span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-shrink-0">
+        <div className="relative flex items-center gap-3 flex-shrink-0">
           {/* Progress bar — desktop */}
           <div className="hidden sm:flex items-center gap-2">
-            <div className="w-24 h-2 bg-ink-200 rounded-full overflow-hidden">
+            <div className="w-24 h-2 bg-white/25 rounded-full overflow-hidden">
               <div className={cn('h-full rounded-full transition-all', tile.bar)} style={{ width: `${pct}%` }} />
             </div>
-            <span className={cn('text-sm font-semibold min-w-[2.75rem] whitespace-nowrap', tile.text)}>{pct}%</span>
+            <span className="text-sm font-extrabold min-w-[2.75rem] whitespace-nowrap text-white">{pct}%</span>
           </div>
           <div className="hidden sm:flex gap-1.5">
             <span className="badge badge-green text-xs">{b.submitted_count} done</span>
             <span className="badge badge-gray text-xs">{notYet} left</span>
           </div>
-          {expanded ? <ChevronUp size={18} className="text-ink-400" /> : <ChevronDown size={18} className="text-ink-400" />}
+          {expanded ? <ChevronUp size={18} className="text-white/80" /> : <ChevronDown size={18} className="text-white/80" />}
         </div>
       </div>
 
@@ -875,7 +881,7 @@ function BarangayCard({
       )}
 
       {isOwn && onSendFeedback && (
-        <div className="px-5 pb-4">
+        <div className="px-5 py-3 bg-primary-50 border-t border-primary-100">
           <button
             type="button"
             onClick={onSendFeedback}
