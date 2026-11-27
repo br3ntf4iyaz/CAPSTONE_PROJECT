@@ -241,6 +241,9 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         IsIDVerified().has_permission(request, self)
         if str(request.data.get('consent', '')).lower() not in ('true', '1'):
             return Response({'detail': 'Please agree to the privacy notice before you send the application.', 'code': 'consent_required'}, status=status.HTTP_400_BAD_REQUEST)
+        if membership.birthdate_is_wrong(user):
+            return Response({'detail': 'The birthdate in your account looks wrong, so your age cannot be used. Please correct it in My Space, then apply.',
+                             'code': 'birthdate_invalid'}, status=status.HTTP_400_BAD_REQUEST)
         message = sanitize(str(request.data.get('message', '')).strip())[:500]
         try:
             snapshot = membership.snapshot_from(user, request.data)

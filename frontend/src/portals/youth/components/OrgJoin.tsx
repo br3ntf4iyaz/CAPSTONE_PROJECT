@@ -230,6 +230,10 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
   }
 
   const fixing = existing?.status === 'revision'
+  // the age is worked out from the birthdate of the account, so show both and stop if the birthdate cannot be real
+  const born: string | null = me.data?.profile?.birthdate ?? null
+  const ageAge = born ? (() => { const b = new Date(born), t = new Date(); let a = t.getFullYear() - b.getFullYear(); if (t.getMonth() < b.getMonth() || (t.getMonth() === b.getMonth() && t.getDate() < b.getDate())) a--; return a })() : null
+  const birthdateWrong = !!born && (ageAge === null || ageAge < 5 || ageAge > 100)
   // a first application starts from what the account says; a correction starts from what was sent
   const startPhone = phone || (editing ? '' : me.data?.profile?.phone ?? '')
   return (
@@ -250,7 +254,15 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
           <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-0.5 text-sm">
             <dt className="text-ink-500">Name</dt><dd className="font-medium text-ink-800">{me.data?.full_name}</dd>
             <dt className="text-ink-500">Email</dt><dd className="break-all font-medium text-ink-800">{me.data?.email}</dd>
+            <dt className="text-ink-500">Birthdate</dt><dd className={cn('font-medium', birthdateWrong ? 'text-red-700' : 'text-ink-800')}>{born ? new Date(born).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' }) : 'not set'}</dd>
+            <dt className="text-ink-500">Age</dt><dd className={cn('font-medium', birthdateWrong ? 'text-red-700' : 'text-ink-800')}>{birthdateWrong ? 'cannot be right' : ageAge ?? 'not set'}</dd>
           </dl>
+          {birthdateWrong && (
+            <p className="rounded-lg border border-red-200 bg-red-50 p-2 text-xs text-red-800">
+              The birthdate in your account looks wrong. Your age is taken from it, so please <Link to="/profile" onClick={onClose} className="font-semibold underline">correct it in My Space</Link> before you apply.
+            </p>
+          )}
+          {!born && <p className="text-[11px] text-ink-500">Your age is taken from your birthdate. You can add it in <Link to="/profile" onClick={onClose} className="font-semibold text-primary-700 underline">My Space</Link>.</p>}
           <label className="block"><span className="text-xs font-medium text-ink-600">Contact number</span>
             <input className="input mt-0.5 w-full" value={editing ? phone : startPhone} onChange={e => { setEditing(true); setPhone(e.target.value) }} maxLength={20} placeholder="09XX XXX XXXX" /></label>
           <label className="block"><span className="text-xs font-medium text-ink-600">Barangay</span>
@@ -273,7 +285,7 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
             My ID documents are never shown to the organization.</span>
         </label>
         <div className="flex gap-2">
-          <button type="button" onClick={() => apply.mutate()} disabled={apply.isPending || !consent} className="btn-primary flex-1 disabled:opacity-50">{apply.isPending ? 'Sending...' : existing ? 'Send again' : 'Submit application'}</button>
+          <button type="button" onClick={() => apply.mutate()} disabled={apply.isPending || !consent || birthdateWrong} className="btn-primary flex-1 disabled:opacity-50">{apply.isPending ? 'Sending...' : existing ? 'Send again' : 'Submit application'}</button>
           <button type="button" onClick={() => { if (existing) setEditing(false); else onClose() }} className="btn-secondary">Cancel</button>
         </div>
       </div>

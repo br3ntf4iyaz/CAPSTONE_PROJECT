@@ -150,3 +150,23 @@ class MembershipFlowTests(TestCase):
         self.assertFalse(OrgMembershipApplication.objects.exists())
         self.assertTrue(AuditLog.objects.filter(action='org_membership_deleted').exists())
         self.assertEqual(self.apply().status_code, 201)  # the person may apply again
+
+    def test_an_impossible_birthdate_holds_the_application_and_a_real_one_gives_the_age(self):
+        from datetime import date, timedelta
+        self.verify()
+        self.person.profile.birthdate = date.today() - timedelta(days=10)  # born ten days ago: cannot be right
+        self.person.profile.save()
+        r = self.apply()
+        self.assertEqual((r.status_code, r.data['code']), (400, 'birthdate_invalid'))
+        self.assertFalse(OrgMembershipApplication.objects.exists())
+        self.person.profile.birthdate = date(date.today().year - 20, 1, 1)
+        self.person.profile.save()
+        r = self.apply()
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data['snapshot']['age'], 20)
+
+    def test_no_birthdate_at_all_is_allowed_and_shown_as_not_set(self):
+        self.verify()
+        r = self.apply()
+        self.assertEqual(r.status_code, 201)
+        self.assertIsNone(r.data['snapshot']['age'])

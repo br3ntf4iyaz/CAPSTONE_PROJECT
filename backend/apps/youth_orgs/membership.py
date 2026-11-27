@@ -21,14 +21,25 @@ NEEDS_NOTE = {'revision', 'declined', 'revoked'}
 EVENT_NAME = {'reviewing': 'review_started', 'accepted': 'approved', 'revision': 'revision_requested', 'declined': 'rejected', 'revoked': 'revoked'}
 
 
+def age_from(born):
+    """Age today, or None when the birthdate is missing or cannot be real (in the future, or a baby or over 100)."""
+    if not born:
+        return None
+    t = date.today()
+    age = t.year - born.year - ((t.month, t.day) < (born.month, born.day))
+    return age if 5 <= age <= 100 else None
+
+
+def birthdate_is_wrong(user):
+    """A birthdate was saved but cannot be right. Applying is held until the person corrects it in My Space."""
+    born = getattr(getattr(user, 'profile', None), 'birthdate', None)
+    return bool(born) and age_from(born) is None
+
+
 def applicant_snapshot(user):
     """The details auto-filled from the verified account. Frozen on the application, so a later profile change does not rewrite history."""
     p = getattr(user, 'profile', None)
-    born = getattr(p, 'birthdate', None)
-    age = None
-    if born:
-        t = date.today()
-        age = t.year - born.year - ((t.month, t.day) < (born.month, born.day))
+    age = age_from(getattr(p, 'birthdate', None))
     return {
         'name': user.full_name or user.email,
         'email': user.email,
