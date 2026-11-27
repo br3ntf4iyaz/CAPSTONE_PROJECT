@@ -767,13 +767,13 @@ function BarangayCard({
       isOwn ? 'border-accent-400 ring-4 ring-accent-400/25' : 'border-primary-700',
     )}>
       <div role="button" tabIndex={0}
-        className="relative overflow-hidden w-full cursor-pointer flex items-center justify-between p-4 sm:p-5 text-left bg-gradient-to-br from-primary-600 to-primary-800 text-white hover:from-primary-500 hover:to-primary-700 transition-colors"
+        className="group/row relative w-full cursor-pointer flex items-stretch text-left"
         onClick={() => setExpanded(e => !e)}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(x => !x) } }}
       >
+        <div className="relative overflow-hidden flex items-center gap-4 min-w-0 flex-1 sm:flex-none sm:basis-[56%] p-4 sm:p-5 bg-gradient-to-br from-primary-600 to-primary-800 text-white group-hover/row:from-primary-500 group-hover/row:to-primary-700 transition-colors">
         <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
-        <div aria-hidden className="pointer-events-none absolute -bottom-12 -right-10 h-36 w-36 rounded-full bg-accent-400/20 blur-2xl" />
-        <div className="relative flex items-center gap-4 min-w-0">
+        <div aria-hidden className="pointer-events-none absolute -bottom-12 -left-10 h-36 w-36 rounded-full bg-accent-400/20 blur-2xl" />
           {/* Logo / icon — bigger so uploaded logos are visible */}
           {b.group_photo_url ? (
             <button
@@ -823,7 +823,7 @@ function BarangayCard({
             </div>
           )}
 
-          <div className="min-w-0">
+          <div className="relative min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="font-extrabold text-base text-white">{b.barangay_name}</p>
               {isOwn && (
@@ -836,7 +836,7 @@ function BarangayCard({
               <button
                 type="button"
                 onClick={e => { e.stopPropagation(); onViewProfile(b) }}
-                className="text-sm text-accent-300 hover:text-accent-200 hover:underline font-semibold transition-colors mt-0.5 text-left"
+                className="block text-sm text-accent-300 hover:text-accent-200 hover:underline font-semibold transition-colors mt-0.5 text-left"
               >
                 {b.sk_chairperson}
               </button>
@@ -844,7 +844,7 @@ function BarangayCard({
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onViewProfile(b) }}
-              className="mt-1 ml-0 inline-flex items-center gap-1 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-full px-2.5 py-1 transition-colors"
+              className="mt-1.5 ml-0 inline-flex items-center gap-1 text-xs font-semibold text-white bg-white/15 hover:bg-white/25 border border-white/25 rounded-full px-2.5 py-1 transition-colors"
             >
               <Users size={12} /> View SK officials
             </button>
@@ -858,19 +858,19 @@ function BarangayCard({
           </div>
         </div>
 
-        <div className="relative flex items-center gap-3 flex-shrink-0">
+        <div className="flex items-center justify-end gap-3 sm:flex-1 min-w-0 px-3 sm:px-5 bg-white group-hover/row:bg-primary-50 transition-colors">
           {/* Progress bar — desktop */}
           <div className="hidden sm:flex items-center gap-2">
-            <div className="w-24 h-2 bg-white/25 rounded-full overflow-hidden">
+            <div className="w-28 h-2.5 bg-ink-200 rounded-full overflow-hidden">
               <div className={cn('h-full rounded-full transition-all', tile.bar)} style={{ width: `${pct}%` }} />
             </div>
-            <span className="text-sm font-extrabold min-w-[2.75rem] whitespace-nowrap text-white">{pct}%</span>
+            <span className={cn('text-sm font-extrabold min-w-[2.75rem] whitespace-nowrap', tile.text)}>{pct}%</span>
           </div>
-          <div className="hidden sm:flex gap-1.5">
+          <div className="hidden lg:flex gap-1.5">
             <span className="badge badge-green text-xs">{b.submitted_count} done</span>
             <span className="badge badge-gray text-xs">{notYet} left</span>
           </div>
-          {expanded ? <ChevronUp size={18} className="text-white/80" /> : <ChevronDown size={18} className="text-white/80" />}
+          {expanded ? <ChevronUp size={18} className="text-primary-600" /> : <ChevronDown size={18} className="text-primary-600" />}
         </div>
       </div>
 
