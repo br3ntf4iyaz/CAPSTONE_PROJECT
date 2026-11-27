@@ -23,7 +23,9 @@ class AddPublicOrgsTests(TestCase):
         self.assertEqual(org.officers.count(), 0)
         detail = APIClient().get(f'/api/youth-orgs/{org.pk}/').data
         self.assertNotIn('admin_notes', detail)
-        self.assertIn('Not yet confirmed by LYDO', org.admin_notes)
+        self.assertIn('NOT verified', org.admin_notes)
+        self.assertEqual(org.source_url, '')  # no link is shown that nobody could open
+        self.assertNotIn('charter', org.description)  # nothing is claimed beyond the club name
 
     def test_an_existing_organization_is_left_as_it_is(self):
         YouthOrganization.objects.create(name='Rotaract Club of Lucena South', classification='school_based', sub_classification='youth_org',
@@ -32,16 +34,22 @@ class AddPublicOrgsTests(TestCase):
         self.assertEqual(YouthOrganization.objects.get(name='Rotaract Club of Lucena South').description, 'LYDO edited this')
         self.assertEqual(YouthOrganization.objects.count(), 3)
 
-    def test_each_organization_shows_where_its_information_comes_from(self):
+    def test_entries_added_earlier_lose_the_dead_links_and_the_claims_but_lydos_edits_stay(self):
+        from .management.commands.add_public_orgs import OLD_DESCRIPTIONS, OLD_SOURCES
         call_command('add_public_orgs')
-        for org in YouthOrganization.objects.all():
-            d = APIClient().get(f'/api/youth-orgs/{org.pk}/').data
-            self.assertTrue(d['source_url'].startswith('https://'), org.name)
-        # an entry added before the source existed gets it, and nothing else about it changes
-        YouthOrganization.objects.filter(name='Rotaract Club of Metro Lucena').update(source_url='', description='LYDO edited this')
+        South, Metro, Prom = 'Rotaract Club of Lucena South', 'Rotaract Club of Metro Lucena', 'Rotaract Club of Lucena Promenade'
+        # how they were first written
+        YouthOrganization.objects.filter(name=South).update(description=OLD_DESCRIPTIONS[South], source_url=OLD_SOURCES[0], admin_notes='Added from public sources for the system demo.')
+        YouthOrganization.objects.filter(name=Prom).update(description=OLD_DESCRIPTIONS[Prom], source_url=OLD_SOURCES[2])
+        YouthOrganization.objects.filter(name=Metro).update(description='LYDO edited this', source_url='https://example.org/lydo-source')
         call_command('add_public_orgs')
-        o = YouthOrganization.objects.get(name='Rotaract Club of Metro Lucena')
-        self.assertEqual((o.description, bool(o.source_url)), ('LYDO edited this', True))
+        south = YouthOrganization.objects.get(name=South)
+        self.assertEqual(south.source_url, '')
+        self.assertNotIn('charter', south.description)
+        self.assertIn('NOT verified', south.admin_notes)
+        self.assertEqual(YouthOrganization.objects.get(name=Prom).source_url, '')
+        metro = YouthOrganization.objects.get(name=Metro)
+        self.assertEqual((metro.description, metro.source_url), ('LYDO edited this', 'https://example.org/lydo-source'))  # LYDO's own edit and link stay
 
     def test_lydo_can_change_the_source_and_only_a_web_link_is_accepted(self):
         from django.contrib.auth import get_user_model

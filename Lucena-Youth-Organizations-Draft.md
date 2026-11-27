@@ -1,28 +1,31 @@
-# Draft list: youth organizations in Lucena City found in public sources
+# Draft: youth clubs in Lucena City used as DEMO entries
 
-Status: **DRAFT. Not entered in LYDOP.** Every entry must be confirmed with the LYDO office (name, officers, contact, registration) before it is listed in the public directory.
-Researched: 28 Nov 2026. Only information found in the public pages linked below is stated. Nothing was guessed.
+Status: **DEMO ONLY. NOT VERIFIED.** Updated 28 Nov 2026.
 
-## Organizations with a public source
+## What happened
+The three clubs below were first found through a web search. When the links were opened later, **they could not be confirmed**:
 
-| # | Organization | What the source says | Suggested type in LYDOP | Suggested registration label | Source |
-|---|---|---|---|---|---|
-| 1 | Rotaract Club of Lucena South | Active service club in Lucena; marked its 25th charter anniversary in 2025; sponsored by the Rotary Club of Lucena South; projects include Project SEKYU (honoring night-shift guards and tanods) and a dental outreach | Youth-Serving Organization (Rotaract is a service club for young adults) | Not Yet Registered, until LYDO confirms | https://rotaract.rotaryphilippines.com/?p=5507 and https://rotaract.rotaryphilippines.com/?p=6131 |
-| 2 | Rotaract Club of Metro Lucena | Co-ran a barangay HIV/AIDS awareness symposium with the Rotary Club of Metro Lucena | Youth-Serving Organization | Not Yet Registered, until LYDO confirms | https://rotaract.rotaryphilippines.com/?p=3662 |
-| 3 | Rotaract Club of Lucena Promenade | DTI Quezon held a collaborative meeting with this club about partnership projects for its adopted schools and community | Youth-Serving Organization | Not Yet Registered, until LYDO confirms | https://dti.gov.ph/archives/regional-archives/region-4a-news-regional-archives/dti-quezon-rotaract-club-lucena-promenade-hold-collaborative-meeting-youth-sector |
+- `rotaract.rotaryphilippines.com` showed "Account Suspended".
+- `dti.gov.ph` could not be reached from the user's computer or by our checker (DNS lookup failed).
+- The pages that did open (Sentinel Times, July 2024 and Nov 2025) are about the **Rotary Club of Lucena City Maharlika** (a Rotary club, not Rotaract) and the **LYDO and SK campaigns KLUSCA and TobaccOff**. None of them mentions the Rotaract clubs below.
 
-## Youth programs found (these are campaigns, not organizations: do not list them as organizations)
+So the existence and details of these clubs are **not independently confirmed**. They were removed as sourced facts. In the system they are listed only by name, as "Not Yet Registered", with a visible note that LYDO has not confirmed them.
 
-- **KLUSCA** (climate action) and the **TobaccOff Movement** (anti-smoking): youth campaigns launched by LYDO and the Sangguniang Kabataan in November 2025. Source: https://www.sentineltimes.net/2025/11/youth-groups-in-lucena-city-lead.html
+## Demo entries in the system (name only)
+1. Rotaract Club of Lucena South
+2. Rotaract Club of Metro Lucena
+3. Rotaract Club of Lucena Promenade
 
-## What was NOT found
+No projects, officers, contact numbers, emails or registration numbers are claimed.
 
-- No official list of registered youth organizations of Lucena City (the LYDO registry or the Lucena Youth Development Council roster) is published online.
-- No verified contact numbers, emails, Facebook pages or officers for the clubs above were found in these sources, so none are written here.
-- Searches mostly returned Quezon City, a different city.
+## Facts that WERE confirmed on pages that opened
+- The Lucena City Youth Development Office (LYDO) and the Sangguniang Kabataan launched **KLUSCA** (Kabataang Lucenahin United Synergy for Climate Action) and the **TobaccOff** campaign, with a Barra shoreline clean-up. Sentinel Times, 25 Nov 2025: https://www.sentineltimes.net/2025/11/youth-groups-in-lucena-city-lead.html (these are campaigns, not organizations)
+- The **Rotary Club of Lucena City Maharlika** (RCLCM) was newly chartered in 2024. Its first legacy project for senior citizens was held on 1 July 2024 in Pinagbayan, Pagbilao (not in Lucena City). Sentinel Times: https://sentineltimes.net/2024/07/newly-chartered-rotary-club-of-lucena.html?m=1 . A coastal clean-up and a boneless bangus workshop for out-of-school youth in Dalahican, Lucena City, was held in July 2024 (the page gives two dates, 20 and 30 July): https://www.sentineltimes.net/2024/07/rclcm-cleans-up-coast-empowers-out-of.html . This is a **Rotary** club for adults, not a youth organization.
 
 ## What to do before the defense
-
 1. Ask the LYDO office for its real YORP registry (name, type, barangay, contact person, registration number and validity).
-2. Enter each organization through Admin, Youth Orgs / YORP, Add Organization, or ask for a CSV import.
-3. Only then mark an organization "YORP Registered" or "LYDO & NYC Verified".
+2. Enter each organization through Admin, Youth Organizations, Add Organization.
+3. Then delete the demo clubs above.
+4. Only then mark an organization "YORP Registered" or "LYDO & NYC Verified".
+
+When presenting, say plainly that the three clubs are demo entries and the real list comes from the LYDO registry.

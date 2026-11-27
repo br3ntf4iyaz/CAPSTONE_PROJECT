@@ -235,12 +235,11 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
               </div>
             )}
 
-            {org.source_url && (
+            {(org.source_url || org.registration_category === 'not_registered') && (
               <div className="px-4 pt-4">
                 <p className="rounded-xl border border-ink-100 bg-ink-50 p-3 text-xs leading-relaxed text-ink-600">
-                  <strong className="text-ink-700">Source of this information:</strong>{' '}
-                  <a href={org.source_url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary-700 underline">{org.source_url}</a>.
-                  {org.registration_category === 'not_registered' && ' Listed from this public page. Not yet confirmed by LYDO.'}
+                  {org.registration_category === 'not_registered' && <><strong className="text-ink-700">Not yet confirmed by LYDO.</strong> This listing is for information only and may change once LYDO confirms the details.{' '}</>}
+                  {org.source_url && <><strong className="text-ink-700">Source:</strong>{' '}<a href={org.source_url} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-primary-700 underline">{org.source_url}</a></>}
                 </p>
               </div>
             )}
