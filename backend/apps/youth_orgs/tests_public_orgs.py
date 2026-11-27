@@ -87,3 +87,17 @@ class AddPublicOrgsTests(TestCase):
         # running the command again never changes a colour somebody chose
         call_command('add_public_orgs')
         self.assertEqual(YouthOrganization.objects.get(pk=pk).accent, 'teal')
+
+    def test_the_two_clubs_that_shared_a_drive_are_not_described_alike_and_old_wording_is_updated_unless_edited(self):
+        from .management.commands.add_public_orgs import FIRST_DESCRIPTIONS
+        call_command('add_public_orgs')
+        ucsc = YouthOrganization.objects.get(name='University Collegiate Student Council - MSEUF')
+        kny = YouthOrganization.objects.get(name='Kaya Natin! Youth - Lucena')
+        self.assertNotEqual(ucsc.description, kny.description)
+        self.assertIn('Office of Student Affairs', ucsc.description)
+        self.assertIn('donations online', kny.description)
+        YouthOrganization.objects.filter(pk=ucsc.pk).update(description=FIRST_DESCRIPTIONS[ucsc.name])
+        YouthOrganization.objects.filter(pk=kny.pk).update(description='LYDO edited this')
+        call_command('add_public_orgs')
+        self.assertIn('Office of Student Affairs', YouthOrganization.objects.get(pk=ucsc.pk).description)
+        self.assertEqual(YouthOrganization.objects.get(pk=kny.pk).description, 'LYDO edited this')

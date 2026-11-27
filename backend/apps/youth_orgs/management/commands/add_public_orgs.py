@@ -34,8 +34,9 @@ ORGS = [
     dict(
         name='University Collegiate Student Council - MSEUF',
         classification='school_based', sub_classification='youth_org',
-        description=('The University Collegiate Student Council (UCSC) of Manuel S. Enverga University Foundation (MSEUF). In October 2024, together with '
-                     'Kaya Natin! Youth - Lucena, it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
+        description=('The University Collegiate Student Council (UCSC) of Manuel S. Enverga University Foundation (MSEUF). Its office is in the '
+                     'Office of Student Affairs and Services building of the university. In October 2024 it joined a donation drive for the victims of '
+                     'Severe Tropical Storm Kristine.'),
         how_to_join='A student council is joined through the school: ask the MSEUF Office of Student Affairs and Services about its elections and membership.',
         accepting_members=False,
         accent='rose',
@@ -44,14 +45,22 @@ ORGS = [
     dict(
         name='Kaya Natin! Youth - Lucena',
         classification='community_based', sub_classification='youth_org',
-        description=('The Lucena chapter of Kaya Natin! Youth (KNY). In October 2024, together with the University Collegiate Student Council of MSEUF, '
-                     'it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
+        description=('The Lucena chapter of Kaya Natin! Youth (KNY). In October 2024 it teamed up with the '
+                     'MSEUF student council to collect in-kind donations for the victims of Severe Tropical Storm Kristine, and it also took donations online.'),
         how_to_join='Demo listing: to join, contact the organization directly, or ask the LYDO office to guide you to it.',
         accepting_members=True,  # open for the demo: the system is not in real use yet
         accent='amber',
         source=LUZONIAN,
     ),
 ]
+
+# how the two descriptions were first written, replaced only while an entry still has exactly this text
+FIRST_DESCRIPTIONS = {
+    'University Collegiate Student Council - MSEUF': ('The University Collegiate Student Council (UCSC) of Manuel S. Enverga University Foundation (MSEUF). In October 2024, together with '
+                                                      'Kaya Natin! Youth - Lucena, it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
+    'Kaya Natin! Youth - Lucena': ('The Lucena chapter of Kaya Natin! Youth (KNY). In October 2024, together with the University Collegiate Student Council of MSEUF, '
+                                   'it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
+}
 
 # the clubs this command added before, which could not be confirmed. They are removed only while untouched.
 UNVERIFIED = ['Rotaract Club of Lucena South', 'Rotaract Club of Metro Lucena', 'Rotaract Club of Lucena Promenade']
@@ -89,10 +98,16 @@ class Command(BaseCommand):
                 added += 1
                 self.stdout.write(self.style.SUCCESS(f'  added: {org.name}'))
             else:
+                changed = []
                 if not org.accent:  # an entry added before colours existed gets one; a colour somebody chose is never changed
                     org.accent = d['accent']
-                    org.save(update_fields=['accent'])
-                    self.stdout.write(self.style.SUCCESS(f'  colour set: {org.name}'))
+                    changed.append('accent')
+                if org.description == FIRST_DESCRIPTIONS.get(d['name']):  # untouched: bring it to the new wording
+                    org.description = d['description']
+                    changed.append('description')
+                if changed:
+                    org.save(update_fields=changed)
+                    self.stdout.write(self.style.SUCCESS(f'  updated {org.name}: {", ".join(changed)}'))
                 else:
                     self.stdout.write(f'  already there: {org.name}')
         self.stdout.write(self.style.SUCCESS(f'Done. {added} added, {removed} removed.'))
