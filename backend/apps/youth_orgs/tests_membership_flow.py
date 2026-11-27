@@ -125,3 +125,15 @@ class MembershipFlowTests(TestCase):
         self.assertEqual(self.lc.get('/api/youth-orgs/membership-applications/').status_code, 403)
         self.assertEqual(len(self.ac.get('/api/youth-orgs/membership-applications/').data), 1)
         self.assertEqual(len(self.ac.get('/api/youth-orgs/membership-applications/?status=accepted').data), 0)
+
+    def test_the_person_can_correct_their_details_when_sending_again(self):
+        self.verify()
+        app_id = self.apply().data['id']
+        self.ac.post(self.decide, {'application': app_id, 'status': 'revision', 'note': 'Please add your school'}, format='json')
+        r = self.apply(contact_phone='0917 123 4567', barangay='Ilayang Talim', school='Lucena City College')
+        self.assertEqual(r.status_code, 201)
+        snap = OrgMembershipApplication.objects.get(pk=app_id).snapshot
+        self.assertEqual((snap['phone'], snap['barangay'], snap['school']), ('0917 123 4567', 'Ilayang Talim', 'Lucena City College'))
+        self.assertEqual(snap['email'], 'p@t.local')  # the name and email always come from the account
+        self.ac.post(self.decide, {'application': app_id, 'status': 'revision', 'note': 'Fix the number'}, format='json')
+        self.assertEqual(self.apply(contact_phone='call me <b>').status_code, 400)

@@ -69,6 +69,7 @@ function Detail({ app, onClose, onDone }: { app: OrgApplicationRow; onClose: () 
           <p><span className="text-ink-500">Sex:</span> {snap.sex || 'not set'}</p>
           <p><span className="text-ink-500">Barangay:</span> {snap.barangay || 'not set'}</p>
           <p><span className="text-ink-500">Contact:</span> {snap.phone || 'not set'}</p>
+          <p><span className="text-ink-500">School or workplace:</span> {snap.school || 'not set'}</p>
           <p className="col-span-2 text-xs text-ink-500">Sent {fmt(app.created_at)}. Privacy agreement {app.privacy_consent_at ? `accepted ${fmt(app.privacy_consent_at)}` : 'not recorded'}.
             The applicant&apos;s verified ID documents are in Account Verification, not here.</p>
         </div>

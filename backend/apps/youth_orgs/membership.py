@@ -39,6 +39,22 @@ def applicant_snapshot(user):
     }
 
 
+def snapshot_from(user, data):
+    """The account details, with whatever the person corrected on the form (contact number, barangay, school). Only this application changes."""
+    import re
+    from .serializers import sanitize
+    snap = applicant_snapshot(user)
+    snap.setdefault('school', '')
+    phone = str(data.get('contact_phone', snap['phone']) or '').strip()
+    if phone and not re.fullmatch(r'[0-9+()\-\s]{7,20}', phone):
+        raise ValueError('Enter a valid contact number.')
+    snap['phone'] = phone
+    for key, limit in (('barangay', 100), ('school', 150)):
+        if key in data:
+            snap[key] = sanitize(str(data.get(key) or '').strip())[:limit]
+    return snap
+
+
 def record(app, action, actor=None, from_status='', note=''):
     return OrgMembershipEvent.objects.create(application=app, actor=actor, action=action, from_status=from_status, to_status=app.status, note=(note or '')[:500])
 

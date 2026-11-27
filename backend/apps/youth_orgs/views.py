@@ -237,11 +237,15 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         if str(request.data.get('consent', '')).lower() not in ('true', '1'):
             return Response({'detail': 'Please agree to the privacy notice before you send the application.', 'code': 'consent_required'}, status=status.HTTP_400_BAD_REQUEST)
         message = sanitize(str(request.data.get('message', '')).strip())[:500]
+        try:
+            snapshot = membership.snapshot_from(user, request.data)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         with transaction.atomic():
             if existing is not None:
                 from_status = existing.status
                 existing.message, existing.privacy_consent_at = message, timezone.now()
-                existing.snapshot = membership.applicant_snapshot(user)
+                existing.snapshot = snapshot
                 existing.status, existing.decision_note = 'pending', ''
                 existing.save()
                 membership.record(existing, 'resubmitted', user, from_status)
@@ -249,7 +253,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             else:
                 app = OrgMembershipApplication.objects.create(
                     organization=org, applicant=user, message=message,
-                    privacy_consent_at=timezone.now(), snapshot=membership.applicant_snapshot(user),
+                    privacy_consent_at=timezone.now(), snapshot=snapshot,
                 )
                 membership.record(app, 'submitted', user)
         self._audit(request, 'org_membership_applied', org, application=app.pk, reference=app.reference_number)

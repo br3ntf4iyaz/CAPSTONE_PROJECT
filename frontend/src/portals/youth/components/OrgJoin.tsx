@@ -21,7 +21,7 @@ export interface OrgApplicationRow {
   status: AppStatus
   status_display: string
   decision_note: string
-  snapshot: { name?: string; email?: string; age?: number | null; sex?: string; barangay?: string; phone?: string }
+  snapshot: { name?: string; email?: string; age?: number | null; sex?: string; barangay?: string; phone?: string; school?: string }
   privacy_consent_at: string | null
   history: { id: number; action: string; note: string; created_at: string }[]
   created_at: string
@@ -112,6 +112,9 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
   const [message, setMessage] = useState('')
   const [consent, setConsent] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [phone, setPhone] = useState('')
+  const [barangay, setBarangay] = useState('')
+  const [school, setSchool] = useState('')
   const next = joinUrl(org.id)
 
   const mine = useQuery<OrgApplicationRow[]>({
@@ -130,7 +133,12 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
   const orgName = detail.data?.name ?? org.name
 
   const apply = useMutation({
-    mutationFn: () => apiClient.post(`/youth-orgs/${org.id}/apply/`, { message, consent: 'true' }).then(r => r.data),
+    mutationFn: () => apiClient.post(`/youth-orgs/${org.id}/apply/`, {
+      message, consent: 'true',
+      contact_phone: editing ? phone : (me.data?.profile?.phone ?? ''),
+      barangay: editing ? barangay : (me.data?.profile?.barangay ?? ''),
+      school,
+    }).then(r => r.data),
     onSuccess: () => { toast.success('Application sent'); setEditing(false); qc.invalidateQueries({ queryKey: ['my-org-applications'] }) },
     onError: (e: any) => toast.error(String(e?.response?.data?.detail ?? 'Could not send the application.')),
   })
@@ -175,7 +183,11 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
           {existing.decision_note && <p className="rounded-lg bg-ink-50 p-3 text-sm text-ink-700">{existing.decision_note}</p>}
           <AppHistory rows={existing.history} />
           {(existing.status === 'revision' || existing.status === 'declined') && (
-            <button type="button" onClick={() => { setMessage(existing.message); setEditing(true) }} className="btn-primary w-full">
+            <button type="button" onClick={() => {
+              setMessage(existing.message); setConsent(false)
+              setPhone(existing.snapshot?.phone ?? me.data?.profile?.phone ?? ''); setBarangay(existing.snapshot?.barangay ?? me.data?.profile?.barangay ?? ''); setSchool(existing.snapshot?.school ?? '')
+              setEditing(true)
+            }} className="btn-primary w-full">
               {existing.status === 'revision' ? 'Fix and send again' : 'Apply again'}
             </button>
           )}
@@ -202,23 +214,34 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
     )
   }
 
-  const prof = me.data?.profile ?? {}
-  const rows: [string, string][] = [
-    ['Name', me.data?.full_name ?? ''], ['Email', me.data?.email ?? ''],
-    ['Barangay', prof.barangay ?? ''], ['Contact number', prof.phone ?? ''],
-  ]
+  const fixing = existing?.status === 'revision'
+  // a first application starts from what the account says; a correction starts from what was sent
+  const startPhone = phone || (editing ? '' : me.data?.profile?.phone ?? '')
   return (
     <Shell onClose={onClose} title="Apply for membership">
-      <h3 className="font-display text-xl font-extrabold text-ink-900">Membership application</h3>
+      <h3 className="font-display text-xl font-extrabold text-ink-900">{fixing ? 'Fix your application' : 'Membership application'}</h3>
       <p className="text-sm text-ink-500">{orgName}</p>
       <div className="mt-3 space-y-3">
+        {fixing && existing?.decision_note && (
+          <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
+            <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-orange-700">What LYDO asked you to fix</p>
+            {existing.decision_note}
+          </div>
+        )}
         <p className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800"><ShieldCheck size={13} /> Your account is verified</p>
-        <div className="rounded-xl border border-ink-100 bg-ink-50/60 p-3">
-          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-500">Taken from your account</p>
+        <div className="rounded-xl border border-ink-100 bg-ink-50/60 p-3 space-y-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-500">Your details</p>
           <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-0.5 text-sm">
-            {rows.map(([k, v]) => (<div key={k} className="contents"><dt className="text-ink-500">{k}</dt><dd className="break-words font-medium text-ink-800">{v || 'not set'}</dd></div>))}
+            <dt className="text-ink-500">Name</dt><dd className="font-medium text-ink-800">{me.data?.full_name}</dd>
+            <dt className="text-ink-500">Email</dt><dd className="break-all font-medium text-ink-800">{me.data?.email}</dd>
           </dl>
-          <p className="mt-1.5 text-[11px] text-ink-500">Change these in My Space. You do not upload your ID again: your verified account is used.</p>
+          <label className="block"><span className="text-xs font-medium text-ink-600">Contact number</span>
+            <input className="input mt-0.5 w-full" value={editing ? phone : startPhone} onChange={e => { setEditing(true); setPhone(e.target.value) }} maxLength={20} placeholder="09XX XXX XXXX" /></label>
+          <label className="block"><span className="text-xs font-medium text-ink-600">Barangay</span>
+            <input className="input mt-0.5 w-full" value={editing ? barangay : (me.data?.profile?.barangay ?? '')} onChange={e => { setEditing(true); setBarangay(e.target.value) }} maxLength={100} /></label>
+          <label className="block"><span className="text-xs font-medium text-ink-600">School or workplace (optional)</span>
+            <input className="input mt-0.5 w-full" value={school} onChange={e => { setEditing(true); setSchool(e.target.value) }} maxLength={150} /></label>
+          <p className="text-[11px] text-ink-500">These are sent with this application only. Your name stays as in your verified account, and you do not upload your ID again.</p>
         </div>
         {detail.data?.membership_requirements && (
           <div className="rounded-xl border border-primary-100 bg-primary-50/50 p-3 text-sm text-ink-700">
@@ -235,7 +258,7 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
         </label>
         <div className="flex gap-2">
           <button type="button" onClick={() => apply.mutate()} disabled={apply.isPending || !consent} className="btn-primary flex-1 disabled:opacity-50">{apply.isPending ? 'Sending...' : existing ? 'Send again' : 'Submit application'}</button>
-          <button type="button" onClick={() => (existing ? setEditing(false) : onClose())} className="btn-secondary">Cancel</button>
+          <button type="button" onClick={() => { if (existing) setEditing(false); else onClose() }} className="btn-secondary">Cancel</button>
         </div>
       </div>
     </Shell>
