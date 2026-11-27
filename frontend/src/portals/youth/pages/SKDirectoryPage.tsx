@@ -337,9 +337,7 @@ function OfficialCard({
           <p className={cn('mt-0.5 text-[10px] font-semibold uppercase tracking-wider', o.position === 'chairperson' ? 'text-accent-300' : 'text-white/75')}>
             {o.position === 'chairperson' && <Crown size={10} className="mr-1 inline -mt-0.5" />}{o.position_display}
           </p>
-          {onOpen && (
-            <p className={cn('mt-1 text-[10px] font-semibold', featured ? 'text-accent-300' : 'text-white/90')}>View profile &rarr;</p>
-          )}
+
         </div>
       </div>
       {featured && (
@@ -348,6 +346,20 @@ function OfficialCard({
           <span className="flex-1 bg-alert-500" /><span className="flex-1 bg-accent-400" /><span className="flex-1 bg-white" />
         </div>
       )}
+      {onOpen && (
+        // a small button that fits its text, under the picture
+        <button
+          type="button"
+          onClick={onOpen}
+          className={cn(
+            'relative mt-2 mb-1 inline-flex items-center gap-1 rounded-full px-3.5 py-1 text-[11px] font-bold transition-colors',
+            featured ? 'bg-accent-400 text-primary-900 hover:bg-accent-300' : 'bg-white text-primary-800 hover:bg-primary-50',
+          )}
+        >
+          View profile
+        </button>
+      )}
+
       {canEdit && (
         <div className="mt-2.5 flex w-full flex-wrap items-center justify-center gap-1.5">
           <button
