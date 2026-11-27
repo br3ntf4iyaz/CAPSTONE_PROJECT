@@ -44,6 +44,8 @@ class SKBarangay(models.Model):
     sk_chairperson = models.CharField(max_length=200, blank=True)
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=20, blank=True)
+    # where the barangay hall is, so the directory can open it on a map (the SK or LYDO fills it in)
+    address = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
     logo = models.ImageField(upload_to='sk_logos/', null=True, blank=True)
     chairperson_photo = models.ImageField(upload_to='sk_chairpersons/', null=True, blank=True)

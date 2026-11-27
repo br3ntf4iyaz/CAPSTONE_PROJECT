@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook, Crown, Pencil } from 'lucide-react'
+import { Users, Search, CheckCircle2, Circle, ChevronDown, ChevronUp, X, Mail, Phone, MapPin, Award, Camera, Star, MessageSquare, ImagePlus, User as UserIcon, ArrowLeft, ZoomIn, Trash2, Facebook, Crown, Pencil, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { skFeedbackApi } from '@/api/skFeedback'
@@ -54,6 +54,7 @@ interface SKBarangay {
   sk_chairperson: string
   contact_email: string
   contact_phone: string
+  address?: string
   logo_url: string | null
   submitted_count: number
   pending_count: number
@@ -410,6 +411,12 @@ function OfficialCard({
   )
 }
 
+/** Opens the place on Google Maps. A saved address is searched as it is; without one, the barangay name inside Lucena City. */
+function mapUrl(b: { barangay_name: string; address?: string }) {
+  const q = (b.address ?? '').trim() || `${b.barangay_name}, Lucena City, Quezon, Philippines`
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
+}
+
 function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: () => void }) {
   const total = barangay.submitted_count + barangay.pending_count + barangay.overdue_count
   // same calculation as before, but rounding can no longer show 100% (or 0%) unless it is exactly true
@@ -489,17 +496,18 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
   const [editingContact, setEditingContact] = useState(false)
   const [emailDraft, setEmailDraft] = useState('')
   const [phoneDraft, setPhoneDraft] = useState('')
+  const [addressDraft, setAddressDraft] = useState('')
   const saveContact = useMutation({
-    mutationFn: () => apiClient.post(`/sk-requirements/barangays/${barangay.id}/contact/`, { contact_email: emailDraft.trim(), contact_phone: phoneDraft.trim() }).then(r => r.data),
-    onSuccess: (d: { contact_email: string; contact_phone: string }) => {
+    mutationFn: () => apiClient.post(`/sk-requirements/barangays/${barangay.id}/contact/`, { contact_email: emailDraft.trim(), contact_phone: phoneDraft.trim(), address: addressDraft.trim() }).then(r => r.data),
+    onSuccess: (d: { contact_email: string; contact_phone: string; address: string }) => {
       toast.success('Contact details updated')
-      qc.setQueryData<SKBarangay[]>(['sk-barangays-directory'], old => old?.map(b => b.id !== barangay.id ? b : { ...b, contact_email: d.contact_email, contact_phone: d.contact_phone }))
+      qc.setQueryData<SKBarangay[]>(['sk-barangays-directory'], old => old?.map(b => b.id !== barangay.id ? b : { ...b, contact_email: d.contact_email, contact_phone: d.contact_phone, address: d.address }))
       qc.invalidateQueries({ queryKey: ['sk-barangays-directory'] })
       setEditingContact(false)
     },
     onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not save the contact details.'),
   })
-  const startEditContact = () => { setEmailDraft(barangay.contact_email ?? ''); setPhoneDraft(barangay.contact_phone ?? ''); setEditingContact(true) }
+  const startEditContact = () => { setEmailDraft(barangay.contact_email ?? ''); setPhoneDraft(barangay.contact_phone ?? ''); setAddressDraft(barangay.address ?? ''); setEditingContact(true) }
 
   const [zoomKey, setZoomKey] = useState<string | null>(null)
   const [groupZoom, setGroupZoom] = useState(false)
@@ -606,7 +614,21 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
           <div className="bg-gradient-to-br from-primary-50 to-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-md shadow-primary-600/10 p-4 space-y-3">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-alert-500 shadow-md shadow-alert-500/30 flex items-center justify-center shrink-0"><MapPin size={15} className="text-white" /></div>
-              <div className="min-w-0 flex-1"><p className="text-xs text-ink-500 font-medium">Barangay</p><p className="font-semibold text-ink-900">{barangay.barangay_name}</p></div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs text-ink-500 font-medium">Barangay</p>
+                <a
+                  href={mapUrl(barangay)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Open on the map"
+                  className="inline-flex items-center gap-1 font-semibold text-ink-900 hover:text-primary-700 hover:underline"
+                >
+                  {barangay.barangay_name}
+                  <ExternalLink size={12} className="text-primary-500" aria-hidden />
+                  <span className="sr-only"> (opens the map in a new tab)</span>
+                </a>
+                {barangay.address && <p className="text-xs text-ink-500 break-words">{barangay.address}</p>}
+              </div>
               {canEdit && !editingContact && (
                 <button type="button" onClick={startEditContact} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-primary-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-primary-700 hover:bg-primary-600 hover:text-white hover:border-primary-600 transition-colors">
                   <Pencil size={11} /> Edit contact
@@ -618,6 +640,10 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
                 className="space-y-2.5"
                 onSubmit={e => { e.preventDefault(); saveContact.mutate() }}
               >
+                <label className="block">
+                  <span className="text-xs font-medium text-ink-500">Barangay hall address <span className="font-semibold text-primary-700">(opens on the map)</span></span>
+                  <input type="text" value={addressDraft} onChange={e => setAddressDraft(e.target.value)} maxLength={255} placeholder="Barangay Hall, Street, Ilayang Talim, Lucena City" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
+                </label>
                 <label className="block">
                   <span className="text-xs font-medium text-ink-500">Email</span>
                   <input type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)} maxLength={254} placeholder="sk.barangay@lucena.gov.ph" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />

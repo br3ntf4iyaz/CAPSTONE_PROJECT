@@ -84,3 +84,16 @@ class SKContactTests(TestCase):
             self.assertIsNone(normalize_ph_phone(raw), raw)
         self.verify(self.sk)
         self.assertEqual(self.post(self.sk, {'contact_phone': '+1 202 555 0143'}).status_code, 400)
+
+    def test_the_address_can_be_saved_cleaned_and_is_public(self):
+        self.verify(self.sk)
+        r = self.post(self.sk, {'address': '  Barangay Hall, Ilayang Talim, Lucena City <script>x</script> '})
+        self.assertEqual(r.status_code, 200)
+        self.a.refresh_from_db()
+        self.assertNotIn('<', self.a.address)
+        self.assertTrue(self.a.address.startswith('Barangay Hall, Ilayang Talim'))
+        listing = APIClient().get('/api/sk-requirements/barangays/').data
+        mine = [b for b in listing if b['barangay_name'] == 'Barangay A'][0]
+        self.assertEqual(mine['address'], self.a.address)
+        self.assertEqual(self.post(self.sk, {'address': 'x' * 300}).status_code, 400)
+        self.assertEqual(self.post(self.other, {'address': 'Somewhere else'}).status_code, 403)

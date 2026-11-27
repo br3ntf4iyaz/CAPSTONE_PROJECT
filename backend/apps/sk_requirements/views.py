@@ -345,11 +345,18 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
                     )
             barangay.contact_phone = phone
             fields.append('contact_phone')
+        if 'address' in request.data:
+            import bleach
+            address = bleach.clean(str(request.data.get('address') or ''), tags=[], strip=True).strip()
+            if len(address) > 255:
+                return Response({'detail': 'The address is too long (up to 255 characters).'}, status=status.HTTP_400_BAD_REQUEST)
+            barangay.address = address
+            fields.append('address')
         if not fields:
             return Response({'detail': 'Nothing to change.'}, status=status.HTTP_400_BAD_REQUEST)
         barangay.save(update_fields=fields)
         _audit_picture(request, barangay, 'contact', 'sk_contact_changed')
-        return Response({'contact_email': barangay.contact_email, 'contact_phone': barangay.contact_phone})
+        return Response({'contact_email': barangay.contact_email, 'contact_phone': barangay.contact_phone, 'address': barangay.address})
 
     # ------------------------------------------------------------------
     # Facebook links, public contact and public activities of ONE official
