@@ -385,11 +385,22 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
       setDone(true)
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.name?.[0]
-        ?? (Array.isArray(err?.response?.data?.officers) ? err.response.data.officers[0] : err?.response?.data?.officers)
-        ?? err?.response?.data?.detail
-        ?? 'Submission failed. Please try again.'
-      toast.error(msg)
+      // say which box is wrong, in plain words
+      const d = err?.response?.data
+      const LABEL: Record<string, string> = {
+        name: 'Organization name', contact_email: 'Email', contact_phone: 'Phone', contact_person: 'Contact person', description: 'Description',
+        barangay: 'Barangay', officers: 'Officers', my_position: 'Your position', classification: 'Classification', sub_classification: 'Type',
+      }
+      let msg: string | undefined
+      if (d && typeof d === 'object') {
+        if (d.detail) msg = String(d.detail)
+        else {
+          const [k, v] = Object.entries(d)[0] ?? []
+          const first = Array.isArray(v) ? v[0] : v
+          if (k && typeof first === 'string') msg = k === 'name' && /already exists/i.test(first) ? 'An organization with this name already exists. Use a different name.' : `${LABEL[k] ?? k}: ${first}`
+        }
+      }
+      toast.error(msg ?? 'Submission failed. Please try again.')
     },
   })
 
@@ -492,7 +503,11 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
           <button
             type="button"
             disabled={!form.name.trim() || submitMutation.isPending}
-            onClick={() => submitMutation.mutate()}
+            onClick={() => {
+              const email = form.contact_email.trim()
+              if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { toast.error('Email: enter a complete email address, like org@email.com.'); return }
+              submitMutation.mutate()
+            }}
             className="btn-primary w-full"
           >
             <Send size={15} />
