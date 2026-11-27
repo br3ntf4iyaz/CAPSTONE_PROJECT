@@ -228,6 +228,11 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'You already manage this organization.'}, status=status.HTTP_400_BAD_REQUEST)
         if not org.accepting_members:
             return Response({'detail': 'This organization is not accepting new members right now.'}, status=status.HTTP_400_BAD_REQUEST)
+        if org.application_mode != 'in_app':
+            return Response({
+                'detail': 'This organization takes applications on its own. Use its link or contact it directly.',
+                'code': 'external_application', 'external_apply_url': org.external_apply_url,
+            }, status=status.HTTP_400_BAD_REQUEST)
         existing = OrgMembershipApplication.objects.filter(organization=org, applicant=user).first()
         if existing is not None and existing.status not in ('revision', 'declined'):
             return Response({'detail': 'You already applied to this organization.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -266,10 +271,11 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         try:
             if org.submitted_by_id:  # the leader who registered the organization decides
                 create_notification(org.submitted_by, 'New membership application', text, 'system', link=f'/organizations?org={org.pk}')
-            # LYDO is told too: an organization entered by LYDO has no leader, and LYDO keeps oversight of all of them
-            from django.contrib.auth import get_user_model
-            for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
-                create_notification(admin, 'New membership application', text, 'system', link='/admin/membership')
+            else:
+                # an organization entered by LYDO has no officer account yet, so LYDO looks after its applications
+                from django.contrib.auth import get_user_model
+                for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
+                    create_notification(admin, 'New membership application', text, 'system', link='/admin/membership')
         except Exception:
             pass
         return Response(OrgMembershipApplicationSerializer(app).data, status=status.HTTP_201_CREATED)

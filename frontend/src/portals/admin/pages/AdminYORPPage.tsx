@@ -70,6 +70,11 @@ interface OrgDetail {
   how_to_join?: string
   facebook_url?: string
   accepting_members?: boolean
+  application_mode?: 'in_app' | 'external' | 'contact'
+  external_apply_url?: string
+  acronym?: string
+  registration_number?: string
+  registration_valid_until?: string | null
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -116,9 +121,11 @@ function PublicProfileEditor({ org }: { org: OrgDetail }) {
   const [f, setF] = useState({
     mission: org.mission ?? '', membership_requirements: org.membership_requirements ?? '', how_to_join: org.how_to_join ?? '',
     facebook_url: org.facebook_url ?? '', accepting_members: org.accepting_members ?? true, is_active: org.is_active,
+    application_mode: org.application_mode ?? 'in_app', external_apply_url: org.external_apply_url ?? '', acronym: org.acronym ?? '',
+    registration_number: org.registration_number ?? '', registration_valid_until: org.registration_valid_until ?? '',
   })
   const save = useMutation({
-    mutationFn: () => apiClient.patch(`/youth-orgs/${org.id}/`, f),
+    mutationFn: () => apiClient.patch(`/youth-orgs/${org.id}/`, { ...f, registration_valid_until: f.registration_valid_until || null }),
     onSuccess: () => {
       toast.success('Public profile saved.')
       qc.invalidateQueries({ queryKey: ['admin-youth-orgs'] })
@@ -126,13 +133,34 @@ function PublicProfileEditor({ org }: { org: OrgDetail }) {
     },
     onError: (err: any) => {
       const d = err?.response?.data
-      toast.error(d?.facebook_url?.[0] ?? d?.detail ?? 'Could not save the public profile.')
+      toast.error(d?.external_apply_url?.[0] ?? d?.facebook_url?.[0] ?? d?.detail ?? 'Could not save the public profile.')
     },
   })
   return (
     <div className="space-y-2 rounded-xl border border-gray-200 bg-white p-3">
       <p className="font-medium text-gray-700">Public profile</p>
       <p className="text-xs text-gray-500">Shown to everyone, even visitors without an account. An organization is listed publicly only when it is approved and active.</p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <label className="block"><span className="text-xs text-gray-500">Acronym (optional)</span>
+          <input className="input mt-1 w-full" maxLength={30} value={f.acronym} onChange={e => setF(p => ({ ...p, acronym: e.target.value }))} /></label>
+        <label className="block"><span className="text-xs text-gray-500">YORP registration number</span>
+          <input className="input mt-1 w-full" maxLength={60} value={f.registration_number} onChange={e => setF(p => ({ ...p, registration_number: e.target.value }))} /></label>
+        <label className="block"><span className="text-xs text-gray-500">Registration valid until</span>
+          <input type="date" className="input mt-1 w-full" value={f.registration_valid_until ?? ''} onChange={e => setF(p => ({ ...p, registration_valid_until: e.target.value }))} /></label>
+      </div>
+      <div className="rounded-lg border border-primary-100 bg-primary-50/40 p-2.5 space-y-2">
+        <label className="block"><span className="text-xs font-medium text-gray-700">How people apply to this organization</span>
+          <select className="input mt-1 w-full" value={f.application_mode} onChange={e => setF(p => ({ ...p, application_mode: e.target.value as 'in_app' | 'external' | 'contact' }))}>
+            <option value="in_app">In-App Application: the organization&apos;s officers review it in LYDOP</option>
+            <option value="external">External link: the organization&apos;s own form or page</option>
+            <option value="contact">Contact only: people reach out directly</option>
+          </select></label>
+        {f.application_mode === 'in_app' && <p className="text-xs text-gray-600">The organization&apos;s officers (the account that registered it) review and approve these applications, not LYDO. Without an officer account, LYDO only passes them on.</p>}
+        {f.application_mode === 'external' && (
+          <label className="block"><span className="text-xs text-gray-500">Link where people apply (Google Form, Facebook, website)</span>
+            <input className="input mt-1 w-full" value={f.external_apply_url} onChange={e => setF(p => ({ ...p, external_apply_url: e.target.value }))} placeholder="https://forms.gle/..." /></label>
+        )}
+      </div>
       <label className="block"><span className="text-xs text-gray-500">Mission and objectives</span>
         <textarea className="input mt-1 w-full" rows={2} maxLength={1500} value={f.mission} onChange={e => setF(p => ({ ...p, mission: e.target.value }))} /></label>
       <label className="block"><span className="text-xs text-gray-500">Membership requirements</span>

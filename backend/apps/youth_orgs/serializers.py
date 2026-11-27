@@ -118,6 +118,7 @@ class OrgDetailSerializer(serializers.ModelSerializer):
     requirements = OrgRequirementSerializer(many=True, read_only=True)
 
     facebook_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # checked and tidied in validate_facebook_url
+    external_apply_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # http(s) only, checked in validate_external_apply_url
 
     def get_logo_url(self, obj):
         request = self.context.get('request')
@@ -145,6 +146,11 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'how_to_join',
             'facebook_url',
             'accepting_members',
+            'application_mode',
+            'external_apply_url',
+            'acronym',
+            'registration_number',
+            'registration_valid_until',
             'is_active',
             'is_compliant',
             'status',
@@ -159,6 +165,32 @@ class OrgDetailSerializer(serializers.ModelSerializer):
     def validate_facebook_url(self, value):
         from apps.sk_requirements.social import clean_facebook_url
         return clean_facebook_url(value, 'Facebook')
+
+    def validate_external_apply_url(self, value):
+        value = (value or '').strip()
+        if not value:
+            return ''
+        from urllib.parse import urlparse
+        import re
+        if '://' not in value and re.match(r'^[A-Za-z][A-Za-z0-9+.-]*:(?!d)', value):
+            raise serializers.ValidationError('Enter a web link that starts with http:// or https://.')
+        u = urlparse(value if '://' in value else 'https://' + value)
+        if u.scheme not in ('http', 'https') or not u.hostname or '.' not in u.hostname or ' ' in value:
+            raise serializers.ValidationError('Enter a web link that starts with http:// or https://.')
+        return u.geturl()
+
+    def validate_acronym(self, value):
+        return sanitize(value)
+
+    def validate_registration_number(self, value):
+        return sanitize(value)
+
+    def validate(self, attrs):
+        mode = attrs.get('application_mode', getattr(self.instance, 'application_mode', 'in_app'))
+        url = attrs.get('external_apply_url', getattr(self.instance, 'external_apply_url', ''))
+        if mode == 'external' and not url:
+            raise serializers.ValidationError({'external_apply_url': 'Add the link where people apply, or choose another way to apply.'})
+        return attrs
 
     def validate_mission(self, value):
         return sanitize(value)
@@ -217,6 +249,7 @@ class OrgPublicListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'classification', 'sub_classification', 'registration_category', 'barangay', 'description',
             'contact_person', 'is_compliant', 'accepting_members', 'logo_url', 'created_at',
+            'application_mode', 'external_apply_url', 'acronym',
         ]
 
     def get_logo_url(self, obj):
@@ -227,12 +260,18 @@ class OrgPublicListSerializer(serializers.ModelSerializer):
 class OrgPublicDetailSerializer(OrgPublicListSerializer):
     accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
     can_manage = serializers.SerializerMethodField()
+    has_officer_reviewer = serializers.SerializerMethodField()
 
     class Meta(OrgPublicListSerializer.Meta):
         fields = OrgPublicListSerializer.Meta.fields + [
             'mission', 'membership_requirements', 'how_to_join', 'facebook_url', 'contact_email', 'contact_phone',
+            'registration_number', 'registration_valid_until', 'has_officer_reviewer',
             'accomplishments', 'can_manage',
         ]
+
+    def get_has_officer_reviewer(self, obj):
+        # in-app applications are reviewed by the organization's own officers, when an officer account is linked to it
+        return obj.submitted_by_id is not None
 
     def get_can_manage(self, obj):
         request = self.context.get('request')

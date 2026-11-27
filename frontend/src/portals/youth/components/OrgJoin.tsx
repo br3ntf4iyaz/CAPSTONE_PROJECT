@@ -105,6 +105,20 @@ const VERIFY_GATE: Record<string, { title: string; text: string; cta?: string }>
   suspended: { title: 'Your account is suspended', text: 'You cannot apply for anything right now. Please contact the LYDO office.' },
 }
 
+/** Says plainly who decides: the organization's own officers, never LYDO. */
+function ReviewerNotice({ orgName, hasOfficer }: { orgName: string; hasOfficer: boolean }) {
+  return (
+    <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+      <p className="font-semibold">Who reviews this application?</p>
+      <p className="mt-0.5">
+        {hasOfficer
+          ? <>The officers of <strong>{orgName}</strong> will review your application and decide whether to approve your membership. <strong>LYDO does not approve memberships</strong>; it only verifies that your LYDOP account is real.</>
+          : <><strong>{orgName}</strong> has no officer account in LYDOP yet, so LYDO will pass your application on to the organization. <strong>The organization decides</strong>, not LYDO.</>}
+      </p>
+    </div>
+  )
+}
+
 /** Join / apply. A visitor is asked to sign in first. A signed-in person must be verified, then fills the membership application. */
 export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; onClose: () => void }) {
   const auth = useAuthStore()
@@ -129,7 +143,7 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
   })
   const me = useQuery<any>({ queryKey: ['me'], queryFn: () => apiClient.get('/auth/me/').then(r => r.data), enabled: !!auth.isAuthenticated })
   const existing = mine.data?.find(a => a.organization === org.id)
-  const detail = useQuery<{ name: string; membership_requirements?: string; how_to_join?: string }>({ queryKey: ['org-detail', org.id], queryFn: () => apiClient.get(`/youth-orgs/${org.id}/`).then(r => r.data) })
+  const detail = useQuery<{ name: string; membership_requirements?: string; how_to_join?: string; has_officer_reviewer?: boolean }>({ queryKey: ['org-detail', org.id], queryFn: () => apiClient.get(`/youth-orgs/${org.id}/`).then(r => r.data) })
   const orgName = detail.data?.name ?? org.name
 
   const apply = useMutation({
@@ -172,9 +186,10 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
             <st.Icon size={13} /> {st.label}
           </p>
           <p className="text-xs text-ink-500">Reference number: <strong className="font-mono text-ink-800">{existing.reference_number}</strong></p>
+          <p className="text-xs text-ink-500">Reviewed by the officers of {orgName}. LYDO does not approve memberships.</p>
           <p className="text-sm text-ink-600">
-            {existing.status === 'pending' ? 'Your application was sent. You will get a notification when it is reviewed.'
-              : existing.status === 'reviewing' ? 'Your application is being reviewed.'
+            {existing.status === 'pending' ? 'Your application was sent. You will get a notification when the organization reviews it.'
+              : existing.status === 'reviewing' ? 'The organization is reviewing your application.'
               : existing.status === 'revision' ? 'A correction is needed. Read the note below, fix it, and send the application again.'
               : existing.status === 'accepted' ? 'Congratulations! You are a member of this organization.'
               : existing.status === 'revoked' ? 'Your membership was revoked. Please contact LYDO if you think this is a mistake.'
@@ -221,6 +236,7 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
     <Shell onClose={onClose} title="Apply for membership">
       <h3 className="font-display text-xl font-extrabold text-ink-900">{fixing ? 'Fix your application' : 'Membership application'}</h3>
       <p className="text-sm text-ink-500">{orgName}</p>
+      <ReviewerNotice orgName={orgName} hasOfficer={detail.data?.has_officer_reviewer !== false} />
       <div className="mt-3 space-y-3">
         {fixing && existing?.decision_note && (
           <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-sm text-orange-900">
@@ -252,7 +268,7 @@ export function JoinFlow({ org, onClose }: { org: { id: number; name: string }; 
         <textarea className="input resize-none" rows={3} maxLength={500} value={message} onChange={e => setMessage(e.target.value)} placeholder="Why do you want to join? (optional)" />
         <label className="flex items-start gap-2.5 rounded-xl border border-ink-100 p-3 text-xs text-ink-700">
           <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>I agree that LYDO and this organization may use the details above to process my membership, as described in the{' '}
+          <span>I agree that the officers of this organization (and LYDO, as the registering office) may use the details above to process my membership, as described in the{' '}
             <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-primary-700 underline">Privacy Policy</a>.
             My ID documents are never shown to the organization.</span>
         </label>

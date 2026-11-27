@@ -169,7 +169,7 @@ export default function AdminMembershipPage() {
     <div className="space-y-5">
       <div>
         <h1 className="page-title">Organization Membership Verification</h1>
-        <p className="page-subtitle">Applications to join youth organizations. Only people with a verified account can apply.</p>
+        <p className="page-subtitle">Applications made in LYDOP to join youth organizations. The officers of each organization review and approve them; LYDO oversees, can step in when an organization has no officer account, and can revoke a membership. Only people with a verified account can apply.</p>
       </div>
 
       <AccountGroupTabs value={group} onChange={setGroup} types={everyone.map(a => a.applicant_type)} />

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Building2, Search, CheckCircle2, XCircle, Mail, Phone,
   MapPin, Users, X, Award, Calendar, ChevronRight, Plus,
-  ShieldCheck, Clock, CheckCheck, Ban, Send, Info,
+  ShieldCheck, Clock, CheckCheck, Ban, Send, Info, ExternalLink,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
@@ -26,6 +26,9 @@ interface YouthOrg {
   contact_person: string
   is_compliant: boolean
   accepting_members?: boolean
+  application_mode?: 'in_app' | 'external' | 'contact'
+  external_apply_url?: string
+  acronym?: string
   logo_url: string | null
 }
 
@@ -35,6 +38,9 @@ interface OrgDetail extends YouthOrg {
   how_to_join?: string
   facebook_url?: string
   can_manage?: boolean
+  registration_number?: string
+  registration_valid_until?: string | null
+  has_officer_reviewer?: boolean
   contact_email: string
   contact_phone: string
   is_active: boolean
@@ -78,15 +84,25 @@ const SUBCLASS_LABELS: Record<string, string> = {
   youth_org:     'Youth Organization (15–30)',
   youth_serving: 'Youth Serving Organization',
 }
+// LYDO and the NYC register organizations under YORP (the Youth Organization Registration Program)
 const REG_LABELS: Record<string, string> = {
-  lydo:           'LYDO Registered',
-  nyc:            'LYDO & NYC Registered',
+  lydo:           'YORP Registered',
+  nyc:            'LYDO & NYC Verified',
   not_registered: 'Not Yet Registered',
 }
 const REG_COLORS: Record<string, string> = {
   lydo:           'badge-blue',
   nyc:            'badge-green',
   not_registered: 'badge-gray',
+}
+
+const isOpen = (o: { accepting_members?: boolean }) => o.accepting_members !== false
+
+/** Open or closed to new members. */
+function MembershipBadge({ org }: { org: { accepting_members?: boolean } }) {
+  return isOpen(org)
+    ? <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />Open for Members</span>
+    : <span className="inline-flex items-center gap-1 rounded-full border border-ink-200 bg-ink-50 px-2 py-0.5 text-[10px] font-semibold text-ink-600"><span className="h-1.5 w-1.5 rounded-full bg-ink-400" />Membership Closed</span>
 }
 
 // ── Org Detail Modal ───────────────────────────────────────────────────────────
@@ -122,8 +138,11 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
                   <Users size={26} className="text-white" />
                 </div>
               )}
-              <h2 className="font-display font-extrabold text-xl leading-tight mb-1">{org.name}</h2>
+              <h2 className="font-display font-extrabold text-xl leading-tight mb-1">{org.name}{org.acronym ? <span className="ml-2 text-base font-bold text-white/80">({org.acronym})</span> : null}</h2>
               <div className="flex flex-wrap gap-2 mt-2">
+                <span className="text-xs font-semibold bg-white/20 px-2.5 py-1 rounded-full">
+                  {SUBCLASS_LABELS[org.sub_classification] ?? 'Youth Organization'}
+                </span>
                 <span className="text-xs font-semibold bg-white/20 px-2.5 py-1 rounded-full">
                   {CLASS_LABELS[org.classification] ?? org.classification}
                 </span>
@@ -154,7 +173,7 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
                     <Users size={14} className="text-primary-600" />
                   </div>
                   <div>
-                    <p className="text-xs text-ink-500">Contact Person</p>
+                    <p className="text-xs text-ink-500">Key officer / contact person</p>
                     <p className="font-semibold text-ink-900">{org.contact_person}</p>
                   </div>
                 </div>
@@ -186,8 +205,10 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
                   <Award size={14} className="text-primary-600" />
                 </div>
                 <div>
-                  <p className="text-xs text-ink-500">Registration</p>
+                  <p className="text-xs text-ink-500">Verification</p>
                   <p className="font-semibold text-ink-900">{REG_LABELS[org.registration_category] ?? org.registration_category}</p>
+                  {org.registration_number && <p className="text-xs text-ink-600">Registration no. <span className="font-mono font-semibold">{org.registration_number}</span></p>}
+                  {org.registration_valid_until && <p className="text-xs text-ink-600">Valid until {new Date(org.registration_valid_until).toLocaleDateString('en-PH', { month: 'long', day: 'numeric', year: 'numeric' })}</p>}
                 </div>
               </div>
             </div>
@@ -206,22 +227,47 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
               </div>
             )}
 
-            {/* Membership: recruitment status, requirements, how to join, apply */}
+            {/* Membership: recruitment status, requirements, and how to apply (the organization decides how) */}
             <div className="px-4 pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">Membership</p>
-                <span className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-semibold', org.accepting_members === false ? 'border-ink-200 bg-ink-50 text-ink-600' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>
-                  {org.accepting_members === false ? 'Not accepting members now' : 'Accepting members'}
-                </span>
+                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide">How to join</p>
+                <MembershipBadge org={org} />
               </div>
+              <p className="mt-2 rounded-xl bg-primary-50/60 border border-primary-100 p-2.5 text-xs leading-relaxed text-primary-900">
+                LYDO registers and verifies youth organizations. Membership is decided by <strong>the organization itself</strong>, not by LYDO.
+              </p>
               {org.membership_requirements && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>Requirements: </strong>{org.membership_requirements}</p>}
               {org.how_to_join && <p className="mt-2 text-sm text-ink-700 leading-relaxed whitespace-pre-line"><strong>How to join: </strong>{org.how_to_join}</p>}
-              {org.facebook_url && (
-                <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-[#1877F2] hover:underline">Visit their Facebook page</a>
-              )}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {org.facebook_url && (
+                  <a href={org.facebook_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full border border-[#1877F2]/30 px-3 py-1.5 text-xs font-semibold text-[#1877F2] hover:bg-[#1877F2]/5">Facebook page</a>
+                )}
+                {org.contact_email && (
+                  <a href={`mailto:${org.contact_email}`} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Mail size={12} /> Email</a>
+                )}
+                {org.contact_phone && (
+                  <a href={`tel:${org.contact_phone}`} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Phone size={12} /> Call</a>
+                )}
+              </div>
               {!org.can_manage && (
-                <button type="button" disabled={org.accepting_members === false} onClick={() => onJoin({ id: org.id, name: org.name })}
-                  className="btn-primary mt-3 w-full disabled:opacity-50">{org.accepting_members === false ? 'Not accepting members' : 'Join this organization'}</button>
+                !isOpen(org) ? (
+                  <p className="mt-3 rounded-xl bg-ink-50 p-3 text-center text-sm font-semibold text-ink-600">Membership is closed right now.</p>
+                ) : org.application_mode === 'external' && org.external_apply_url ? (
+                  <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" className="btn-primary mt-3 flex w-full items-center justify-center gap-1.5">
+                    Apply / Join via the organization&apos;s link <ExternalLink size={14} />
+                  </a>
+                ) : org.application_mode === 'contact' ? (
+                  <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">To join, please contact the organization directly using the details above.</p>
+                ) : (
+                  <>
+                    <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                      {org.has_officer_reviewer === false
+                        ? 'You can apply here in LYDOP. This organization has no officer account in LYDOP yet, so LYDO will pass your application on to the organization. LYDO does not approve memberships.'
+                        : 'You can apply here in LYDOP. The officers of this organization review your application and decide whether to approve it. LYDO does not approve memberships.'}
+                    </p>
+                    <button type="button" onClick={() => onJoin({ id: org.id, name: org.name })} className="btn-primary mt-2 w-full">Apply for membership in LYDOP</button>
+                  </>
+                )
               )}
             </div>
             {org.can_manage && <div className="pt-4"><OrgApplicationsPanel orgId={org.id} /></div>}
@@ -544,6 +590,7 @@ export default function OrgDirectoryPage() {
   const [showSubmitForm, setShowSubmitForm] = useState(false)
   const [joinOrg, setJoinOrg] = useState<{ id: number; name: string } | null>(null)
   const [barangay, setBarangay] = useState('')
+  const [openOnly, setOpenOnly] = useState(false)
   const [params, setParams] = useSearchParams()
 
   const auth = useAuthStore()
@@ -591,11 +638,10 @@ export default function OrgDirectoryPage() {
     if (o.sub_classification === 'sk_council') return false
     if (classFilter && o.classification !== classFilter) return false
     if (barangay && o.barangay !== barangay) return false
+    if (openOnly && !isOpen(o)) return false
     if (!search) return true
-    return (
-      o.name.toLowerCase().includes(search.toLowerCase()) ||
-      o.barangay.toLowerCase().includes(search.toLowerCase())
-    )
+    const q = search.toLowerCase()
+    return o.name.toLowerCase().includes(q) || o.barangay.toLowerCase().includes(q) || (o.acronym ?? '').toLowerCase().includes(q)
   })
 
   return (
@@ -607,7 +653,7 @@ export default function OrgDirectoryPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="page-title">Youth Organization Directory</h1>
-          <p className="page-subtitle">Explore registered youth organizations in Lucena City</p>
+          <p className="page-subtitle">Youth organizations registered under YORP in Lucena City</p>
         </div>
         {auth.isAuthenticated && (
           isVerified ? (
@@ -628,7 +674,9 @@ export default function OrgDirectoryPage() {
           <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
         </svg>
         <p className="text-sm text-blue-700">
-          If you are interested in being listed in the Youth Organization Directory, please coordinate with <strong>LYDO</strong> for verification and registration.
+          This directory features verified youth and youth-serving organizations registered under the Youth Organization Registration Program (YORP) in Lucena City.
+          To apply for membership, please follow how each organization takes members: on its own link, by contacting it directly, or here in LYDOP where it allows.
+          Want to register your organization? <strong>Coordinate with LYDO.</strong>
         </p>
       </div>
 
@@ -638,7 +686,7 @@ export default function OrgDirectoryPage() {
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-500" />
             <input
               type="text"
-              placeholder="Search organizations or barangay…"
+              placeholder="Search by organization name or barangay…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="input pl-9"
@@ -664,6 +712,14 @@ export default function OrgDirectoryPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <button type="button" role="switch" aria-checked={openOnly} onClick={() => setOpenOnly(v => !v)}
+              className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                openOnly ? 'border-emerald-300 bg-emerald-50 text-emerald-800' : 'border-ink-200 bg-white text-ink-600 hover:border-primary-300')}>
+              <span className={cn('relative h-4 w-7 rounded-full transition-colors', openOnly ? 'bg-emerald-500' : 'bg-ink-300')}>
+                <span className={cn('absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all', openOnly ? 'left-3.5' : 'left-0.5')} />
+              </span>
+              Open for Members only
+            </button>
             {barangays.length > 1 && (
               <select className="input w-auto text-sm" value={barangay} onChange={e => setBarangay(e.target.value)} aria-label="Filter by barangay">
                 <option value="">All barangays</option>
@@ -713,7 +769,7 @@ export default function OrgDirectoryPage() {
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-primary-900 text-sm truncate group-hover:text-primary-700 transition-colors">{org.name}</h3>
+                          <h3 className="font-bold text-primary-900 text-sm truncate group-hover:text-primary-700 transition-colors">{org.name}{org.acronym ? <span className="font-semibold text-ink-500"> ({org.acronym})</span> : null}</h3>
                           {org.is_compliant
                             ? <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
                             : <XCircle size={14} className="text-ink-300 flex-shrink-0" />}
@@ -726,20 +782,29 @@ export default function OrgDirectoryPage() {
                           <span className={cn('badge text-[10px]', REG_COLORS[org.registration_category] ?? 'badge-gray')}>
                             {REG_LABELS[org.registration_category] ?? org.registration_category}
                           </span>
+                          <MembershipBadge org={org} />
                         </div>
                         {org.description && (
                           <p className="text-xs text-ink-700 mt-2 line-clamp-1">{org.description}</p>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 group-hover:border-primary-400">View Organization</span>
-                          <button
-                            type="button"
-                            disabled={org.accepting_members === false}
-                            onClick={e => { e.stopPropagation(); setJoinOrg({ id: org.id, name: org.name }) }}
-                            className="rounded-full bg-primary-700 px-3.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-primary-600/20 hover:bg-primary-800 disabled:bg-ink-200 disabled:text-ink-500 disabled:shadow-none"
-                          >
-                            {org.accepting_members === false ? 'Not accepting members' : 'Join'}
-                          </button>
+                          <span className="rounded-full bg-primary-700 px-3.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-primary-600/20 group-hover:bg-primary-800">View Profile</span>
+                          {isOpen(org) && org.application_mode === 'external' && org.external_apply_url ? (
+                            <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                              className="inline-flex items-center gap-1 rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
+                              Apply via link <ExternalLink size={11} />
+                            </a>
+                          ) : isOpen(org) && (org.application_mode ?? 'in_app') === 'in_app' ? (
+                            <button type="button" onClick={e => { e.stopPropagation(); setJoinOrg({ id: org.id, name: org.name }) }}
+                              className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
+                              Apply in LYDOP
+                            </button>
+                          ) : (
+                            <button type="button" onClick={e => { e.stopPropagation(); setSelectedId(org.id) }}
+                              className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
+                              Contact Org
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
