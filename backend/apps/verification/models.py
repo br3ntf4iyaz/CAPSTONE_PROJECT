@@ -18,6 +18,8 @@ class IDVerification(models.Model):
         REVIEWING = "reviewing", "Under review"
         APPROVED  = "approved",  "Approved"
         REJECTED  = "rejected",  "Rejected"
+        REVISION  = "revision",  "Revision required"
+        SUSPENDED = "suspended", "Suspended"
 
     class IDType(models.TextChoices):
         NATIONAL_ID      = "national_id",      "PhilSys National ID"
@@ -42,6 +44,9 @@ class IDVerification(models.Model):
     id_image  = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
     id_back_image = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
     selfie_image  = models.ImageField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
+    # Proof of where the person lives (barangay certificate or similar). JPG, PNG or PDF, kept in private storage.
+    residency_doc = models.FileField(upload_to=id_upload_path, storage=private_storage, null=True, blank=True)
+    address       = models.CharField(max_length=255, blank=True)
     status    = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
 
     # AI analysis results
@@ -82,6 +87,24 @@ class IDVerification(models.Model):
     @property
     def is_verified(self):
         return self.status == self.Status.APPROVED
+
+    @property
+    def reference_number(self):
+        return f"LYD-V-{self.pk:06d}"
+
+
+class VerificationEvent(models.Model):
+    """Every step of an account verification, kept for good: submitted, revision asked, resubmitted, approved, ..."""
+    verification = models.ForeignKey(IDVerification, on_delete=models.CASCADE, related_name="events")
+    actor        = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    action       = models.CharField(max_length=30)   # submitted / resubmitted / approved / rejected / revision / suspended / restored / revoked
+    from_status  = models.CharField(max_length=20, blank=True)
+    to_status    = models.CharField(max_length=20, blank=True)
+    note         = models.TextField(blank=True)       # the reason the person reads
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
 
 
 class IDTypeSetting(models.Model):

@@ -23,7 +23,9 @@ export default function VerifyGate({ children, onClose, what = 'apply' }: { chil
 
   const status = data?.id_verification_status ?? 'none'
   const waiting = status === 'pending' || status === 'reviewing'
-  const rejected = status === 'rejected'
+  const suspended = status === 'suspended'
+  const revision = status === 'revision'
+  const rejected = status === 'rejected' || revision || suspended
   const Icon = waiting ? Clock : rejected ? AlertCircle : ShieldCheck
 
   return (
@@ -38,17 +40,21 @@ export default function VerifyGate({ children, onClose, what = 'apply' }: { chil
               <Icon size={28} />
             </span>
             <h2 className="mt-4 text-lg font-bold text-ink-900">
-              {waiting ? 'Your identity is being reviewed' : rejected ? 'Your identity was not approved' : 'Verify your identity first'}
+              {waiting ? 'Your identity is being reviewed' : suspended ? 'Your account is suspended' : revision ? 'Your verification needs a correction' : rejected ? 'Your identity was not approved' : 'Verify your identity first'}
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-ink-600">
               {waiting
                 ? `LYDO is checking your ID. You can ${what} as soon as it is approved. You can still browse everything, including the courses of the schools.`
-                : rejected
+                : suspended
+                  ? 'You cannot apply for anything right now. Please contact the LYDO office.'
+                  : revision
+                  ? `LYDO asked you to fix something in your documents. Correct it so that you can ${what}.`
+                  : rejected
                   ? `Please verify again with a clear photo of a valid ID so that you can ${what}.`
                   : `To make sure applications come from real people, you need to verify your identity before you ${what}. It only takes a few minutes. Until then you can still browse everything, including the courses of the schools.`}
             </p>
             <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
-              {!waiting && <Link to="/verify-identity" onClick={onClose} className="btn-primary">{rejected ? 'Verify again' : 'Verify my identity'}</Link>}
+              {!waiting && !suspended && <Link to="/verify-identity" onClick={onClose} className="btn-primary">{revision ? 'See what to fix' : rejected ? 'Verify again' : 'Verify my identity'}</Link>}
               {waiting && <Link to="/verify-identity" onClick={onClose} className="btn-primary">See my verification</Link>}
               <button onClick={onClose} className="btn-secondary">Not now</button>
             </div>

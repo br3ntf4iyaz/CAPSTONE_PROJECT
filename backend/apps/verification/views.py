@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminRole
 from .decision import clean_client_checks, clean_ocr, evaluate
+from . import flow
 from .models import IDTypeSetting, IDVerification
 from .serializers import IDVerificationSerializer, IDVerificationSubmitSerializer
 from .throttles import VerificationSubmitThrottle
@@ -32,7 +33,7 @@ def _record_client_face_check(v, data):
     return distance
 
 
-FILE_FIELDS = ("id_image", "id_back_image", "selfie_image")
+FILE_FIELDS = ("id_image", "id_back_image", "selfie_image", "residency_doc")
 
 
 def _check_details(v):
@@ -175,6 +176,12 @@ class VerificationSubmitView(APIView):
                     {"detail": "Your identity is already verified."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
+            if existing and existing.status == IDVerification.Status.SUSPENDED:
+                return Response(
+                    {"detail": "Your verified status is suspended. Please contact LYDO.", "code": "suspended"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            was = existing.status if existing else ""
             if existing:
                 serializer = IDVerificationSubmitSerializer(existing, data=request.data, partial=False)
             else:
@@ -187,7 +194,7 @@ class VerificationSubmitView(APIView):
             except (TypeError, ValueError):
                 checks, ocr = {}, {}
 
-            replaced = [f.name for f in (existing.id_image, existing.id_back_image, existing.selfie_image) if f] if existing else []
+            replaced = [f.name for f in (existing.id_image, existing.id_back_image, existing.selfie_image, existing.residency_doc) if f] if existing else []
             v = serializer.save(
                 user=request.user,
                 status=IDVerification.Status.REVIEWING,
@@ -206,7 +213,8 @@ class VerificationSubmitView(APIView):
 
             _apply_decision(v, request.data)
             v.save()
-            kept = {v.id_image.name, v.id_back_image.name, v.selfie_image.name}
+            kept = {v.id_image.name, v.id_back_image.name, v.selfie_image.name, v.residency_doc.name if v.residency_doc else ""}
+            flow.record(v, "resubmitted" if was in ("revision", "rejected") else "submitted", request.user, was)
             for old_name in replaced:
                 if old_name not in kept:
                     v.id_image.storage.delete(old_name)  # do not keep replaced ID photos
@@ -221,7 +229,10 @@ def _notify_and_audit(request, v):
         from apps.accounts.views import get_client_ip
         from apps.notifications.models import Notification
 
-        if v.auto_approved:
+        if v.events.filter(action="resubmitted").exists() and not v.auto_approved:
+            flow.notify(v, "resubmitted")
+            flow.notify_admins_resubmitted(v)
+        elif v.auto_approved:
             AuditLog.objects.create(
                 user=request.user, action="verification_auto_approved", model_name="IDVerification", object_id=v.pk,
                 ip_address=get_client_ip(request),
@@ -261,6 +272,7 @@ class AdminVerificationListView(APIView):
             row["user_email"] = v.user.email
             row.update(_file_urls(request, v))
             row.update(_check_details(v))
+            row["applicant"] = flow.applicant_info(v.user)
             data.append(row)
         return Response(data)
 
@@ -275,30 +287,44 @@ class AdminVerificationDetailView(APIView):
         except IDVerification.DoesNotExist:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
+        S = IDVerification.Status
         new_status = request.data.get("status")
-        if new_status not in (IDVerification.Status.APPROVED, IDVerification.Status.REJECTED):
+        if new_status not in (S.APPROVED, S.REJECTED, S.REVISION, S.SUSPENDED):
             return Response(
-                {"detail": "status must be 'approved' or 'rejected'."},
+                {"detail": "status must be 'approved', 'rejected', 'revision' or 'suspended'."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        revoking = False
-        if v.status == IDVerification.Status.APPROVED:
+        note = str(request.data.get("admin_notes", "")).strip()
+        old = v.status
+        revoking = restoring = False
+        if old == S.APPROVED:
             # A verified result can only be taken back on purpose, with a written reason (and it is logged).
-            note = str(request.data.get("admin_notes", "")).strip()
-            if new_status != IDVerification.Status.REJECTED:
+            if new_status not in (S.REJECTED, S.SUSPENDED):
                 return Response({"detail": "This identity is already verified."}, status=status.HTTP_400_BAD_REQUEST)
             if len(note) < 5:
-                return Response({"detail": "Write the reason for revoking this verification."}, status=status.HTTP_400_BAD_REQUEST)
-            revoking = True
+                return Response({"detail": "Write the reason, so the person knows why."}, status=status.HTTP_400_BAD_REQUEST)
+            revoking = new_status == S.REJECTED
+        elif old == S.SUSPENDED:
+            if new_status == S.APPROVED:
+                restoring = True
+            elif new_status == S.REJECTED and len(note) >= 5:
+                pass
+            else:
+                return Response({"detail": "A suspended account can be restored, or rejected with a reason."}, status=status.HTTP_400_BAD_REQUEST)
+        elif new_status in (S.REVISION, S.SUSPENDED, S.REJECTED) and len(note) < 5:
+            return Response({"detail": "Write what the person must fix or why, so they can read it."}, status=status.HTTP_400_BAD_REQUEST)
+        if new_status == S.SUSPENDED and old != S.APPROVED:
+            return Response({"detail": "Only a verified account can be suspended."}, status=status.HTTP_400_BAD_REQUEST)
 
         v.status      = new_status
-        v.admin_notes = request.data.get("admin_notes", v.admin_notes)
+        v.admin_notes = note if note else ("" if (restoring or new_status == S.APPROVED) else v.admin_notes)
         v.reviewed_by = request.user
         v.reviewed_at = timezone.now()
         v.save(update_fields=["status", "admin_notes", "reviewed_by", "reviewed_at"])
-        if new_status in (IDVerification.Status.APPROVED, IDVerification.Status.REJECTED):
-            notify_decision(v, new_status == IDVerification.Status.APPROVED, v.admin_notes)
+        event = "restored" if restoring else ("revoked" if revoking else new_status)
+        flow.record(v, event, request.user, old, note)
+        flow.notify(v, event, note)
 
         # Audit trail
         try:
@@ -306,14 +332,17 @@ class AdminVerificationDetailView(APIView):
             def _get_ip(req):
                 x_fwd = req.META.get("HTTP_X_FORWARDED_FOR")
                 return x_fwd.split(",")[0].strip() if x_fwd else req.META.get("REMOTE_ADDR")
-            action_key = "verification_approved" if new_status == IDVerification.Status.APPROVED else "verification_rejected"
+            action_key = {"approved": "verification_approved", "rejected": "verification_rejected",
+                          "revision": "verification_revision_requested", "suspended": "verification_suspended"}[new_status]
             if revoking:
                 action_key = "verification_revoked"
+            if restoring:
+                action_key = "verification_restored"
             AuditLog.objects.create(
                 user=request.user,
                 action=action_key,
                 ip_address=_get_ip(request),
-                details={"target_user": v.user.email, "verification_id": v.pk, "was_auto": v.auto_approved},
+                details={"target_user": v.user.email, "verification_id": v.pk, "was_auto": v.auto_approved, "from": old, "note": note},
             )
         except Exception:
             pass
@@ -321,6 +350,7 @@ class AdminVerificationDetailView(APIView):
         row = IDVerificationSerializer(v).data
         row.update(_file_urls(request, v))
         row.update(_check_details(v))
+        row["applicant"] = flow.applicant_info(v.user)
         return Response(row)
 
 
@@ -364,9 +394,11 @@ class AdminVerificationBulkView(APIView):
                 IDVerification.Status.PENDING,
                 IDVerification.Status.REVIEWING,
                 IDVerification.Status.REJECTED,
+                IDVerification.Status.REVISION,
             ],
         )
         to_notify = list(targets.select_related("user"))
+        previous = {r.pk: r.status for r in to_notify}
         updated = targets.update(
             status=new_status,
             admin_notes=admin_notes,
@@ -375,6 +407,8 @@ class AdminVerificationBulkView(APIView):
         )
 
         for row in to_notify:
+            row.refresh_from_db()
+            flow.record(row, "approved" if new_status == IDVerification.Status.APPROVED else "rejected", request.user, previous.get(row.pk, ""), admin_notes)
             notify_decision(row, new_status == IDVerification.Status.APPROVED, admin_notes)
 
         try:

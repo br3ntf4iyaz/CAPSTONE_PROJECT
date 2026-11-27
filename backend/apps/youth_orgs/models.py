@@ -134,7 +134,10 @@ def ensure_default_requirements(org):
 
 class OrgMembershipApplication(models.Model):
     """A signed-in young person asking to join a PUBLIC organization. The organization's submitter or LYDO decides."""
-    STATUS_CHOICES = [('pending', 'Pending'), ('accepted', 'Accepted'), ('declined', 'Not accepted')]
+    STATUS_CHOICES = [
+        ('pending', 'Pending verification'), ('reviewing', 'Under review'), ('revision', 'Revision required'),
+        ('accepted', 'Approved'), ('declined', 'Rejected'), ('revoked', 'Revoked'),
+    ]
 
     organization = models.ForeignKey(YouthOrganization, on_delete=models.CASCADE, related_name='membership_applications')
     applicant = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='org_applications')
@@ -143,7 +146,11 @@ class OrgMembershipApplication(models.Model):
     decision_note = models.TextField(blank=True)  # the applicant reads this
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     decided_at = models.DateTimeField(null=True, blank=True)
+    privacy_consent_at = models.DateTimeField(null=True, blank=True)
+    # the applicant's details as they were when the application was sent (never documents or ID photos)
+    snapshot = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -151,3 +158,21 @@ class OrgMembershipApplication(models.Model):
 
     def __str__(self):
         return f'{self.applicant} -> {self.organization.name} ({self.status})'
+
+    @property
+    def reference_number(self):
+        return f'LYD-M-{self.pk:06d}'
+
+
+class OrgMembershipEvent(models.Model):
+    """Every step of a membership application, kept for good (applied, revision asked, resubmitted, approved, revoked ...)."""
+    application = models.ForeignKey(OrgMembershipApplication, on_delete=models.CASCADE, related_name='events')
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    action = models.CharField(max_length=20)
+    from_status = models.CharField(max_length=10, blank=True)
+    to_status = models.CharField(max_length=10, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']

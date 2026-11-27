@@ -31,6 +31,9 @@ class PublicOrganizationTests(TestCase):
         OrgAccomplishment.objects.create(organization=self.public, title='Won a prize')
         OrgAccomplishment.objects.create(organization=self.pending, title='Hidden prize')
         OrgRequirement.objects.create(organization=self.public, name='Charter', is_submitted=True)
+        from apps.verification.models import IDVerification
+        for u in (self.youth, self.sk):  # applying needs a verified account
+            IDVerification.objects.create(user=u, id_type='umid', status='approved')
         self.anon, self.yc, self.lc, self.skc, self.sc, self.ac = (APIClient() for _ in range(6))
         self.yc.force_authenticate(self.youth)
         self.lc.force_authenticate(self.leader)
@@ -82,10 +85,10 @@ class PublicOrganizationTests(TestCase):
     # TEST 5, 6, 7
     def test_signed_in_users_apply_once_and_the_leader_is_told(self):
         url = f'/api/youth-orgs/{self.public.pk}/apply/'
-        r = self.yc.post(url, {'message': 'I love volunteering'}, format='json')
+        r = self.yc.post(url, {'message': 'I love volunteering', 'consent': 'true'}, format='json')
         self.assertEqual(r.status_code, 201, r.data)
         self.assertEqual(self.yc.post(url, {}, format='json').status_code, 400)  # only once
-        self.assertEqual(self.skc.post(url, {}, format='json').status_code, 201)  # an SK official may apply too
+        self.assertEqual(self.skc.post(url, {'consent': 'true'}, format='json').status_code, 201)  # an SK official may apply too
         self.assertTrue(Notification.objects.filter(user=self.leader, title='New membership application').exists())
         self.assertTrue(Notification.objects.filter(user=self.youth, title='Membership application sent').exists())
         self.assertTrue(Notification.objects.filter(user=self.admin, title='New membership application').exists())  # LYDO is told too
@@ -97,7 +100,7 @@ class PublicOrganizationTests(TestCase):
         self.assertEqual(self.yc.post(f'/api/youth-orgs/{self.closed.pk}/apply/', {}, format='json').status_code, 400)
 
     def test_only_the_leader_and_admin_see_and_decide_applications(self):
-        self.yc.post(f'/api/youth-orgs/{self.public.pk}/apply/', {'message': 'hi'}, format='json')
+        self.yc.post(f'/api/youth-orgs/{self.public.pk}/apply/', {'message': 'hi', 'consent': 'true'}, format='json')
         app = OrgMembershipApplication.objects.get()
         list_url = f'/api/youth-orgs/{self.public.pk}/applications/'
         self.assertEqual(self.yc.get(list_url).status_code, 403)
@@ -108,7 +111,7 @@ class PublicOrganizationTests(TestCase):
         self.assertEqual(self.yc.post(decide, {'application': app.pk, 'status': 'accepted'}, format='json').status_code, 403)
         self.assertEqual(self.lc.post(decide, {'application': app.pk, 'status': 'declined'}, format='json').status_code, 400)  # needs a reason
         self.assertEqual(self.lc.post(decide, {'application': app.pk, 'status': 'accepted'}, format='json').status_code, 200)
-        self.assertTrue(Notification.objects.filter(user=self.youth, title='Membership accepted').exists())
+        self.assertTrue(Notification.objects.filter(user=self.youth, title='Membership approved').exists())
 
     def test_the_public_profile_tells_the_leader_they_can_manage(self):
         self.assertTrue(self.lc.get(f'/api/youth-orgs/{self.public.pk}/').data['can_manage'])

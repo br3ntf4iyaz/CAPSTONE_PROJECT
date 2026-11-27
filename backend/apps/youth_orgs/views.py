@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import filters, status, viewsets
 from rest_framework.decorators import action
@@ -12,6 +13,7 @@ from rest_framework.response import Response
 from apps.accounts.permissions import IsAdminRole
 from apps.notifications.views import create_notification
 
+from . import membership
 from .models import OrgAccomplishment, OrgMembershipApplication, OrgRequirement, YouthOrganization, ensure_default_requirements
 from .serializers import (
     OrgAccomplishmentSerializer,
@@ -226,14 +228,34 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'You already manage this organization.'}, status=status.HTTP_400_BAD_REQUEST)
         if not org.accepting_members:
             return Response({'detail': 'This organization is not accepting new members right now.'}, status=status.HTTP_400_BAD_REQUEST)
-        if OrgMembershipApplication.objects.filter(organization=org, applicant=user).exists():
+        existing = OrgMembershipApplication.objects.filter(organization=org, applicant=user).first()
+        if existing is not None and existing.status not in ('revision', 'declined'):
             return Response({'detail': 'You already applied to this organization.'}, status=status.HTTP_400_BAD_REQUEST)
+        # only a verified account may apply (the 403 carries code verify_first and the person's status, so the app can guide them)
+        from apps.accounts.verification import IsIDVerified
+        IsIDVerified().has_permission(request, self)
+        if str(request.data.get('consent', '')).lower() not in ('true', '1'):
+            return Response({'detail': 'Please agree to the privacy notice before you send the application.', 'code': 'consent_required'}, status=status.HTTP_400_BAD_REQUEST)
         message = sanitize(str(request.data.get('message', '')).strip())[:500]
-        app = OrgMembershipApplication.objects.create(organization=org, applicant=user, message=message)
-        self._audit(request, 'org_membership_applied', org, application=app.pk)
+        with transaction.atomic():
+            if existing is not None:
+                from_status = existing.status
+                existing.message, existing.privacy_consent_at = message, timezone.now()
+                existing.snapshot = membership.applicant_snapshot(user)
+                existing.status, existing.decision_note = 'pending', ''
+                existing.save()
+                membership.record(existing, 'resubmitted', user, from_status)
+                app = existing
+            else:
+                app = OrgMembershipApplication.objects.create(
+                    organization=org, applicant=user, message=message,
+                    privacy_consent_at=timezone.now(), snapshot=membership.applicant_snapshot(user),
+                )
+                membership.record(app, 'submitted', user)
+        self._audit(request, 'org_membership_applied', org, application=app.pk, reference=app.reference_number)
         try:  # the applicant is told it was received; the decision follows in another notification
             create_notification(user, 'Membership application sent',
-                                f'Your application to join "{org.name}" was sent. You will be notified when the organization decides.', 'system', link='/organizations')
+                                f'Your application to join "{org.name}" ({app.reference_number}) was sent. You will be notified when it is reviewed.', 'system', link='/organizations')
         except Exception:
             pass
         text = f'{user.full_name or user.email} applied to join "{org.name}".'
@@ -243,7 +265,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             # LYDO is told too: an organization entered by LYDO has no leader, and LYDO keeps oversight of all of them
             from django.contrib.auth import get_user_model
             for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
-                create_notification(admin, 'New membership application', text, 'system', link='/admin/yorp')
+                create_notification(admin, 'New membership application', text, 'system', link='/admin/membership')
         except Exception:
             pass
         return Response(OrgMembershipApplicationSerializer(app).data, status=status.HTTP_201_CREATED)
@@ -251,7 +273,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], url_path='my-applications', permission_classes=[IsAuthenticated])
     def my_applications(self, request):
         qs = OrgMembershipApplication.objects.filter(applicant=request.user).select_related('organization')
-        return Response(OrgMembershipApplicationSerializer(qs, many=True).data)
+        return Response(OrgMembershipApplicationSerializer(qs, many=True, context={'is_admin': True}).data)
 
     @action(detail=True, methods=['get'], url_path='applications', permission_classes=[IsAuthenticated])
     def applications(self, request, pk=None):
@@ -259,8 +281,8 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
         org = get_object_or_404(YouthOrganization, pk=pk)
         if not self._manages(request.user, org):
             return Response({'detail': 'Only the organization leader or LYDO can see the applications.'}, status=status.HTTP_403_FORBIDDEN)
-        qs = org.membership_applications.select_related('applicant', 'organization')
-        return Response(OrgMembershipApplicationSerializer(qs, many=True).data)
+        qs = org.membership_applications.select_related('applicant', 'organization').prefetch_related('events')
+        return Response(OrgMembershipApplicationSerializer(qs, many=True, context={'is_admin': IsAdminRole().has_permission(request, self)}).data)
 
     @action(detail=True, methods=['post'], url_path='decide-application', permission_classes=[IsAuthenticated])
     def decide_application(self, request, pk=None):
@@ -269,21 +291,34 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             return Response({'detail': 'Only the organization leader or LYDO can decide.'}, status=status.HTTP_403_FORBIDDEN)
         app = get_object_or_404(OrgMembershipApplication, pk=request.data.get('application') or 0, organization=org)
         new = request.data.get('status')
-        if new not in ('accepted', 'declined'):
-            return Response({'detail': 'Choose accepted or declined.'}, status=status.HTTP_400_BAD_REQUEST)
+        if new not in membership.ALLOWED_FROM:
+            return Response({'detail': 'Choose a valid decision.'}, status=status.HTTP_400_BAD_REQUEST)
+        is_lydo = IsAdminRole().has_permission(request, self)
+        if new == 'revoked' and not is_lydo:
+            return Response({'detail': 'Only LYDO can revoke a membership.'}, status=status.HTTP_403_FORBIDDEN)
+        ok, problem = membership.can_decide(app, new)
+        if not ok:
+            return Response({'detail': problem}, status=status.HTTP_400_BAD_REQUEST)
         note = sanitize(str(request.data.get('note', '')).strip())[:500]
-        if new == 'declined' and len(note) < 5:
+        if new in membership.NEEDS_NOTE and len(note) < 5:
             return Response({'detail': 'Write a short reason, so the applicant knows why.'}, status=status.HTTP_400_BAD_REQUEST)
-        app.status, app.decision_note, app.decided_by, app.decided_at = new, note, request.user, timezone.now()
-        app.save()
-        self._audit(request, 'org_membership_decided', org, application=app.pk, decision=new)
-        label = 'accepted' if new == 'accepted' else 'not accepted'
-        try:
-            create_notification(app.applicant, f'Membership {label}',
-                                f'Your application to join "{org.name}" was {label}.' + (f' {note}' if note else ''), 'system', link='/organizations')
-        except Exception:
-            pass
-        return Response(OrgMembershipApplicationSerializer(app).data)
+        if new in ('accepted',):
+            from apps.accounts.verification import is_id_verified
+            if not is_id_verified(app.applicant):  # the person was suspended or lost the badge while waiting
+                return Response({'detail': 'This person is no longer verified, so the application cannot be approved.'}, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            membership.decide(app, new, request.user, note)
+        self._audit(request, 'org_membership_decided', org, application=app.pk, decision=new, reference=app.reference_number)
+        return Response(OrgMembershipApplicationSerializer(app, context={'is_admin': is_lydo}).data)
+
+    @action(detail=False, methods=['get'], url_path='membership-applications', permission_classes=[IsAuthenticated, IsAdminRole])
+    def all_membership_applications(self, request):
+        """LYDO's Organization Membership Verification list: every application, newest first."""
+        qs = OrgMembershipApplication.objects.select_related('organization', 'applicant').prefetch_related('events')
+        wanted = request.query_params.get('status')
+        if wanted:
+            qs = qs.filter(status=wanted)
+        return Response(OrgMembershipApplicationSerializer(qs, many=True, context={'is_admin': True}).data)
 
     # ------------------------------------------------------------------
     # Custom actions

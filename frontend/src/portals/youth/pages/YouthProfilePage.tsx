@@ -14,6 +14,7 @@ import { communityApi, type CommunityPost } from '@/api/community'
 import { PageSpinner } from '@/components/ui/Spinner'
 import { QueryError } from '@/components/ui/QueryError'
 import { cn, formatDate } from '@/utils'
+import { MyApplicationsCard } from '../components/MyApplicationsCard'
 
 interface Profile {
   id: number
@@ -54,7 +55,8 @@ interface Me {
 }
 
 interface Verification {
-  status: 'none' | 'pending' | 'reviewing' | 'approved' | 'rejected'
+  status: 'none' | 'pending' | 'reviewing' | 'approved' | 'rejected' | 'revision' | 'suspended'
+  reference_number?: string
   is_verified: boolean
   id_type_display?: string
   ai_notes?: string
@@ -327,6 +329,8 @@ export default function YouthProfilePage() {
         <h1 className="page-title">My Profile</h1>
         <p className="page-subtitle">Manage your personal information and preferences.</p>
       </div>
+
+      <MyApplicationsCard verification={verification} />
 
       {/* Hero card */}
       <div className="card p-5">

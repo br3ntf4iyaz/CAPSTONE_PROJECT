@@ -19,8 +19,12 @@ import type { CaptureMeta } from '../components/CameraCapture'
 
 interface Verification {
   id?: number
-  status: 'none' | 'pending' | 'reviewing' | 'approved' | 'rejected'
+  status: 'none' | 'pending' | 'reviewing' | 'approved' | 'rejected' | 'revision' | 'suspended'
   status_display?: string
+  reference_number?: string
+  address?: string
+  has_residency_doc?: boolean
+  history?: { id: number; action: string; note: string; created_at: string }[]
   is_verified: boolean
   id_type?: string
   id_type_display?: string
@@ -32,6 +36,33 @@ interface Verification {
   auto_approved?: boolean
   admin_notes?: string
   submitted_at?: string
+}
+
+const HISTORY_LABEL: Record<string, string> = {
+  submitted: 'Submitted', resubmitted: 'Corrected and resubmitted', approved: 'Verified', rejected: 'Rejected',
+  revision: 'Revision requested', suspended: 'Suspended', restored: 'Restored', revoked: 'Verification taken back',
+}
+
+/** Every step of this verification, newest last. Nothing is ever erased. */
+function VerificationHistory({ v }: { v?: Verification }) {
+  const rows = v?.history ?? []
+  if (!v?.reference_number && rows.length === 0) return null
+  return (
+    <div className="mx-auto max-w-sm rounded-xl border border-ink-100 bg-white p-3 text-left text-sm">
+      {v?.reference_number && <p className="text-xs text-ink-500">Reference number: <strong className="font-mono text-ink-800">{v.reference_number}</strong></p>}
+      {rows.length > 0 && (
+        <ol className="mt-2 space-y-1.5">
+          {rows.map(e => (
+            <li key={e.id} className="text-xs text-ink-700">
+              <span className="font-semibold">{HISTORY_LABEL[e.action] ?? e.action}</span>
+              <span className="text-ink-400"> · {new Date(e.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              {e.note && <span className="block text-ink-500">{e.note}</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
 }
 
 /** Plain-language reasons shown to the user when a submission needs a human check. */
@@ -94,6 +125,8 @@ export default function VerifyIdentityPage() {
   const [checking, setChecking] = useState(false)
   const [engine, setEngine] = useState<'loading' | 'ready' | 'unavailable'>('loading')
   const [consent, setConsent] = useState(false)
+  const [address, setAddress] = useState('')
+  const [residency, setResidency] = useState<File | null>(null)
   const [retake, setRetake] = useState(false)       // only the selfie is being redone
   const [restart, setRestart] = useState(false)      // start over with new ID photos
   const [retakeBusy, setRetakeBusy] = useState(false)
@@ -244,6 +277,22 @@ export default function VerifyIdentityPage() {
     )
   }
 
+  // ── Suspended: cannot resubmit, must contact LYDO ───────────────────────────
+  if (verification?.status === 'suspended') {
+    return (
+      <div className="max-w-lg mx-auto px-4 py-16 text-center space-y-4">
+        <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-alert-100">
+          <ShieldX size={40} className="text-alert-600" />
+        </div>
+        <h1 className="font-display font-extrabold text-3xl text-ink-900">Account suspended</h1>
+        <p className="text-ink-600 leading-relaxed">Your verified status is suspended, so you cannot apply for programs, jobs, scholarships or youth organizations for now.</p>
+        {verification.admin_notes && <p className="mx-auto max-w-sm rounded-xl border border-alert-200 bg-alert-50 p-3 text-sm text-alert-800">{verification.admin_notes}</p>}
+        <p className="text-sm text-ink-500">Please contact the LYDO office to ask about restoring it.</p>
+        <VerificationHistory v={verification} />
+      </div>
+    )
+  }
+
   // ── Reviewing / pending ─────────────────────────────────────────────────────
   if ((verification?.status === 'reviewing' || verification?.status === 'pending') && !retake && !restart) {
     return (
@@ -267,6 +316,7 @@ export default function VerifyIdentityPage() {
             Face check: {verification.ai_face_match ? 'matches the ID photo' : 'no clear match, an admin will review it manually'}
           </p>
         )}
+        <VerificationHistory v={verification} />
         <RetakeButtons flags={verification?.decision_flags} />
         <button
           type="button"
@@ -347,11 +397,22 @@ export default function VerifyIdentityPage() {
           <div>
             <p className="text-sm font-bold text-alert-800 mb-0.5">Previous submission rejected</p>
             <p className="text-sm text-alert-700">
-              {verification?.ai_notes || verification?.admin_notes || 'Please try again with a clearer photo.'}
+              {verification?.admin_notes || verification?.ai_notes || 'Please try again with a clearer photo.'}
             </p>
           </div>
         </div>
       )}
+      {verification?.status === 'revision' && (
+        <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+          <Clock size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-bold text-amber-900 mb-0.5">Revision required</p>
+            <p className="text-sm text-amber-800">{verification.admin_notes || 'Please correct your documents and send them again.'}</p>
+            <p className="mt-1 text-xs text-amber-700">Your earlier submission and this message are kept in your history. Send the corrected documents below.</p>
+          </div>
+        </div>
+      )}
+      {verification?.reference_number && (wasRejected || verification.status === 'revision') && <VerificationHistory v={verification} />}
 
       {/* ── Step indicators ─────────────────────────────────────────── */}
       {retake && (
@@ -401,6 +462,21 @@ export default function VerifyIdentityPage() {
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+          </div>
+          <div className="rounded-xl border border-ink-100 p-3 space-y-3">
+            <p className="text-sm font-semibold text-ink-800">Proof of residency <span className="font-normal text-ink-500">(optional, but helps LYDO confirm that you live in Lucena)</span></p>
+            <div>
+              <label className="block text-xs font-medium text-ink-600 mb-1">Home address</label>
+              <input type="text" value={address} onChange={e => setAddress(e.target.value)} maxLength={255} placeholder="House no., street, barangay, Lucena City" className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500" />
+              <p className="mt-1 text-[11px] text-ink-500">Only LYDO staff can see this. It is never shown to the public or to organization leaders.</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-ink-600 mb-1">Barangay certificate or other proof of residency (PDF, JPG or PNG, up to 10 MB)</label>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                onChange={e => { const f = e.target.files?.[0] ?? null; if (f && f.size > 10 * 1024 * 1024) { toast.error('The file must be under 10 MB.'); e.target.value = ''; setResidency(null) } else setResidency(f) }}
+                className="block w-full text-sm text-ink-700 file:mr-3 file:rounded-lg file:border-0 file:bg-primary-50 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-700" />
+              {residency && <p className="mt-1 text-xs text-ink-500">{residency.name}</p>}
+            </div>
           </div>
           <label className="flex items-start gap-3 rounded-xl border border-ink-100 bg-ink-50 p-3 text-sm text-ink-700 cursor-pointer">
             <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1 h-4 w-4 shrink-0" />
@@ -560,6 +636,8 @@ export default function VerifyIdentityPage() {
                         fd.append('id_image', front)
                         fd.append('id_back_image', back)
                         fd.append('consent', 'true')
+                        if (address.trim()) fd.append('address', address.trim())
+                        if (residency) fd.append('residency_doc', residency)
                         fd.append('ocr_result', JSON.stringify(ocr.result ?? { ran: false }))
                       }
                       submitMutation.mutate({ fd, onlySelfie: retake })

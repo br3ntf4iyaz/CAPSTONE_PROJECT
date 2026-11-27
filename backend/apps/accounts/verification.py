@@ -27,6 +27,8 @@ _MESSAGES = {
     'pending': 'Your identity verification is still waiting for review. You can apply as soon as it is approved.',
     'reviewing': 'Your identity verification is being reviewed. You can apply as soon as it is approved.',
     'rejected': 'Your identity verification was not approved. Please verify again to be able to apply.',
+    'revision': 'Your verification needs a correction before you can apply. Open Verify Identity to see what to fix.',
+    'suspended': 'Your verified status is suspended, so you cannot apply right now. Please contact LYDO.',
 }
 
 

@@ -19,8 +19,14 @@ interface VerificationRecord {
   id: number
   id_type: string
   id_type_display: string
-  status: 'pending' | 'reviewing' | 'approved' | 'rejected'
+  status: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'revision' | 'suspended'
   status_display: string
+  reference_number?: string
+  address?: string
+  has_residency_doc?: boolean
+  residency_doc_url?: string | null
+  history?: { id: number; action: string; note: string; created_at: string }[]
+  applicant?: { name: string; email: string; birthdate: string | null; age: number | null; sex: string; phone: string; barangay: string; municipality: string; province: string; is_minor: boolean }
   is_verified: boolean
   ai_verdict: string
   ai_confidence: number | null
@@ -53,6 +59,13 @@ const STATUS_COLORS: Record<string, string> = {
   reviewing: 'bg-blue-100 text-blue-700',
   approved:  'badge-green',
   rejected:  'badge-red',
+  revision:  'bg-amber-100 text-amber-800',
+  suspended: 'bg-ink-800 text-white',
+}
+
+type Decision = 'approved' | 'rejected' | 'revision' | 'suspended'
+const DECISION_DONE: Record<Decision, string> = {
+  approved: 'Account approved.', rejected: 'Verification rejected.', revision: 'Revision requested. The person was told what to fix.', suspended: 'Account suspended.',
 }
 
 const VERDICT_COLORS: Record<string, string> = {
@@ -70,16 +83,16 @@ function ReviewModal({ record, onClose, onAction }: {
   onAction: () => void
 }) {
   const [notes, setNotes] = useState(record.admin_notes ?? '')
-  const [pendingAction, setPendingAction] = useState<'approved' | 'rejected' | null>(null)
+  const [pendingAction, setPendingAction] = useState<Decision | null>(null)
 
   const mutation = useMutation({
-    mutationFn: (newStatus: 'approved' | 'rejected') =>
+    mutationFn: (newStatus: Decision) =>
       apiClient.patch(`/verification/admin/${record.id}/`, {
         status: newStatus,
         admin_notes: notes,
       }).then(r => r.data),
     onSuccess: (_, newStatus) => {
-      toast.success(newStatus === 'approved' ? 'Verification approved.' : 'Verification rejected.')
+      toast.success(record.status === 'suspended' && newStatus === 'approved' ? 'Account restored.' : DECISION_DONE[newStatus])
       onAction()
       onClose()
     },
@@ -88,11 +101,19 @@ function ReviewModal({ record, onClose, onAction }: {
     },
   })
 
-  const canAct = record.status === 'pending' || record.status === 'reviewing' || record.status === 'rejected'
+  const canAct = record.status === 'pending' || record.status === 'reviewing' || record.status === 'rejected' || record.status === 'revision'
+  const noteOk = notes.trim().length >= 5
+  const openResidency = async () => {
+    try {
+      const res = await apiClient.get(record.residency_doc_url as string, { responseType: 'blob' })
+      window.open(URL.createObjectURL(res.data as Blob), '_blank', 'noopener')
+    } catch { toast.error('Could not open the document.') }
+  }
   const [revoking, setRevoking] = useState(false)
+  const [suspending, setSuspending] = useState(false)
   const revoke = useMutation({
-    mutationFn: () => apiClient.patch(`/verification/admin/${record.id}/`, { status: 'rejected', admin_notes: notes }).then(r => r.data),
-    onSuccess: () => { toast.success('Verification revoked. The user can submit again.'); onAction(); onClose() },
+    mutationFn: () => apiClient.patch(`/verification/admin/${record.id}/`, { status: suspending ? 'suspended' : 'rejected', admin_notes: notes }).then(r => r.data),
+    onSuccess: () => { toast.success(suspending ? 'Account suspended. Nothing can be applied for until it is restored.' : 'Verification revoked. The user can submit again.'); onAction(); onClose() },
     onError: (err: any) => toast.error(err?.response?.data?.detail || 'Could not revoke'),
   })
   const ocr = record.ocr_result
@@ -115,6 +136,24 @@ function ReviewModal({ record, onClose, onAction }: {
             <X size={18} />
           </button>
         </div>
+
+        {/* Who this is, as the account says, to compare against the documents */}
+        {record.applicant && (
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-xl border border-ink-100 bg-ink-50/60 p-3 text-xs text-ink-700">
+            <p><span className="text-ink-500">Reference:</span> <strong className="font-mono">{record.reference_number}</strong></p>
+            <p><span className="text-ink-500">Age:</span> {record.applicant.age ?? 'not set'}{record.applicant.is_minor ? ' (minor: needs a guardian)' : ''}</p>
+            <p><span className="text-ink-500">Date of birth:</span> {record.applicant.birthdate ?? 'not set'}</p>
+            <p><span className="text-ink-500">Sex:</span> {record.applicant.sex || 'not set'}</p>
+            <p><span className="text-ink-500">Barangay:</span> {record.applicant.barangay || 'not set'}</p>
+            <p><span className="text-ink-500">Contact:</span> {record.applicant.phone || 'not set'}</p>
+            <p className="col-span-2"><span className="text-ink-500">Home address:</span> {record.address || 'not given'}</p>
+            <p className="col-span-2 flex items-center gap-2"><span className="text-ink-500">Proof of residency:</span>
+              {record.has_residency_doc && record.residency_doc_url
+                ? <button type="button" onClick={openResidency} className="font-semibold text-primary-700 underline">Open document</button>
+                : <span className="text-amber-700">Not submitted</span>}
+            </p>
+          </div>
+        )}
 
         {/* Status + ID type */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -255,21 +294,30 @@ function ReviewModal({ record, onClose, onAction }: {
           </div>
         )}
 
+        {(record.history?.length ?? 0) > 0 && (
+          <div className="rounded-xl border border-ink-100 p-3">
+            <p className="text-xs font-semibold text-ink-500 uppercase mb-1.5">History</p>
+            <ol className="space-y-1">
+              {record.history!.map(e => (
+                <li key={e.id} className="text-xs text-ink-700">
+                  <span className="font-semibold capitalize">{e.action}</span>
+                  <span className="text-ink-400"> · {new Date(e.created_at).toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                  {e.note && <span className="block text-ink-500">{e.note}</span>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
+
         {/* Action area */}
-        {canAct && (
+        {(canAct || record.status === 'suspended') && (
           <div>
-            <label className="label">
-              {pendingAction === 'rejected' ? 'Reason for rejection *' : 'Admin notes (optional)'}
-            </label>
+            <label className="label">{record.status === 'suspended' ? 'Note (required to reject; optional to restore)' : 'Message to the person (required to ask for a revision or to reject)'}</label>
             <textarea
               className="input min-h-[80px]"
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder={
-                pendingAction === 'rejected'
-                  ? 'Explain why this ID was rejected so the user can re-submit correctly…'
-                  : 'Any notes about this verification…'
-              }
+              placeholder="Say exactly what is wrong or what to fix, e.g. “The back of the ID is blurry. Please upload a clearer photo.”"
             />
           </div>
         )}
@@ -277,17 +325,22 @@ function ReviewModal({ record, onClose, onAction }: {
         {record.status === 'approved' && (
           <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 space-y-2">
             {!revoking ? (
-              <button onClick={() => setRevoking(true)} className="text-sm font-semibold text-red-700 inline-flex items-center gap-1.5">
-                <RotateCcw size={14} /> Revoke this verification…
-              </button>
+              <div className="flex flex-wrap gap-4">
+                <button onClick={() => setRevoking(true)} className="text-sm font-semibold text-red-700 inline-flex items-center gap-1.5">
+                  <RotateCcw size={14} /> Revoke this verification…
+                </button>
+                <button onClick={() => { setRevoking(true); setSuspending(true) }} className="text-sm font-semibold text-ink-800 inline-flex items-center gap-1.5">
+                  <XCircle size={14} /> Suspend this account…
+                </button>
+              </div>
             ) : (
               <>
-                <label className="label">Reason for revoking (required, saved in the audit log)</label>
-                <textarea className="input min-h-[70px]" value={notes} onChange={e => setNotes(e.target.value)} placeholder="Why is this verification being taken back?" />
+                <label className="label">{suspending ? 'Reason for suspending (required, the person reads it and it is saved in the audit log)' : 'Reason for revoking (required, saved in the audit log)'}</label>
+                <textarea className="input min-h-[70px]" value={notes} onChange={e => setNotes(e.target.value)} placeholder={suspending ? 'Why is this account being suspended?' : 'Why is this verification being taken back?'} />
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setRevoking(false)} className="btn-secondary btn-sm">Cancel</button>
+                  <button onClick={() => { setRevoking(false); setSuspending(false) }} className="btn-secondary btn-sm">Cancel</button>
                   <button onClick={() => revoke.mutate()} disabled={revoke.isPending || notes.trim().length < 5} className="btn-sm bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">
-                    {revoke.isPending ? 'Revoking…' : 'Revoke verification'}
+                    {revoke.isPending ? 'Saving…' : suspending ? 'Suspend account' : 'Revoke verification'}
                   </button>
                 </div>
               </>
@@ -297,12 +350,33 @@ function ReviewModal({ record, onClose, onAction }: {
 
         <div className="flex flex-wrap gap-2 justify-end pt-1">
           <button onClick={onClose} className="btn-secondary btn-sm">Close</button>
+          {record.status === 'suspended' && (
+            <>
+              <button onClick={() => { setPendingAction('rejected'); mutation.mutate('rejected') }} disabled={mutation.isPending || !noteOk}
+                className="btn-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 flex items-center gap-1">
+                <XCircle size={13} /> Reject
+              </button>
+              <button onClick={() => { setPendingAction('approved'); mutation.mutate('approved') }} disabled={mutation.isPending} className="btn-primary btn-sm flex items-center gap-1">
+                <CheckCircle2 size={13} /> {mutation.isPending ? 'Restoring…' : 'Restore account'}
+              </button>
+            </>
+          )}
           {canAct && (
             <>
               <button
+                onClick={() => { setPendingAction('revision'); mutation.mutate('revision') }}
+                disabled={mutation.isPending || !noteOk}
+                title={noteOk ? '' : 'Write what the person must fix first'}
+                className="btn-sm bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 disabled:opacity-50 flex items-center gap-1"
+              >
+                <RotateCcw size={13} />
+                {mutation.isPending && pendingAction === 'revision' ? 'Sending…' : 'Request revision'}
+              </button>
+              <button
                 onClick={() => { setPendingAction('rejected'); mutation.mutate('rejected') }}
-                disabled={mutation.isPending}
-                className="btn-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 flex items-center gap-1"
+                disabled={mutation.isPending || !noteOk}
+                title={noteOk ? '' : 'Write the reason first'}
+                className="btn-sm bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-50 flex items-center gap-1"
               >
                 <XCircle size={13} />
                 {mutation.isPending && pendingAction === 'rejected' ? 'Rejecting…' : 'Reject'}
@@ -365,7 +439,7 @@ function AcceptedIdTypes() {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-type TabKey = 'all' | 'pending' | 'reviewing' | 'spot' | 'approved' | 'rejected'
+type TabKey = 'all' | 'pending' | 'reviewing' | 'revision' | 'spot' | 'approved' | 'rejected' | 'suspended'
 
 /** Approved automatically, but with small doubts an admin may want to look at (and can revoke). */
 const isSpotCheck = (r: VerificationRecord) => r.status === 'approved' && !!r.auto_approved && (r.decision_flags?.length ?? 0) > 0
@@ -376,7 +450,9 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'reviewing', label: 'Under review' },
   { key: 'spot',      label: 'Spot check' },
   { key: 'approved',  label: 'Verified' },
+  { key: 'revision',  label: 'Revision required' },
   { key: 'rejected',  label: 'Rejected' },
+  { key: 'suspended', label: 'Suspended' },
 ]
 
 export default function AdminVerificationPage() {
@@ -415,6 +491,7 @@ export default function AdminVerificationPage() {
   const tabBadge: Partial<Record<TabKey, number>> = {
     pending:   pendingCount,
     reviewing: reviewingCount,
+    revision:  allRecords.filter(r => r.status === 'revision').length,
     spot:      allRecords.filter(isSpotCheck).length,
   }
 
@@ -443,7 +520,7 @@ export default function AdminVerificationPage() {
   // ── Select helpers ─────────────────────────────────────────────────────────
 
   const actionableRecords = records.filter(r =>
-    r.status === 'pending' || r.status === 'reviewing' || r.status === 'rejected'
+    r.status === 'pending' || r.status === 'reviewing' || r.status === 'rejected' || r.status === 'revision'
   )
   const allActionableSelected =
     actionableRecords.length > 0 && actionableRecords.every(r => selectedIds.has(r.id))
@@ -624,7 +701,7 @@ export default function AdminVerificationPage() {
             </thead>
             <tbody>
               {records.map(rec => {
-                const isActionable = rec.status === 'pending' || rec.status === 'reviewing' || rec.status === 'rejected'
+                const isActionable = rec.status === 'pending' || rec.status === 'reviewing' || rec.status === 'rejected' || rec.status === 'revision'
                 return (
                   <tr key={rec.id} className={selectedIds.has(rec.id) ? 'bg-primary-50/50' : undefined}>
                     <td>

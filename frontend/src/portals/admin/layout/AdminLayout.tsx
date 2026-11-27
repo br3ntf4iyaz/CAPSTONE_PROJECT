@@ -171,7 +171,8 @@ const NAV_ITEMS = [
   { label: 'Library',          icon: Library,         to: '/admin/library' },
   { label: 'Jobs, Scholarships & Schools', icon: Briefcase, to: '/admin/jobs-schools' },
   { label: 'Applications',     icon: ClipboardList,  to: '/admin/applications' },
-  { label: 'ID Verification',  icon: Shield,          to: '/admin/verification' },
+  { label: 'Account Verification', icon: Shield,       to: '/admin/verification' },
+  { label: 'Membership Verification', icon: UserCheck, to: '/admin/membership' },
   { label: 'Support Inbox',    icon: LifeBuoy,        to: '/admin/support' },
   { label: 'Notifications',    icon: Bell,            to: '/admin/notifications' },
   { label: 'Featured Posts',   icon: Newspaper,       to: '/admin/featured' },
@@ -201,6 +202,7 @@ export default function AdminLayout() {
         list('/applications/'), list('/verification/admin/'), list('/support/tickets/', { status: 'open' }),
       ])
       const sch = await list('/applications/scholarship/')
+      const mem = await list('/youth-orgs/membership-applications/')
       const skq = await apiClient.get('/compliance/sk/queue/').then(r => (r.data?.to_verify?.length ?? 0) + (r.data?.ready_to_publish?.length ?? 0)).catch(() => 0)
       return {
         '/admin/sk-compliance': skq,
@@ -209,6 +211,7 @@ export default function AdminLayout() {
         '/admin/applications:jobs': apps.filter(a => a.status === 'submitted' || a.status === 'under_review').length,
         '/admin/applications:scholarships': sch.filter(a => a.status === 'submitted').length,
         '/admin/verification': ver.filter(v => v.status === 'pending' || v.status === 'reviewing').length,
+        '/admin/membership': mem.filter(m => m.status === 'pending' || m.status === 'reviewing').length,
         '/admin/support': tix.filter(t => t.status === 'open').length,
       }
     },

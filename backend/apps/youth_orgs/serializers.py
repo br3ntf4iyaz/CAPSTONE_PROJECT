@@ -2,7 +2,7 @@ import bleach
 from rest_framework import serializers
 from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
-from .models import OrgAccomplishment, OrgMembershipApplication, OrgRequirement, YouthOrganization
+from .models import OrgAccomplishment, OrgMembershipApplication, OrgMembershipEvent, OrgRequirement, YouthOrganization
 
 BLEACH_ALLOWED_TAGS = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a']
 BLEACH_ALLOWED_ATTRS = {'a': ['href', 'title', 'rel']}
@@ -240,15 +240,33 @@ class OrgPublicDetailSerializer(OrgPublicListSerializer):
         return bool(user and user.is_authenticated and obj.submitted_by_id == user.id)
 
 
+class OrgMembershipEventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrgMembershipEvent
+        fields = ['id', 'action', 'from_status', 'to_status', 'note', 'created_at']
+
+
 class OrgMembershipApplicationSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source='organization.name', read_only=True)
     applicant_name = serializers.SerializerMethodField()
     applicant_email = serializers.EmailField(source='applicant.email', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    reference_number = serializers.CharField(read_only=True)
+    history = OrgMembershipEventSerializer(source='events', many=True, read_only=True)
+    snapshot = serializers.SerializerMethodField()
 
     class Meta:
         model = OrgMembershipApplication
-        fields = ['id', 'organization', 'organization_name', 'applicant_name', 'applicant_email', 'message', 'status', 'decision_note', 'created_at', 'decided_at']
+        fields = ['id', 'reference_number', 'organization', 'organization_name', 'applicant_name', 'applicant_email', 'message', 'status', 'status_display',
+                  'decision_note', 'snapshot', 'privacy_consent_at', 'history', 'created_at', 'updated_at', 'decided_at']
         read_only_fields = fields
+
+    def get_snapshot(self, obj):
+        # the organization's leader sees who the person is, but not their phone number
+        snap = dict(obj.snapshot or {})
+        if not self.context.get('is_admin'):
+            snap.pop('phone', None)
+        return snap
 
     def get_applicant_name(self, obj):
         return obj.applicant.full_name or obj.applicant.email
