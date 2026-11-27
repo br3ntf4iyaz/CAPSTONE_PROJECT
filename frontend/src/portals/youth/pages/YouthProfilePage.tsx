@@ -16,6 +16,7 @@ import { QueryError } from '@/components/ui/QueryError'
 import { cn, formatDate } from '@/utils'
 import { MyApplicationsCard } from '../components/MyApplicationsCard'
 import ImageCropper from '@/components/ui/ImageCropper'
+import PhotoViewer from '@/components/ui/PhotoViewer'
 
 interface Profile {
   id: number
@@ -80,6 +81,7 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [cropFile, setCropFile] = useState<File | null>(null) // the chosen photo, until the person has framed it
+  const [viewing, setViewing] = useState(false) // the photo shown large
 
   const uploadAvatar = useMutation({
     mutationFn: (file: File) => {
@@ -101,15 +103,19 @@ function AvatarUpload({ avatarUrl, name }: { avatarUrl: string | null; name: str
 
   return (
     <div className="relative inline-block">
-      <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-md">
-        {avatarUrl ? (
+      {avatarUrl ? (
+        <button type="button" onClick={() => setViewing(true)} title="View photo" aria-label="View your profile photo"
+          className="block w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-md cursor-zoom-in transition hover:shadow-lg hover:ring-2 hover:ring-primary/30 focus-visible:ring-2 focus-visible:ring-primary/50 outline-none">
           <img src={avatarUrl} alt={name} className="w-full h-full object-cover" />
-        ) : (
+        </button>
+      ) : (
+        <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-100 border-2 border-white shadow-md">
           <div className="w-full h-full flex items-center justify-center bg-primary/10">
             <User size={36} className="text-primary/60" />
           </div>
-        )}
-      </div>
+        </div>
+      )}
+      {viewing && avatarUrl && <PhotoViewer src={avatarUrl} alt={name} onClose={() => setViewing(false)} onChange={() => { setViewing(false); fileRef.current?.click() }} />}
       <button
         onClick={() => fileRef.current?.click()}
         className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center shadow-md hover:bg-primary/90 transition-colors"
