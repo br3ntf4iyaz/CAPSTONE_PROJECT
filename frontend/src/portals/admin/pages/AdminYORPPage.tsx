@@ -11,6 +11,7 @@ import { IntegrityBadge } from '@/components/ui/IntegrityBadge'
 import { useYORPDecisionIntegrity } from '@/api/ledger'
 import { OrgApplicationsPanel } from '@/portals/youth/components/OrgJoin'
 import AdminMembershipPage from './AdminMembershipPage'
+import { ACCENT_OPTIONS } from '@/portals/youth/orgAccent'
 
 interface YouthOrg {
   id: number
@@ -95,6 +96,7 @@ interface OrgDetail {
   registration_number?: string
   registration_valid_until?: string | null
   source_url?: string
+  accent?: string
   officers?: { id: number; position_label: string; name: string; is_public: boolean }[]
 }
 
@@ -144,7 +146,7 @@ function PublicProfileEditor({ org }: { org: OrgDetail }) {
     facebook_url: org.facebook_url ?? '', accepting_members: org.accepting_members ?? true, is_active: org.is_active,
     application_mode: org.application_mode ?? 'in_app', external_apply_url: org.external_apply_url ?? '', acronym: org.acronym ?? '',
     registration_number: org.registration_number ?? '', registration_valid_until: org.registration_valid_until ?? '',
-    source_url: org.source_url ?? '',
+    source_url: org.source_url ?? '', accent: org.accent ?? '',
   })
   const save = useMutation({
     mutationFn: () => apiClient.patch(`/youth-orgs/${org.id}/`, { ...f, registration_valid_until: f.registration_valid_until || null }),
@@ -172,6 +174,11 @@ function PublicProfileEditor({ org }: { org: OrgDetail }) {
       </div>
       <label className="block"><span className="text-xs text-gray-500">Source of the information (a web page, shown on the public profile; clear it once LYDO confirms the details)</span>
         <input className="input mt-1 w-full" value={f.source_url} onChange={e => setF(p => ({ ...p, source_url: e.target.value }))} placeholder="https://..." /></label>
+      <label className="block"><span className="text-xs text-gray-500">Colour of its card in the directory</span>
+        <select className="input mt-1 w-full" value={f.accent} onChange={e => setF(p => ({ ...p, accent: e.target.value }))}>
+          <option value="">Automatic (by kind of organization)</option>
+          {ACCENT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select></label>
       <div className="rounded-lg border border-primary-100 bg-primary-50/40 p-2.5 space-y-2">
         <label className="block"><span className="text-xs font-medium text-gray-700">How people apply to this organization</span>
           <select className="input mt-1 w-full" value={f.application_mode} onChange={e => setF(p => ({ ...p, application_mode: e.target.value as 'in_app' | 'external' | 'contact' }))}>

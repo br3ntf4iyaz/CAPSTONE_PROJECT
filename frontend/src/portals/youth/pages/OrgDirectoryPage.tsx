@@ -14,6 +14,7 @@ import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { JoinFlow, OrgApplicationsPanel, clearRememberedNext } from '../components/OrgJoin'
 import ManageOrganization from '../components/ManageOrganization'
+import { accentOf } from '../orgAccent'
 import OfficersEditor, { POSITIONS, type OfficerRow } from '../components/OfficersEditor'
 
 /** What the signed-in person is: general youth, a youth organization leader, or an SK official. Leaders and SK officials do not recruit or join here. */
@@ -34,6 +35,7 @@ interface YouthOrg {
   application_mode?: 'in_app' | 'external' | 'contact'
   external_apply_url?: string
   acronym?: string
+  accent?: string
   is_mine?: boolean
   logo_url: string | null
 }
@@ -148,7 +150,7 @@ function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: n
         ) : org ? (
           <>
             {/* Header: stays in place, the content below scrolls under it */}
-            <div className="relative shrink-0 bg-gradient-to-br from-primary-600 to-primary-800 px-6 pb-6 pt-6 text-white">
+            <div className={cn('relative shrink-0 bg-gradient-to-br px-6 pb-6 pt-6 text-white', accentOf(org).header)}>
               <button onClick={onClose} aria-label="Close" className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/15 transition-colors hover:bg-white/25">
                 <X size={16} />
               </button>
@@ -858,7 +860,7 @@ export default function OrgDirectoryPage() {
                   tabIndex={0}
                   onClick={() => setSelectedId(org.id)}
                   onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedId(org.id) } }}
-                  className="w-full bg-white rounded-2xl border border-l-4 border-primary-100 border-l-primary-500 shadow-sm p-4 hover:shadow-lg hover:shadow-primary-600/10 hover:border-primary-300 hover:-translate-y-0.5 transition-all text-left group cursor-pointer"
+                  className={cn('w-full rounded-2xl border border-l-4 shadow-sm p-4 hover:shadow-lg hover:-translate-y-0.5 transition-all text-left group cursor-pointer', accentOf(org).card)}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-start gap-3 min-w-0">
@@ -869,13 +871,13 @@ export default function OrgDirectoryPage() {
                           className="w-11 h-11 rounded-xl object-cover flex-shrink-0 border-2 border-primary-100 bg-white shadow-sm"
                         />
                       ) : (
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 shadow-md shadow-primary-600/30 flex items-center justify-center flex-shrink-0">
+                        <div className={cn('w-11 h-11 rounded-xl bg-gradient-to-br shadow-md flex items-center justify-center flex-shrink-0', accentOf(org).tile)}>
                           <Users size={20} className="text-white" />
                         </div>
                       )}
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-primary-900 text-sm truncate group-hover:text-primary-700 transition-colors">{org.name}{org.acronym ? <span className="font-semibold text-ink-500"> ({org.acronym})</span> : null}</h3>
+                          <h3 className={cn('font-bold text-sm truncate transition-colors', accentOf(org).name)}>{org.name}{org.acronym ? <span className="font-semibold text-ink-500"> ({org.acronym})</span> : null}</h3>
                           {org.is_compliant
                             ? <CheckCircle2 size={14} className="text-green-500 flex-shrink-0" />
                             : <XCircle size={14} className="text-ink-300 flex-shrink-0" />}
@@ -896,7 +898,7 @@ export default function OrgDirectoryPage() {
                           <p className="text-xs text-ink-700 mt-2 line-clamp-1">{org.description}</p>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <span className="rounded-full bg-primary-700 px-3.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-primary-600/20 group-hover:bg-primary-800">View Profile</span>
+                          <span className={cn('rounded-full px-3.5 py-1 text-[11px] font-semibold text-white shadow-md', accentOf(org).button)}>View Profile</span>
                           {org.is_mine ? (
                             <button type="button" onClick={e => { e.stopPropagation(); setManageId(org.id) }}
                               className="rounded-full border-2 border-primary-300 bg-primary-50 px-3 py-1 text-[11px] font-semibold text-primary-800 hover:border-primary-500">

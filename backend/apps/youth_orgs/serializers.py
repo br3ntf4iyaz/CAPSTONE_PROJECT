@@ -167,6 +167,7 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'registration_number',
             'registration_valid_until',
             'source_url',
+            'accent',
             'is_active',
             'is_compliant',
             'status',
@@ -236,7 +237,7 @@ class OrgOwnerSerializer(OrgDetailSerializer):
             'id', 'name', 'acronym', 'classification', 'sub_classification', 'registration_category', 'registration_number',
             'registration_valid_until', 'barangay', 'status', 'admin_notes', 'is_active', 'created_at',
             'description', 'contact_person', 'contact_email', 'contact_phone', 'mission', 'membership_requirements', 'how_to_join',
-            'facebook_url', 'accepting_members', 'application_mode', 'external_apply_url', 'officers', 'my_position',
+            'facebook_url', 'accepting_members', 'application_mode', 'external_apply_url', 'accent', 'officers', 'my_position',
         ]
         read_only_fields = ['id', 'name', 'classification', 'sub_classification', 'registration_category', 'registration_number',
                             'registration_valid_until', 'barangay', 'status', 'admin_notes', 'is_active', 'created_at', 'officers', 'my_position']
@@ -327,7 +328,7 @@ class OrgPublicListSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'classification', 'sub_classification', 'registration_category', 'barangay', 'description',
             'contact_person', 'is_compliant', 'accepting_members', 'logo_url', 'created_at',
-            'application_mode', 'external_apply_url', 'acronym', 'is_mine',
+            'application_mode', 'external_apply_url', 'acronym', 'accent', 'is_mine',
         ]
 
     def get_logo_url(self, obj):

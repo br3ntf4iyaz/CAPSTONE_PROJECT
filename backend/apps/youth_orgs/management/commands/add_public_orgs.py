@@ -28,6 +28,7 @@ ORGS = [
         description='The Supreme Student Council of the Lucena Campus of Southern Luzon State University (SLSU). It is listed among the accredited student organizations of SLSU.',
         how_to_join='A student council is joined through the school: ask the SLSU Lucena Campus student affairs office about its elections and membership.',
         accepting_members=False,  # student council seats are filled by election, so it is not recruiting members
+        accent='emerald',
         source=SLSU,
     ),
     dict(
@@ -37,6 +38,7 @@ ORGS = [
                      'Kaya Natin! Youth - Lucena, it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
         how_to_join='A student council is joined through the school: ask the MSEUF Office of Student Affairs and Services about its elections and membership.',
         accepting_members=False,
+        accent='rose',
         source=LUZONIAN,
     ),
     dict(
@@ -46,6 +48,7 @@ ORGS = [
                      'it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
         how_to_join='Demo listing: to join, contact the organization directly, or ask the LYDO office to guide you to it.',
         accepting_members=True,  # open for the demo: the system is not in real use yet
+        accent='amber',
         source=LUZONIAN,
     ),
 ]
@@ -78,7 +81,7 @@ class Command(BaseCommand):
                     registration_category='not_registered', barangay='',
                     description=d['description'], how_to_join=d['how_to_join'],
                     application_mode='contact', accepting_members=d['accepting_members'],
-                    is_active=True, status='approved', admin_notes=DEMO_NOTE, source_url=d['source'],
+                    is_active=True, status='approved', admin_notes=DEMO_NOTE, source_url=d['source'], accent=d['accent'],
                 ),
             )
             if created:
@@ -86,5 +89,10 @@ class Command(BaseCommand):
                 added += 1
                 self.stdout.write(self.style.SUCCESS(f'  added: {org.name}'))
             else:
-                self.stdout.write(f'  already there: {org.name}')
+                if not org.accent:  # an entry added before colours existed gets one; a colour somebody chose is never changed
+                    org.accent = d['accent']
+                    org.save(update_fields=['accent'])
+                    self.stdout.write(self.style.SUCCESS(f'  colour set: {org.name}'))
+                else:
+                    self.stdout.write(f'  already there: {org.name}')
         self.stdout.write(self.style.SUCCESS(f'Done. {added} added, {removed} removed.'))

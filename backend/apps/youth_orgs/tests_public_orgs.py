@@ -72,3 +72,18 @@ class AddPublicOrgsTests(TestCase):
             if user:
                 c.force_authenticate(user)
             self.assertEqual({o['name'] for o in c.get('/api/youth-orgs/').data}, NAMES)
+
+    def test_each_club_has_its_own_colour_and_lydo_can_change_it(self):
+        call_command('add_public_orgs')
+        colours = {o['name']: o['accent'] for o in APIClient().get('/api/youth-orgs/').data}
+        self.assertEqual(len(set(colours.values())), 3)  # three different colours
+        admin = get_user_model().objects.create_user(email='ad@t.local', password='x', role='lgu_admin', is_active=True)
+        c = APIClient()
+        c.force_authenticate(admin)
+        pk = YouthOrganization.objects.first().pk
+        self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'accent': 'hotpink'}, format='json').status_code, 400)
+        self.assertEqual(c.patch(f'/api/youth-orgs/{pk}/', {'accent': 'teal'}, format='json').status_code, 200)
+        self.assertEqual(APIClient().get(f'/api/youth-orgs/{pk}/').data['accent'], 'teal')
+        # running the command again never changes a colour somebody chose
+        call_command('add_public_orgs')
+        self.assertEqual(YouthOrganization.objects.get(pk=pk).accent, 'teal')

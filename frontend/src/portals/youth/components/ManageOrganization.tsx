@@ -5,6 +5,7 @@ import { X, Clock, CheckCircle2, Ban, Save, Info } from 'lucide-react'
 import toast from 'react-hot-toast'
 import apiClient from '@/api/client'
 import { cn } from '@/utils'
+import { ACCENT_OPTIONS, ACCENTS } from '../orgAccent'
 import { apiErrorMessage } from '../scholarshipApps'
 import OfficersEditor, { type OfficerRow } from './OfficersEditor'
 import { OrgApplicationsPanel } from './OrgJoin'
@@ -14,7 +15,7 @@ interface Owned {
   registration_category: string; registration_number: string
   description: string; contact_person: string; contact_email: string; contact_phone: string
   mission: string; membership_requirements: string; how_to_join: string; facebook_url: string
-  accepting_members: boolean; application_mode: 'in_app' | 'external' | 'contact'; external_apply_url: string
+  accepting_members: boolean; application_mode: 'in_app' | 'external' | 'contact'; external_apply_url: string; accent: string
   officers: { id: number; position: string; position_label: string; custom_title: string; name: string; is_me: boolean }[]
   my_position: string
 }
@@ -54,7 +55,7 @@ export default function ManageOrganization({ orgId, onClose }: { orgId: number; 
     mutationFn: () => apiClient.patch(`/youth-orgs/${orgId}/manage/`, {
       acronym: f.acronym, description: f.description, contact_person: f.contact_person, contact_email: f.contact_email, contact_phone: f.contact_phone,
       mission: f.mission, membership_requirements: f.membership_requirements, how_to_join: f.how_to_join, facebook_url: f.facebook_url,
-      accepting_members: f.accepting_members, application_mode: f.application_mode, external_apply_url: f.external_apply_url,
+      accepting_members: f.accepting_members, application_mode: f.application_mode, external_apply_url: f.external_apply_url, accent: f.accent ?? '',
     }),
     onSuccess: () => { toast.success('Saved'); refresh() },
     onError: (e: any) => toast.error(e?.response?.data?.external_apply_url?.[0] ?? e?.response?.data?.facebook_url?.[0] ?? apiErrorMessage(e, 'Could not save.')),
@@ -120,6 +121,16 @@ export default function ManageOrganization({ orgId, onClose }: { orgId: number; 
               </div>
               <label className="block"><span className="text-xs font-medium text-ink-600">Facebook page</span>
                 <input className="input mt-0.5 w-full" value={f.facebook_url ?? ''} onChange={e => set('facebook_url', e.target.value)} placeholder="https://www.facebook.com/..." /></label>
+              <div>
+                <p className="text-xs font-medium text-ink-600">Colour of your card in the directory</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2" role="radiogroup" aria-label="Colour">
+                  <button type="button" role="radio" aria-checked={!f.accent} onClick={() => set('accent', '')} className={cn('rounded-full border px-3 py-1 text-xs font-semibold', !f.accent ? 'border-primary-500 bg-primary-50 text-primary-800' : 'border-ink-200 text-ink-600')}>Automatic</button>
+                  {ACCENT_OPTIONS.map(o => (
+                    <button key={o.value} type="button" role="radio" aria-checked={f.accent === o.value} aria-label={o.label} title={o.label} onClick={() => set('accent', o.value)}
+                      className={cn('h-7 w-7 rounded-full ring-offset-2 transition', ACCENTS[o.value].swatch, f.accent === o.value ? 'ring-2 ring-ink-800' : 'ring-0 hover:ring-2 hover:ring-ink-300')} />
+                  ))}
+                </div>
+              </div>
               <div className="space-y-2 rounded-xl border border-primary-100 bg-primary-50/40 p-3">
                 <p className="text-sm font-semibold text-ink-800">Membership</p>
                 <label className="flex items-center gap-2 text-sm text-ink-700"><input type="checkbox" checked={!!f.accepting_members} onChange={e => set('accepting_members', e.target.checked)} /> Open for new members</label>
