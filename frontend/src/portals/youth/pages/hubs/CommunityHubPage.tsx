@@ -404,11 +404,12 @@ export default function CommunityHubPage() {
           {canPost && (
             <div className="bg-white rounded-xl border border-ink-200 p-4">
               <div className="flex items-center gap-3 cursor-pointer" onClick={() => setShowPostForm(true)}>
-                <div className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary-600 font-semibold">
+                <Link to="/profile" title="My Space" aria-label="Open My Space" onClick={e => e.stopPropagation()}
+                  className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary-600 font-semibold hover:ring-2 hover:ring-primary-300 transition">
                   {auth.user?.avatar_url
                     ? <img src={auth.user.avatar_url} alt="" className="w-full h-full object-cover" />
                     : auth.user?.first_name?.[0] ?? '?'}
-                </div>
+                </Link>
                 <div className="flex-1 rounded-full bg-ink-100 px-4 py-2.5 text-sm text-ink-400">
                   Share your organization's accomplishments...
                 </div>
@@ -529,12 +530,14 @@ export default function CommunityHubPage() {
               )}
             >
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">
-                  {post.author_avatar
+                {(() => {
+                  const face = post.author_avatar
                     ? <img src={post.author_avatar} alt="" className="w-full h-full object-cover" />
                     : <div className="w-full h-full flex items-center justify-center text-primary-600 font-semibold text-sm">{post.author_name[0]}</div>
-                  }
-                </div>
+                  return post.is_own
+                    ? <Link to="/profile" title="My Space" aria-label="Open My Space" className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-primary-300 transition">{face}</Link>
+                    : <div className="w-10 h-10 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">{face}</div>
+                })()}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -542,6 +545,8 @@ export default function CommunityHubPage() {
                         <Link to="/sk-directory" className="font-semibold text-sm text-ink-900 hover:text-primary-700 transition-colors">
                           {post.author_name}
                         </Link>
+                      ) : post.is_own ? (
+                        <Link to="/profile" className="font-semibold text-sm text-ink-900 hover:text-primary-700 transition-colors">{post.author_name}</Link>
                       ) : (
                         <p className="font-semibold text-sm text-ink-900">{post.author_name}</p>
                       )}
@@ -1075,16 +1080,19 @@ function CommentsSection({ postId, currentUser, showList, highlightCommentId = n
 
   const row = (c: CommunityComment, isReply: boolean) => (
     <div key={c.id} id={'comment-' + c.id} className={cn('group flex gap-2 rounded-xl', isReply && 'ml-9', c.id === highlightCommentId && 'bg-primary-50 ring-1 ring-primary-200 p-1 -m-1')}>
-      <div className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">
-        {c.author_avatar
+      {(() => {
+        const face = c.author_avatar
           ? <img src={c.author_avatar} alt="" className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center text-primary-600 font-semibold text-[10px]">{c.author_name[0]}</div>}
-      </div>
+          : <div className="w-full h-full flex items-center justify-center text-primary-600 font-semibold text-[10px]">{c.author_name[0]}</div>
+        return c.is_own
+          ? <Link to="/profile" title="My Space" aria-label="Open My Space" className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0 hover:ring-2 hover:ring-primary-300 transition">{face}</Link>
+          : <div className="w-7 h-7 rounded-full bg-primary-100 overflow-hidden flex-shrink-0">{face}</div>
+      })()}
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-1">
           <div className={cn('rounded-2xl px-3 py-2 min-w-0', c.is_hidden ? 'bg-amber-50 border border-dashed border-amber-300' : 'bg-ink-50')}>
             <p className="text-xs font-semibold text-ink-800 flex flex-wrap items-center gap-1.5">
-              {c.author_name}
+              {c.is_own ? <Link to="/profile" className="hover:text-primary-700">{c.author_name}</Link> : c.author_name}
               {c.author_account_type && c.author_account_type !== 'General Youth' && (
                 <span className="rounded-full bg-primary-100 text-primary-700 px-1.5 py-px text-[9px] font-bold uppercase tracking-wide">{c.author_account_type}</span>
               )}
