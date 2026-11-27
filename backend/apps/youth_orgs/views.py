@@ -189,7 +189,7 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application', 'manage', 'set_officers'):
+        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application', 'manage', 'set_officers', 'delete_mine'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
 
@@ -221,6 +221,21 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
             off.save_officers(org, rows, request.user)
         self._audit(request, 'org_officers_changed', org, count=len(rows))
         return Response(off.officers_for(org, request, True))
+
+    @action(detail=True, methods=['post'], url_path='delete-mine', permission_classes=[IsAuthenticated])
+    def delete_mine(self, request, pk=None):
+        """The leader removes an organization of theirs that LYDO rejected, so their list stays tidy. Nothing else can be deleted this way."""
+        org = get_object_or_404(YouthOrganization, pk=pk, submitted_by=request.user)
+        if org.status != 'rejected':
+            return Response({'detail': 'Only an organization that LYDO rejected can be deleted here.'}, status=status.HTTP_400_BAD_REQUEST)
+        self._audit(request, 'org_deleted_by_owner', org, status=org.status, note=org.admin_notes)
+        if org.logo:
+            try:
+                org.logo.delete(save=False)
+            except Exception:
+                pass
+        org.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'], url_path='my-submissions', permission_classes=[IsAuthenticated])
     def my_submissions(self, request):

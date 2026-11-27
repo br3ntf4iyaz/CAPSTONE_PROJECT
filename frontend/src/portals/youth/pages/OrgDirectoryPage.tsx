@@ -599,6 +599,13 @@ function RequirementChecklist({ org }: { org: MySubmission }) {
 }
 
 function MySubmissions({ onManage }: { onManage: (id: number) => void }) {
+  const qc = useQueryClient()
+  const [confirmId, setConfirmId] = useState<number | null>(null)
+  const remove = useMutation({
+    mutationFn: (id: number) => apiClient.post(`/youth-orgs/${id}/delete-mine/`),
+    onSuccess: () => { toast.success('Organization deleted'); setConfirmId(null); qc.invalidateQueries({ queryKey: ['my-org-submissions'] }) },
+    onError: (e: any) => toast.error(e?.response?.data?.detail ?? 'Could not delete the organization.'),
+  })
   const { data: subs = [] } = useQuery<MySubmission[]>({
     queryKey: ['my-org-submissions'],
     queryFn: () => apiClient.get('/youth-orgs/my-submissions/').then(r => {
@@ -628,8 +635,22 @@ function MySubmissions({ onManage }: { onManage: (id: number) => void }) {
               <p className="text-xs text-ink-600 bg-ink-50 rounded-lg px-3 py-2 mt-2">{s.admin_notes}</p>
             )}
             {s.status === 'pending' && <p className="mt-2 text-xs text-ink-500">Visible only to you and LYDO until it is verified.</p>}
-            <button type="button" onClick={() => onManage(s.id)} className="btn-secondary btn-sm mt-2">Manage Organization</button>
-            <RequirementChecklist org={s} />
+            {s.status === 'rejected' ? (
+              confirmId === s.id ? (
+                <div className="mt-2 space-y-2 rounded-xl border border-red-100 bg-red-50/60 p-3">
+                  <p className="text-xs text-red-800">Delete <strong>{s.name}</strong> for good? This cannot be undone. You can register it again later if you wish.</p>
+                  <div className="flex gap-2">
+                    <button type="button" disabled={remove.isPending} onClick={() => remove.mutate(s.id)} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">{remove.isPending ? 'Deleting…' : 'Yes, delete'}</button>
+                    <button type="button" onClick={() => setConfirmId(null)} className="text-xs font-semibold text-ink-500">Keep it</button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmId(s.id)} className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50">Delete this organization</button>
+              )
+            ) : (
+              <button type="button" onClick={() => onManage(s.id)} className="btn-secondary btn-sm mt-2">Manage Organization</button>
+            )}
+            {s.status !== 'rejected' && <RequirementChecklist org={s} />}
           </div>
         )
       })}

@@ -132,3 +132,20 @@ class OfficersAndOwnershipTests(TestCase):
         self.assertEqual(self.ac.delete(f'{BASE}{org.pk}/').status_code, 204)
         self.assertFalse(YouthOrganization.objects.filter(pk=org.pk).exists())
         self.assertTrue(AuditLog.objects.filter(action='org_deleted', details__organization='Fake Org').exists())
+
+    def test_the_leader_can_delete_only_a_rejected_organization_of_their_own(self):
+        self.create('Rejected Org')
+        org = YouthOrganization.objects.get(name='Rejected Org')
+        url = f'{BASE}{org.pk}/delete-mine/'
+        self.assertEqual(self.lc.post(url).status_code, 400)  # still pending: not deletable here
+        self.ac.post(f'{BASE}{org.pk}/reject/', {'admin_notes': 'Documents are incomplete'}, format='json')
+        self.assertEqual(self.oc.post(url).status_code, 404)  # someone else's
+        self.assertEqual(self.anon.post(url).status_code, 401)
+        self.assertEqual(self.lc.post(url).status_code, 204)
+        self.assertFalse(YouthOrganization.objects.filter(pk=org.pk).exists())
+        self.assertTrue(AuditLog.objects.filter(action='org_deleted_by_owner').exists())
+        self.create('Approved Org')
+        ok = YouthOrganization.objects.get(name='Approved Org')
+        self.ac.post(f'{BASE}{ok.pk}/approve/', {'registration_category': 'lydo'}, format='json')
+        self.assertEqual(self.lc.post(f'{BASE}{ok.pk}/delete-mine/').status_code, 400)
+        self.assertTrue(YouthOrganization.objects.filter(pk=ok.pk).exists())
