@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Facebook, MessageCircle, Mail, Phone, X, ExternalLink, User as UserIcon, Settings2, Megaphone, ZoomIn } from 'lucide-react'
+import { Facebook, MessageCircle, Mail, Phone, X, ExternalLink, User as UserIcon, Settings2, Megaphone, ZoomIn, Crown } from 'lucide-react'
 import ImageLightbox from '@/components/ui/ImageLightbox'
 import { cn, formatDate } from '@/utils'
 import type { SKSocial } from '@/components/ui/SKSocialEditor'
@@ -11,6 +11,13 @@ export interface ProfileOfficial {
   position_display: string
   photo_url: string | null
   social?: SKSocial
+}
+
+/** The profile wears the same colours as the official's card in the directory. */
+const TONES = {
+  chair:   { header: 'bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700', panel: 'sm:border-[3px] border-accent-400 sm:ring-4 sm:ring-accent-400/25', photo: 'border-4 border-accent-400 shadow-lg shadow-primary-900/30', link: 'text-primary-700', sub: 'text-primary-100' },
+  council: { header: 'bg-gradient-to-br from-primary-700 to-primary-900', panel: '', photo: 'border-2 border-white/40', link: 'text-primary-700', sub: 'text-primary-100' },
+  officer: { header: 'bg-gradient-to-br from-teal-500 to-teal-700', panel: 'sm:border-b-[6px] border-b-accent-400', photo: 'border-2 border-white/50', link: 'text-teal-700', sub: 'text-teal-50' },
 }
 
 const safeHref = (v?: string) => (v && /^https:\/\/(www\.facebook\.com|m\.me|www\.messenger\.com|fb\.watch)\//.test(v) ? v : undefined)
@@ -44,27 +51,38 @@ export default function SKOfficialProfile({
   const email = s?.public_email
   const phone = s?.public_contact_number
   const activities = (s?.activities ?? []).filter(a => safeHref(a.facebook_post_url))
+  const kind = o.position === 'chairperson' ? 'chair' : o.position === 'secretary' || o.position === 'treasurer' ? 'officer' : 'council'
+  const tone = TONES[kind]
   const hidden = canManage && s && !s.visible && (s.facebook_profile_url || s.facebook_page_url || s.messenger_url)
 
   return (
     <div className="fixed inset-0 z-[55] flex items-start sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose} role="dialog" aria-modal="true" aria-label={`Profile of ${o.name}`}>
-      <div className="h-full sm:h-auto max-h-screen sm:max-h-[92vh] w-full max-w-lg overflow-y-auto bg-white sm:rounded-3xl shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="relative bg-gradient-to-br from-primary-600 to-primary-800 px-5 pb-5 pt-4 text-white">
+      <div className={cn('h-full sm:h-auto max-h-screen sm:max-h-[92vh] w-full max-w-lg overflow-y-auto bg-white sm:rounded-3xl shadow-2xl', tone.panel)} onClick={e => e.stopPropagation()}>
+        <div className={cn('relative overflow-hidden px-5 pb-5 pt-4 text-white', tone.header)}>
+          {kind === 'chair' && (
+            <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 flex h-2.5">
+              <span className="flex-1 bg-alert-500" /><span className="flex-1 bg-accent-400" /><span className="flex-1 bg-white" />
+            </div>
+          )}
+          {kind === 'chair' && <div aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.2),transparent_55%)]" />}
           <button type="button" onClick={onClose} aria-label="Close" className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/15 hover:bg-white/25"><X size={16} /></button>
           <div className="flex items-center gap-4 pt-4">
             {o.photo_url ? (
               <button type="button" onClick={() => setZoom(true)} aria-label={`View a larger picture of ${o.name}`} title="Click to enlarge"
-                className="group relative h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-2xl border-2 border-white/40 bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                className={cn('group relative h-20 w-20 shrink-0 cursor-zoom-in overflow-hidden rounded-2xl bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white', tone.photo)}>
                 <img src={o.photo_url} alt={o.name} className="h-full w-full object-cover object-top transition-transform group-hover:scale-105" />
                 <span className="absolute bottom-1 right-1 inline-flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-white"><ZoomIn size={12} /></span>
               </button>
             ) : (
-              <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-white/40 bg-white/20 flex items-center justify-center"><UserIcon size={36} className="text-white/80" /></div>
+              <div className={cn('h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white/20 flex items-center justify-center', tone.photo)}><UserIcon size={36} className="text-white/80" /></div>
             )}
             <div className="min-w-0">
               <h3 className="font-display text-xl font-extrabold leading-tight break-words">{o.name}</h3>
-              <p className="text-sm font-medium text-primary-100">{o.position_display}</p>
-              <p className="text-xs text-primary-100/90">Barangay {barangayName.replace(/^Barangay\s+/i, '')}</p>
+              <p className={cn('mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                kind === 'chair' ? 'bg-accent-400 text-primary-900 shadow-sm' : kind === 'officer' ? 'bg-white text-teal-800 shadow-sm' : 'bg-white/20 text-white border border-white/25')}>
+                {kind === 'chair' && <Crown size={12} />}{o.position_display}
+              </p>
+              <p className={cn('mt-1 text-xs', tone.sub)}>Barangay {barangayName.replace(/^Barangay\s+/i, '')}</p>
             </div>
           </div>
         </div>
@@ -88,8 +106,8 @@ export default function SKOfficialProfile({
                 <p className="text-sm text-ink-500">No messaging link was provided by this official.</p>
               )}
               {contactTarget && !messenger && <p className="text-xs text-ink-500">No Messenger link was given, so this opens their Facebook {profile ? 'profile' : 'page'}.</p>}
-              {email && <a href={`mailto:${email}`} className="flex items-center gap-2 break-all text-sm text-primary-700 hover:underline"><Mail size={15} className="shrink-0" /> {email}</a>}
-              {phone && <a href={`tel:${phone}`} className="flex items-center gap-2 text-sm text-primary-700 hover:underline"><Phone size={15} className="shrink-0" /> {phone}</a>}
+              {email && <a href={`mailto:${email}`} className={cn('flex items-center gap-2 break-all text-sm hover:underline', tone.link)}><Mail size={15} className="shrink-0" /> {email}</a>}
+              {phone && <a href={`tel:${phone}`} className={cn('flex items-center gap-2 text-sm hover:underline', tone.link)}><Phone size={15} className="shrink-0" /> {phone}</a>}
             </div>
           </div>
 
