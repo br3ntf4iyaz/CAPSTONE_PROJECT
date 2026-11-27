@@ -623,10 +623,10 @@ function SKProfileModal({ barangay, onClose }: { barangay: SKBarangay; onClose: 
                   <input type="email" value={emailDraft} onChange={e => setEmailDraft(e.target.value)} maxLength={254} placeholder="sk.barangay@lucena.gov.ph" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
                 </label>
                 <label className="block">
-                  <span className="text-xs font-medium text-ink-500">Phone</span>
-                  <input type="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} maxLength={20} placeholder="09XX XXX XXXX" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
+                  <span className="text-xs font-medium text-ink-500">Phone <span className="font-semibold text-primary-700">(Philippine number, +63)</span></span>
+                  <input type="tel" value={phoneDraft} onChange={e => setPhoneDraft(e.target.value)} maxLength={20} placeholder="+63 9XX XXX XXXX" className="mt-0.5 w-full rounded-lg border border-primary-200 bg-white px-3 py-1.5 text-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-200" />
                 </label>
-                <p className="text-[11px] text-ink-500">These are shown to the public. Leave a box empty to remove it.</p>
+                <p className="text-[11px] text-ink-500">Use a Philippine number: <strong>+63 917 123 4567</strong> or <strong>0917 123 4567</strong> (it is saved in the +63 form). For a landline, include the area code, like (042) 710 1234. These are shown to the public; leave a box empty to remove it.</p>
                 <div className="flex gap-2">
                   <button type="submit" disabled={saveContact.isPending} className="rounded-full bg-primary-600 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-primary-700 disabled:opacity-60">{saveContact.isPending ? 'Saving…' : 'Save'}</button>
                   <button type="button" onClick={() => setEditingContact(false)} disabled={saveContact.isPending} className="rounded-full border border-ink-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-ink-700 hover:bg-ink-50">Cancel</button>

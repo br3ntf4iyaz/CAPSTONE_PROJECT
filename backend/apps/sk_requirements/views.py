@@ -47,6 +47,34 @@ def can_manage_council_pictures(user, barangay):
         return False
 
 
+def normalize_ph_phone(raw):
+    """A Philippine number in one clean form, or None when it is not one.
+
+    Mobile  : 09171234567 / +639171234567 / 0917 123 4567   -> '+63 917 123 4567'
+    Landline: area code + number, like (042) 710 1234       -> '(042) 710 1234'  (kept as a local number)
+    """
+    import re
+    digits = re.sub(r'[\s\-().]', '', str(raw))
+    if re.search(r'[^0-9+]', digits) or digits.count('+') > 1 or ('+' in digits and not digits.startswith('+')):
+        return None
+    if digits.startswith('+63'):
+        local = '0' + digits[3:]
+    elif digits.startswith('63') and len(digits) in (12, 11):
+        local = '0' + digits[2:]
+    elif digits.startswith('0'):
+        local = digits
+    else:
+        return None
+    nums = local[1:]
+    if re.fullmatch(r'9\d{9}', nums):  # mobile
+        return f'+63 {nums[:3]} {nums[3:6]} {nums[6:]}'
+    if re.fullmatch(r'2\d{8}', nums):  # Metro Manila: (02) 1234 5678
+        return f'(02) {nums[1:5]} {nums[5:]}'
+    if re.fullmatch(r'[3-8]\d{8}', nums):  # provincial: (042) 710 1234
+        return f'(0{nums[:2]}) {nums[2:5]} {nums[5:]}'
+    return None
+
+
 def _picture_denied(request, barangay):
     """A helpful 403 explaining WHY the person cannot change the pictures."""
     user = request.user
@@ -308,8 +336,13 @@ class SKBarangayViewSet(viewsets.ModelViewSet):
             fields.append('contact_email')
         if 'contact_phone' in request.data:
             phone = str(request.data.get('contact_phone') or '').strip()
-            if phone and not re.fullmatch(r'[0-9+()\-\s]{7,20}', phone):
-                return Response({'detail': 'Please enter a valid phone number (digits, +, - and spaces only; up to 20 characters).'}, status=status.HTTP_400_BAD_REQUEST)
+            if phone:
+                phone = normalize_ph_phone(phone)
+                if phone is None:
+                    return Response(
+                        {'detail': 'Please enter a Philippine number, like +63 917 123 4567 or 0917 123 4567 (mobile), or a landline with its area code, like (042) 710 1234.'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
             barangay.contact_phone = phone
             fields.append('contact_phone')
         if not fields:

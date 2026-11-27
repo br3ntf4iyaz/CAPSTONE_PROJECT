@@ -36,7 +36,7 @@ class SKContactTests(TestCase):
         r = self.post(self.sk, {'contact_email': 'sk.new@lucena.gov.ph', 'contact_phone': '0917 123 4567'})
         self.assertEqual(r.status_code, 200)
         self.a.refresh_from_db()
-        self.assertEqual((self.a.contact_email, self.a.contact_phone), ('sk.new@lucena.gov.ph', '0917 123 4567'))
+        self.assertEqual((self.a.contact_email, self.a.contact_phone), ('sk.new@lucena.gov.ph', '+63 917 123 4567'))
         self.assertTrue(AuditLog.objects.filter(action='sk_contact_changed', object_id=self.a.pk).exists())
 
     def test_an_unverified_sk_must_verify_first(self):
@@ -56,7 +56,7 @@ class SKContactTests(TestCase):
     def test_lydo_admin_can_change_it(self):
         self.assertEqual(self.post(self.admin, {'contact_phone': '09181234567'}).status_code, 200)
         self.a.refresh_from_db()
-        self.assertEqual(self.a.contact_phone, '09181234567')
+        self.assertEqual(self.a.contact_phone, '+63 918 123 4567')
         self.assertEqual(self.a.contact_email, 'old@x.ph')  # only what was sent changes
 
     def test_bad_values_are_rejected_and_blank_clears(self):
@@ -69,3 +69,18 @@ class SKContactTests(TestCase):
         self.assertEqual(self.post(self.sk, {'contact_email': '', 'contact_phone': ''}).status_code, 200)
         self.a.refresh_from_db()
         self.assertEqual((self.a.contact_email, self.a.contact_phone), ('', ''))
+
+    def test_philippine_numbers_are_accepted_and_written_the_same_way(self):
+        from .views import normalize_ph_phone
+        for raw in ('09171234567', '+639171234567', '+63 917 123 4567', '0917-123-4567', '63 917 123 4567'):
+            self.assertEqual(normalize_ph_phone(raw), '+63 917 123 4567', raw)
+        self.assertEqual(normalize_ph_phone('(042) 710 1234'), '(042) 710 1234')
+        self.assertEqual(normalize_ph_phone('042-7101234'), '(042) 710 1234')
+        self.assertEqual(normalize_ph_phone('+63 2 8123 4567'), '(02) 8123 4567')
+
+    def test_numbers_from_other_countries_or_nonsense_are_refused(self):
+        from .views import normalize_ph_phone
+        for raw in ('+1 202 555 0143', '+44 20 7946 0958', '12345', '0917 123 45', 'call me', '+63 123', '0817abc4567'):
+            self.assertIsNone(normalize_ph_phone(raw), raw)
+        self.verify(self.sk)
+        self.assertEqual(self.post(self.sk, {'contact_phone': '+1 202 555 0143'}).status_code, 400)
