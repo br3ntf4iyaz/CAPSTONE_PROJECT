@@ -2,6 +2,7 @@ import bleach
 from rest_framework import serializers
 from apps.accounts.uploads import IMAGE_EXTS, DOC_EXTS, check_upload
 
+from . import officers as off
 from .models import OrgAccomplishment, OrgMembershipApplication, OrgMembershipEvent, OrgRequirement, YouthOrganization
 
 BLEACH_ALLOWED_TAGS = ['b', 'i', 'u', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 'a']
@@ -125,6 +126,10 @@ class OrgDetailSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
     requirements = OrgRequirementSerializer(many=True, read_only=True)
+    officers = serializers.SerializerMethodField()
+
+    def get_officers(self, obj):
+        return off.officers_for(obj, self.context.get('request'), True)
 
     facebook_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # checked and tidied in validate_facebook_url
     external_apply_url = serializers.CharField(required=False, allow_blank=True, max_length=300)  # http(s) only, checked in validate_external_apply_url
@@ -168,6 +173,7 @@ class OrgDetailSerializer(serializers.ModelSerializer):
             'updated_at',
             'accomplishments',
             'requirements',
+            'officers',
         ]
         read_only_fields = ['created_at', 'updated_at', 'is_compliant', 'status', 'admin_notes']
 
@@ -211,10 +217,37 @@ class OrgDetailSerializer(serializers.ModelSerializer):
         return sanitize(value)
 
 
+class OrgOwnerSerializer(OrgDetailSerializer):
+    """The leader's own organization (even before LYDO approves it): they edit the public profile, never the registration."""
+    my_position = serializers.SerializerMethodField()
+
+    def get_my_position(self, obj):
+        request = self.context.get('request')
+        row = obj.officers.filter(user=request.user).first() if request else None
+        return off.OfficerSerializer(row, context=self.context).data['position_label'] if row else ''
+
+    class Meta(OrgDetailSerializer.Meta):
+        fields = [
+            'id', 'name', 'acronym', 'classification', 'sub_classification', 'registration_category', 'registration_number',
+            'registration_valid_until', 'barangay', 'status', 'admin_notes', 'is_active', 'created_at',
+            'description', 'contact_person', 'contact_email', 'contact_phone', 'mission', 'membership_requirements', 'how_to_join',
+            'facebook_url', 'accepting_members', 'application_mode', 'external_apply_url', 'officers', 'my_position',
+        ]
+        read_only_fields = ['id', 'name', 'classification', 'sub_classification', 'registration_category', 'registration_number',
+                            'registration_valid_until', 'barangay', 'status', 'admin_notes', 'is_active', 'created_at', 'officers', 'my_position']
+
+    def validate_description(self, value):
+        return sanitize(value)
+
+
 class OrgSubmissionSerializer(serializers.ModelSerializer):
     """Used by verified youth users to submit a new org registration."""
 
     requirements = serializers.SerializerMethodField()
+    officers = serializers.SerializerMethodField()
+    my_position = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    my_position_custom = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    officers_input = serializers.JSONField(write_only=True, required=False)
 
     class Meta:
         model = YouthOrganization
@@ -222,9 +255,34 @@ class OrgSubmissionSerializer(serializers.ModelSerializer):
             'id', 'name', 'classification', 'sub_classification',
             'registration_category', 'barangay', 'description',
             'contact_person', 'contact_email', 'contact_phone',
-            'status', 'admin_notes', 'created_at', 'requirements',
+            'status', 'admin_notes', 'created_at', 'requirements', 'officers',
+            'my_position', 'my_position_custom', 'officers_input', 'accepting_members', 'application_mode', 'external_apply_url', 'acronym',
         ]
-        read_only_fields = ['status', 'admin_notes', 'created_at']
+        read_only_fields = ['status', 'admin_notes', 'created_at', 'accepting_members', 'application_mode', 'external_apply_url', 'acronym']
+
+    def get_officers(self, obj):
+        return off.officers_for(obj, self.context.get('request'), True)
+
+    def validate(self, attrs):
+        # the officers of the new organization, with the leader's own position among them
+        request = self.context.get('request')
+        rows = attrs.get('officers_input') or []
+        mine = (attrs.get('my_position') or '').strip()
+        if mine:
+            if not any(isinstance(r, dict) and r.get('is_me') for r in rows):
+                rows = list(rows) + [{'position': mine, 'custom_title': attrs.get('my_position_custom', ''), 'name': (request.user.full_name or request.user.email), 'is_me': True}]
+        attrs['_officer_rows'] = off.clean_officers(rows, sanitize)
+        return attrs
+
+    def create(self, validated_data):
+        rows = validated_data.pop('_officer_rows', [])
+        for k in ('my_position', 'my_position_custom', 'officers_input'):
+            validated_data.pop(k, None)
+        org = super().create(validated_data)
+        request = self.context.get('request')
+        if rows:
+            off.save_officers(org, rows, request.user if request else None)
+        return org
 
     def get_requirements(self, obj):
         # The owner's checklist: which documents are in and which are still missing.
@@ -252,13 +310,19 @@ class OrgSubmissionSerializer(serializers.ModelSerializer):
 
 class OrgPublicListSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+
+    def get_is_mine(self, obj):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        return bool(user and user.is_authenticated and obj.submitted_by_id == user.id)
 
     class Meta:
         model = YouthOrganization
         fields = [
             'id', 'name', 'classification', 'sub_classification', 'registration_category', 'barangay', 'description',
             'contact_person', 'is_compliant', 'accepting_members', 'logo_url', 'created_at',
-            'application_mode', 'external_apply_url', 'acronym',
+            'application_mode', 'external_apply_url', 'acronym', 'is_mine',
         ]
 
     def get_logo_url(self, obj):
@@ -270,13 +334,21 @@ class OrgPublicDetailSerializer(OrgPublicListSerializer):
     accomplishments = OrgAccomplishmentSerializer(many=True, read_only=True)
     can_manage = serializers.SerializerMethodField()
     has_officer_reviewer = serializers.SerializerMethodField()
+    officers = serializers.SerializerMethodField()
 
     class Meta(OrgPublicListSerializer.Meta):
         fields = OrgPublicListSerializer.Meta.fields + [
             'mission', 'membership_requirements', 'how_to_join', 'facebook_url', 'contact_email', 'contact_phone',
-            'registration_number', 'registration_valid_until', 'has_officer_reviewer',
+            'registration_number', 'registration_valid_until', 'has_officer_reviewer', 'officers',
             'accomplishments', 'can_manage',
         ]
+
+    def get_officers(self, obj):
+        # everyone sees the president, vice presidents, secretary and PRO; only the leader and LYDO see the rest
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        sees_all = bool(user and user.is_authenticated and (obj.submitted_by_id == user.id or getattr(user, 'role', '') in ('lgu_admin', 'super_admin')))
+        return off.officers_for(obj, request, sees_all)
 
     def get_has_officer_reviewer(self, obj):
         # in-app applications are reviewed by the organization's own officers, when an officer account is linked to it

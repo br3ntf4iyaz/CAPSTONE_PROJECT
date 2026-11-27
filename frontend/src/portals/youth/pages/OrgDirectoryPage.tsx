@@ -13,6 +13,11 @@ import { QueryError } from '@/components/ui/QueryError'
 import { cn } from '@/utils'
 import { useAuthStore } from '@/store/authStore'
 import { JoinFlow, OrgApplicationsPanel, clearRememberedNext } from '../components/OrgJoin'
+import ManageOrganization from '../components/ManageOrganization'
+import OfficersEditor, { POSITIONS, type OfficerRow } from '../components/OfficersEditor'
+
+/** What the signed-in person is: general youth, a youth organization leader, or an SK official. Leaders and SK officials do not recruit or join here. */
+interface Viewer { isLeader: boolean; isSK: boolean; barangay: string }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface YouthOrg {
@@ -29,6 +34,7 @@ interface YouthOrg {
   application_mode?: 'in_app' | 'external' | 'contact'
   external_apply_url?: string
   acronym?: string
+  is_mine?: boolean
   logo_url: string | null
 }
 
@@ -41,6 +47,7 @@ interface OrgDetail extends YouthOrg {
   registration_number?: string
   registration_valid_until?: string | null
   has_officer_reviewer?: boolean
+  officers?: { id: number; position: string; position_label: string; name: string; is_public: boolean }[]
   contact_email: string
   contact_phone: string
   is_active: boolean
@@ -106,7 +113,7 @@ function MembershipBadge({ org }: { org: { accepting_members?: boolean } }) {
 }
 
 // ── Org Detail Modal ───────────────────────────────────────────────────────────
-function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: () => void; onJoin: (o: { id: number; name: string }) => void }) {
+function OrgDetailModal({ orgId, onClose, onJoin, onManage, viewer }: { orgId: number; onClose: () => void; onJoin: (o: { id: number; name: string }) => void; onManage: (id: number) => void; viewer: Viewer }) {
   const { data: org, isLoading } = useQuery<OrgDetail>({
     queryKey: ['org-detail', orgId],
     queryFn: () => apiClient.get(`/youth-orgs/${orgId}/`).then(r => r.data),
@@ -227,6 +234,22 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
               </div>
             )}
 
+            {/* Executive board: the leader and LYDO also see the private positions */}
+            {(org.officers?.length ?? 0) > 0 && (
+              <div className="px-4 pt-4">
+                <p className="text-xs font-semibold text-ink-500 uppercase tracking-wide mb-2">Officers</p>
+                <ul className="grid gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                  {org.officers!.map(o => (
+                    <li key={o.id} className="text-sm">
+                      <span className="block font-semibold text-ink-900">{o.name}</span>
+                      <span className="text-xs text-ink-500">{o.position_label}{!o.is_public && <span className="ml-1 rounded-full bg-ink-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-600">Private</span>}</span>
+                    </li>
+                  ))}
+                </ul>
+                {org.can_manage && <p className="mt-1 text-[11px] text-ink-500">Officers marked Private are visible only to you and LYDO.</p>}
+              </div>
+            )}
+
             {/* Membership: recruitment status, requirements, and how to apply (the organization decides how) */}
             <div className="px-4 pt-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -249,7 +272,18 @@ function OrgDetailModal({ orgId, onClose, onJoin }: { orgId: number; onClose: ()
                   <a href={`tel:${org.contact_phone}`} className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 px-3 py-1.5 text-xs font-semibold text-primary-700 hover:bg-primary-50"><Phone size={12} /> Call</a>
                 )}
               </div>
-              {!org.can_manage && (
+              {org.can_manage ? (
+                <div className="mt-3 space-y-2">
+                  <p className="inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-50 px-3 py-1 text-xs font-semibold text-primary-800"><ShieldCheck size={12} /> Your Organization</p>
+                  <button type="button" onClick={() => onManage(org.id)} className="btn-primary w-full">Manage Organization</button>
+                </div>
+              ) : (viewer.isLeader || viewer.isSK) ? (
+                <p className="mt-3 rounded-xl bg-primary-50 p-3 text-sm text-primary-900">
+                  {viewer.isSK
+                    ? 'This is a monitoring and partnership view. Reach out to the organization using the details above.'
+                    : 'Want to work together? Reach out to the organization using the details above to collaborate.'}
+                </p>
+              ) : (
                 !isOpen(org) ? (
                   <p className="mt-3 rounded-xl bg-ink-50 p-3 text-center text-sm font-semibold text-ink-600">Membership is closed right now.</p>
                 ) : org.application_mode === 'external' && org.external_apply_url ? (
@@ -337,19 +371,22 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
     name: '', classification: 'community_based', sub_classification: 'youth_org',
     registration_category: 'not_registered', barangay: '',
     description: '', contact_person: '', contact_email: '', contact_phone: '',
+    my_position: 'president', my_position_custom: '',
   })
+  const [officers, setOfficers] = useState<OfficerRow[]>([])
   const [done, setDone] = useState(false)
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }))
 
   const submitMutation = useMutation({
-    mutationFn: () => apiClient.post('/youth-orgs/', form),
+    mutationFn: () => apiClient.post('/youth-orgs/', { ...form, officers_input: officers.filter(o => o.name.trim()) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-org-submissions'] })
       setDone(true)
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.name?.[0]
+        ?? (Array.isArray(err?.response?.data?.officers) ? err.response.data.officers[0] : err?.response?.data?.officers)
         ?? err?.response?.data?.detail
         ?? 'Submission failed. Please try again.'
       toast.error(msg)
@@ -364,7 +401,7 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
         </div>
         <h2 className="font-display font-extrabold text-xl text-ink-900 mb-2">Submitted!</h2>
         <p className="text-sm text-ink-600 mb-6">
-          Your organization has been submitted for admin review. You'll see its status in <strong>My Submissions</strong> below.
+          Your organization is now <strong>Pending Verification</strong>. Only you and LYDO can see it until LYDO approves it. You can follow it, and manage it, under <strong>My Organizations</strong> below.
         </p>
         <button onClick={onClose} className="btn-primary w-full">Done</button>
       </div>
@@ -411,12 +448,15 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
               <input className="input" value={form.barangay} onChange={e => set('barangay', e.target.value)} placeholder="e.g. Barangay 5" />
             </div>
             <div>
-              <label className="label">Registration Status</label>
-              <select className="input" value={form.registration_category} onChange={e => set('registration_category', e.target.value)}>
-                {REG_CATS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              <label className="label">Your position in this organization</label>
+              <select className="input" value={form.my_position} onChange={e => set('my_position', e.target.value)}>
+                {POSITIONS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
             </div>
           </div>
+          {form.my_position === 'other' && (
+            <input className="input" maxLength={60} value={form.my_position_custom} onChange={e => set('my_position_custom', e.target.value)} placeholder="Your title" aria-label="Your title" />
+          )}
 
           <div>
             <label className="label">Description</label>
@@ -439,9 +479,14 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
+          <div>
+            <p className="label">Other officers (optional)</p>
+            <OfficersEditor value={officers} onChange={setOfficers} />
+          </div>
+
           <div className="flex items-start gap-2 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600">
             <Info size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />
-            <span>Note: Approval of membership applications is handled directly by the organization and is not managed through this system.</span>
+            <span>LYDO verifies the organization. Afterwards, <strong>your officers</strong>, not LYDO, review and approve the members who apply through LYDOP. You can also choose to take members on your own link.</span>
           </div>
 
           <button
@@ -461,8 +506,8 @@ function SubmitOrgModal({ onClose }: { onClose: () => void }) {
 
 // ── My Submissions Panel ───────────────────────────────────────────────────────
 const STATUS_CONFIG = {
-  pending:  { label: 'Under Review', icon: Clock,        cls: 'text-amber-700 bg-amber-50 border-amber-200' },
-  approved: { label: 'Approved',     icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  pending:  { label: 'Pending Verification', icon: Clock,        cls: 'text-amber-700 bg-amber-50 border-amber-200' },
+  approved: { label: 'Verified / YORP Registered', icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
   rejected: { label: 'Rejected',     icon: Ban,          cls: 'text-red-700 bg-red-50 border-red-200' },
 }
 
@@ -538,7 +583,7 @@ function RequirementChecklist({ org }: { org: MySubmission }) {
   )
 }
 
-function MySubmissions() {
+function MySubmissions({ onManage }: { onManage: (id: number) => void }) {
   const { data: subs = [] } = useQuery<MySubmission[]>({
     queryKey: ['my-org-submissions'],
     queryFn: () => apiClient.get('/youth-orgs/my-submissions/').then(r => {
@@ -549,7 +594,7 @@ function MySubmissions() {
 
   return (
     <div className="space-y-3">
-      <h3 className="font-semibold text-sm text-ink-700">My Submissions</h3>
+      <h3 className="font-semibold text-sm text-ink-700">My Organizations</h3>
       {subs.map(s => {
         const cfg = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.pending
         const Icon = cfg.icon
@@ -567,6 +612,8 @@ function MySubmissions() {
             {s.admin_notes && (
               <p className="text-xs text-ink-600 bg-ink-50 rounded-lg px-3 py-2 mt-2">{s.admin_notes}</p>
             )}
+            {s.status === 'pending' && <p className="mt-2 text-xs text-ink-500">Visible only to you and LYDO until it is verified.</p>}
+            <button type="button" onClick={() => onManage(s.id)} className="btn-secondary btn-sm mt-2">Manage Organization</button>
             <RequirementChecklist org={s} />
           </div>
         )
@@ -594,6 +641,14 @@ export default function OrgDirectoryPage() {
   const [params, setParams] = useSearchParams()
 
   const auth = useAuthStore()
+  const viewer: Viewer = {
+    isLeader: auth.user?.youth_type === 'youth_org_leader',
+    isSK: auth.user?.youth_type === 'sk',
+    barangay: (auth.user?.profile?.barangay ?? '').trim().toLowerCase(),
+  }
+  const [manageId, setManageId] = useState<number | null>(null)
+  const [mineOnly, setMineOnly] = useState(false)
+  const inMyBarangay = (o: { barangay: string }) => !!viewer.barangay && o.barangay.trim().toLowerCase() === viewer.barangay
   const { data: verification } = useQuery<{ is_verified: boolean }>({
     queryKey: ['verification-status'],
     queryFn: () => apiClient.get('/verification/').then(r => r.data).catch(() => ({ is_verified: false })),
@@ -639,6 +694,7 @@ export default function OrgDirectoryPage() {
     if (classFilter && o.classification !== classFilter) return false
     if (barangay && o.barangay !== barangay) return false
     if (openOnly && !isOpen(o)) return false
+    if (mineOnly && !(viewer.isSK ? inMyBarangay(o) : o.is_mine)) return false
     if (!search) return true
     const q = search.toLowerCase()
     return o.name.toLowerCase().includes(q) || o.barangay.toLowerCase().includes(q) || (o.acronym ?? '').toLowerCase().includes(q)
@@ -646,7 +702,8 @@ export default function OrgDirectoryPage() {
 
   return (
     <div className="space-y-6">
-      {selectedId && <OrgDetailModal orgId={selectedId} onClose={() => setSelectedId(null)} onJoin={o => setJoinOrg(o)} />}
+      {selectedId && <OrgDetailModal orgId={selectedId} onClose={() => setSelectedId(null)} onJoin={o => setJoinOrg(o)} onManage={id => { setSelectedId(null); setManageId(id) }} viewer={viewer} />}
+      {manageId && <ManageOrganization orgId={manageId} onClose={() => setManageId(null)} />}
       {joinOrg && <JoinFlow org={joinOrg} onClose={() => setJoinOrg(null)} />}
       {showSubmitForm && <SubmitOrgModal onClose={() => setShowSubmitForm(false)} />}
 
@@ -658,7 +715,7 @@ export default function OrgDirectoryPage() {
         {auth.isAuthenticated && (
           isVerified ? (
             <button onClick={() => setShowSubmitForm(true)} className="btn-primary btn-sm flex-shrink-0">
-              <Plus size={15} /> Register Your Org
+              <Plus size={15} /> {viewer.isLeader ? 'Register / Create New Organization' : 'Register Your Org'}
             </button>
           ) : (
             <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
@@ -720,6 +777,13 @@ export default function OrgDirectoryPage() {
               </span>
               Open for Members only
             </button>
+            {(viewer.isSK && viewer.barangay) || viewer.isLeader ? (
+              <button type="button" role="switch" aria-checked={mineOnly} onClick={() => setMineOnly(v => !v)}
+                className={cn('inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors',
+                  mineOnly ? 'border-primary-300 bg-primary-50 text-primary-800' : 'border-ink-200 bg-white text-ink-600 hover:border-primary-300')}>
+                {viewer.isSK ? 'In my barangay only' : 'My organizations only'}
+              </button>
+            ) : null}
             {barangays.length > 1 && (
               <select className="input w-auto text-sm" value={barangay} onChange={e => setBarangay(e.target.value)} aria-label="Filter by barangay">
                 <option value="">All barangays</option>
@@ -783,13 +847,25 @@ export default function OrgDirectoryPage() {
                             {REG_LABELS[org.registration_category] ?? org.registration_category}
                           </span>
                           <MembershipBadge org={org} />
+                          {org.is_mine && <span className="inline-flex items-center gap-1 rounded-full border border-primary-300 bg-primary-50 px-2 py-0.5 text-[10px] font-bold text-primary-800"><ShieldCheck size={10} /> Your Organization</span>}
+                          {viewer.isSK && inMyBarangay(org) && <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800"><MapPin size={10} /> In your barangay</span>}
                         </div>
                         {org.description && (
                           <p className="text-xs text-ink-700 mt-2 line-clamp-1">{org.description}</p>
                         )}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
                           <span className="rounded-full bg-primary-700 px-3.5 py-1 text-[11px] font-semibold text-white shadow-md shadow-primary-600/20 group-hover:bg-primary-800">View Profile</span>
-                          {isOpen(org) && org.application_mode === 'external' && org.external_apply_url ? (
+                          {org.is_mine ? (
+                            <button type="button" onClick={e => { e.stopPropagation(); setManageId(org.id) }}
+                              className="rounded-full border-2 border-primary-300 bg-primary-50 px-3 py-1 text-[11px] font-semibold text-primary-800 hover:border-primary-500">
+                              Manage Organization
+                            </button>
+                          ) : viewer.isLeader ? (
+                            <button type="button" onClick={e => { e.stopPropagation(); setSelectedId(org.id) }}
+                              className="rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
+                              Contact / Collaborate
+                            </button>
+                          ) : viewer.isSK ? null : isOpen(org) && org.application_mode === 'external' && org.external_apply_url ? (
                             <a href={org.external_apply_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
                               className="inline-flex items-center gap-1 rounded-full border-2 border-primary-200 bg-white px-3 py-1 text-[11px] font-semibold text-primary-700 hover:border-primary-400">
                               Apply via link <ExternalLink size={11} />
@@ -817,7 +893,7 @@ export default function OrgDirectoryPage() {
 
           {auth.isAuthenticated && (
             <div className="pt-2">
-              <MySubmissions />
+              <MySubmissions onManage={setManageId} />
             </div>
           )}
         </div>

@@ -14,11 +14,13 @@ from apps.accounts.permissions import IsAdminRole
 from apps.notifications.views import create_notification
 
 from . import membership
+from . import officers as off
 from .models import OrgAccomplishment, OrgMembershipApplication, OrgRequirement, YouthOrganization, ensure_default_requirements
 from .serializers import (
     OrgAccomplishmentSerializer,
     OrgDetailSerializer,
     OrgListSerializer,
+    OrgOwnerSerializer,
     OrgMembershipApplicationSerializer,
     OrgPublicDetailSerializer,
     OrgPublicListSerializer,
@@ -159,9 +161,38 @@ class YouthOrgViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ('list', 'retrieve'):
             return [AllowAny()]
-        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application'):
+        if self.action in ('create', 'my_submissions', 'upload_requirement', 'apply', 'my_applications', 'applications', 'decide_application', 'manage', 'set_officers'):
             return [IsAuthenticated()]
         return [IsAuthenticated(), IsAdminRole()]
+
+    @action(detail=True, methods=['get', 'patch'], url_path='manage', permission_classes=[IsAuthenticated])
+    def manage(self, request, pk=None):
+        """The leader who registered the organization reads and edits its public profile, even before LYDO approves it.
+        The registration itself (status, category, number, listing) stays with LYDO."""
+        org = get_object_or_404(YouthOrganization, pk=pk, submitted_by=request.user)
+        if request.method == 'GET':
+            return Response(OrgOwnerSerializer(org, context={'request': request}).data)
+        ser = OrgOwnerSerializer(org, data=request.data, partial=True, context={'request': request})
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        self._audit(request, 'org_managed', org, fields=sorted(ser.validated_data.keys()))
+        return Response(OrgOwnerSerializer(org, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'], url_path='set-officers', permission_classes=[IsAuthenticated])
+    def set_officers(self, request, pk=None):
+        """The leader replaces the officers of their organization."""
+        org = get_object_or_404(YouthOrganization, pk=pk, submitted_by=request.user)
+        try:
+            rows = off.clean_officers(request.data.get('officers'), sanitize)
+        except Exception as exc:  # DRF ValidationError: send it back as a readable 400
+            detail = getattr(exc, 'detail', None)
+            if detail is None:
+                raise
+            return Response(detail, status=status.HTTP_400_BAD_REQUEST)
+        with transaction.atomic():
+            off.save_officers(org, rows, request.user)
+        self._audit(request, 'org_officers_changed', org, count=len(rows))
+        return Response(off.officers_for(org, request, True))
 
     @action(detail=False, methods=['get'], url_path='my-submissions', permission_classes=[IsAuthenticated])
     def my_submissions(self, request):

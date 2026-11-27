@@ -77,6 +77,22 @@ class YouthOrganization(models.Model):
         return self.name
 
 
+class OrgOfficer(models.Model):
+    """One officer on the executive board of an organization. Who may see it depends on the position (see officers.py)."""
+    organization = models.ForeignKey(YouthOrganization, on_delete=models.CASCADE, related_name='officers')
+    position = models.CharField(max_length=20)
+    custom_title = models.CharField(max_length=60, blank=True)  # only for the position "Other"
+    name = models.CharField(max_length=200)
+    # the account of this officer, when it is the leader who registered the organization
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f'{self.name} ({self.position}) of {self.organization_id}'
+
+
 class OrgAccomplishment(models.Model):
     organization = models.ForeignKey(
         YouthOrganization,

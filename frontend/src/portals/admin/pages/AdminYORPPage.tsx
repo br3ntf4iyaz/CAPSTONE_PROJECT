@@ -92,6 +92,7 @@ interface OrgDetail {
   acronym?: string
   registration_number?: string
   registration_valid_until?: string | null
+  officers?: { id: number; position_label: string; name: string; is_public: boolean }[]
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -242,6 +243,16 @@ function DecisionBox({ orgId }: { orgId: number }) {
         <p><span className="text-gray-400">Phone: </span>{org.contact_phone || '—'}</p>
       </div>
       {org.description && <p className="text-xs text-gray-600 whitespace-pre-line">{org.description}</p>}
+      <div className="rounded-xl border border-gray-200 bg-white p-3">
+        <p className="mb-1 text-xs font-medium text-gray-700">Officers (you see all of them; the public sees only the marked ones)</p>
+        {(org.officers?.length ?? 0) === 0 ? <p className="text-xs text-gray-500">No officers listed yet.</p> : (
+          <ul className="grid gap-x-4 gap-y-1 sm:grid-cols-2 text-xs">
+            {org.officers!.map(o => (
+              <li key={o.id}><span className="font-semibold text-gray-800">{o.name}</span> <span className="text-gray-500">· {o.position_label}</span> <span className={o.is_public ? 'text-emerald-700' : 'text-gray-500'}>{o.is_public ? '(public)' : '(private)'}</span></li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <PublicProfileEditor key={`${org.id}-${org.status}-${org.is_active}`} org={org} />
 
