@@ -47,7 +47,8 @@ ORGS = [
         classification='community_based', sub_classification='youth_org',
         description=('The Lucena chapter of Kaya Natin! Youth (KNY). In October 2024 it teamed up with the '
                      'MSEUF student council to collect in-kind donations for the victims of Severe Tropical Storm Kristine, and it also took donations online.'),
-        how_to_join='Demo listing: to join, contact the organization directly, or ask the LYDO office to guide you to it.',
+        how_to_join='Demo listing: use the button below to apply for membership in LYDOP.',
+        application_mode='in_app',  # the one demo club that takes applications inside LYDOP, so the join flow can be shown
         accepting_members=True,  # open for the demo: the system is not in real use yet
         accent='amber',
         source=LUZONIAN,
@@ -61,6 +62,9 @@ FIRST_DESCRIPTIONS = {
     'Kaya Natin! Youth - Lucena': ('The Lucena chapter of Kaya Natin! Youth (KNY). In October 2024, together with the University Collegiate Student Council of MSEUF, '
                                    'it ran an in-kind donation drive for the victims of Severe Tropical Storm Kristine.'),
 }
+
+# what the Kaya Natin! entry said while it was contact-only: switched to applying in LYDOP only while still exactly this
+KNY_CONTACT_HOW = 'Demo listing: to join, contact the organization directly, or ask the LYDO office to guide you to it.'
 
 # the clubs this command added before, which could not be confirmed. They are removed only while untouched.
 UNVERIFIED = ['Rotaract Club of Lucena South', 'Rotaract Club of Metro Lucena', 'Rotaract Club of Lucena Promenade']
@@ -89,7 +93,7 @@ class Command(BaseCommand):
                     classification=d['classification'], sub_classification=d['sub_classification'],
                     registration_category='not_registered', barangay='',
                     description=d['description'], how_to_join=d['how_to_join'],
-                    application_mode='contact', accepting_members=d['accepting_members'],
+                    application_mode=d.get('application_mode', 'contact'), accepting_members=d['accepting_members'],
                     is_active=True, status='approved', admin_notes=DEMO_NOTE, source_url=d['source'], accent=d['accent'],
                 ),
             )
@@ -105,6 +109,9 @@ class Command(BaseCommand):
                 if org.description == FIRST_DESCRIPTIONS.get(d['name']):  # untouched: bring it to the new wording
                     org.description = d['description']
                     changed.append('description')
+                if d.get('application_mode') == 'in_app' and org.application_mode == 'contact' and org.how_to_join == KNY_CONTACT_HOW:
+                    org.application_mode, org.how_to_join = 'in_app', d['how_to_join']  # untouched: now takes applications in LYDOP
+                    changed += ['application_mode', 'how_to_join']
                 if changed:
                     org.save(update_fields=changed)
                     self.stdout.write(self.style.SUCCESS(f'  updated {org.name}: {", ".join(changed)}'))

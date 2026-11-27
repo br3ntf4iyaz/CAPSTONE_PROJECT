@@ -17,7 +17,10 @@ class AddPublicOrgsTests(TestCase):
         self.assertEqual({o['name'] for o in listing}, NAMES)
         for o in listing:
             self.assertEqual(o['registration_category'], 'not_registered')  # never claimed as registered
-            self.assertEqual(o['application_mode'], 'contact')
+        modes = {o['name']: o['application_mode'] for o in listing}
+        self.assertEqual(modes['Kaya Natin! Youth - Lucena'], 'in_app')  # the one that takes applications inside LYDOP
+        self.assertEqual(modes['Supreme Student Council - SLSU Lucena Campus'], 'contact')
+        self.assertEqual(modes['University Collegiate Student Council - MSEUF'], 'contact')
 
     def test_every_entry_has_a_web_source_and_nothing_is_invented(self):
         call_command('add_public_orgs')
@@ -101,3 +104,31 @@ class AddPublicOrgsTests(TestCase):
         call_command('add_public_orgs')
         self.assertIn('Office of Student Affairs', YouthOrganization.objects.get(pk=ucsc.pk).description)
         self.assertEqual(YouthOrganization.objects.get(pk=kny.pk).description, 'LYDO edited this')
+
+    def test_a_verified_general_youth_can_apply_to_the_in_app_club_only_and_lydo_passes_it_on(self):
+        from apps.notifications.models import Notification
+        from apps.verification.models import IDVerification
+        call_command('add_public_orgs')
+        U = get_user_model()
+        admin = U.objects.create_user(email='ad@t.local', password='x', role='lgu_admin', is_active=True)
+        gy = U.objects.create_user(email='gy@t.local', password='x', role='youth', youth_type='general_youth', is_active=True)
+        IDVerification.objects.create(user=gy, id_type='umid', status='approved')
+        c = APIClient()
+        c.force_authenticate(gy)
+        post = lambda name: c.post(f'/api/youth-orgs/{YouthOrganization.objects.get(name=name).pk}/apply/', {'message': 'hi', 'consent': 'true'}, format='json')
+        self.assertEqual(post('Kaya Natin! Youth - Lucena').status_code, 201)
+        self.assertEqual(post('Supreme Student Council - SLSU Lucena Campus').status_code, 400)  # contact only
+        self.assertEqual(post('University Collegiate Student Council - MSEUF').status_code, 400)
+        # the club has no officer account in LYDOP, so LYDO is told and passes the application on
+        self.assertTrue(Notification.objects.filter(user=admin, title='New membership application').exists())
+
+    def test_an_earlier_contact_only_entry_switches_to_in_app_unless_lydo_edited_it(self):
+        from .management.commands.add_public_orgs import KNY_CONTACT_HOW
+        call_command('add_public_orgs')
+        o = YouthOrganization.objects.get(name='Kaya Natin! Youth - Lucena')
+        YouthOrganization.objects.filter(pk=o.pk).update(application_mode='contact', how_to_join=KNY_CONTACT_HOW)
+        call_command('add_public_orgs')
+        self.assertEqual(YouthOrganization.objects.get(pk=o.pk).application_mode, 'in_app')
+        YouthOrganization.objects.filter(pk=o.pk).update(application_mode='contact', how_to_join='LYDO wrote this')
+        call_command('add_public_orgs')
+        self.assertEqual(YouthOrganization.objects.get(pk=o.pk).application_mode, 'contact')  # an edit by LYDO is respected
