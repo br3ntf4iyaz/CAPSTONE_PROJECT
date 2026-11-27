@@ -295,7 +295,7 @@ function OfficialCard({
           : 'border-primary-800 bg-gradient-to-br from-primary-700 to-primary-900 text-white shadow-md shadow-primary-800/25 hover:shadow-lg hover:shadow-primary-800/35 hover:-translate-y-0.5',
       )}
     >
-      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured && 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30')}>
+      <div className={cn('relative aspect-square w-full overflow-hidden rounded-xl bg-gradient-to-br from-primary-50 to-primary-100 flex items-center justify-center', featured ? 'ring-4 ring-accent-400 shadow-lg shadow-primary-900/30' : 'ring-[3px] ring-accent-400 shadow-md shadow-black/20')}>
         {showPhoto ? (
           <button
             type="button"
