@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   CalendarDays, Plus, Edit2, Trash2, Eye, EyeOff, X, Star,
@@ -92,8 +93,8 @@ function AttendanceModal({ event, onClose }: { event: Event; onClose: () => void
       <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 space-y-4 my-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold text-ink-800">Attendance — {event.title}</h2>
-            <p className="text-sm text-ink-500 mt-0.5">{attendedCount} / {records.length} attended</p>
+            <h2 className="text-base font-semibold text-ink-800">Registrations and attendance — {event.title}</h2>
+            <p className="text-sm text-ink-500 mt-0.5">{records.length} registered{event.capacity ? ` of ${event.capacity}` : ''} · {attendedCount} attended</p>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18} /></button>
         </div>
@@ -205,11 +206,21 @@ export default function AdminCalendarPage() {
   const [filter, setFilter] = useState<'all' | 'featured'>('all')
   const [attendanceEvent, setAttendanceEvent] = useState<Event | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const [params, setParams] = useSearchParams()
 
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ['admin-events-full'],
     queryFn: () => apiClient.get('/events/').then(r => toArray<Event>(r.data)),
   })
+
+  // a link such as /admin/calendar?event=5 (from the "New event registration" notice) opens the list of people who registered
+  useEffect(() => {
+    const id = Number(params.get('event'))
+    if (!id || events.length === 0) return
+    const found = events.find(e => e.id === id)
+    if (found) setAttendanceEvent(found)
+    setParams({}, { replace: true })
+  }, [params, events, setParams])
 
   const buildFormData = () => {
     const fd = new FormData()
@@ -444,7 +455,12 @@ export default function AdminCalendarPage() {
                   <td className="text-xs">{formatDateTime(e.start_datetime)}</td>
                   <td className="text-xs">{e.end_datetime ? formatDateTime(e.end_datetime) : '—'}</td>
                   <td className="max-w-[100px] truncate text-xs text-gray-500">{e.location || '—'}</td>
-                  <td className="text-sm">{e.registration_count}</td>
+                  <td className="text-sm">
+                    <button type="button" onClick={() => setAttendanceEvent(e)} title="See who registered"
+                      className="inline-flex items-center gap-1 rounded-full bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-700 hover:bg-primary-100">
+                      <Users size={12} /> {e.registration_count}{e.capacity ? ` / ${e.capacity}` : ''}
+                    </button>
+                  </td>
                   <td>
                     <button
                       onClick={() => toggleFeatured.mutate({ id: e.id, is_featured: !e.is_featured })}
@@ -478,7 +494,7 @@ export default function AdminCalendarPage() {
                       <button
                         onClick={() => setAttendanceEvent(e)}
                         className="btn-secondary btn-sm text-xs p-1.5"
-                        title="View attendance"
+                        title="Registrations and attendance"
                       >
                         <UserCheck size={13} />
                       </button>

@@ -12,6 +12,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsAdminRole
+from apps.notifications.views import create_notification
 
 from .throttles import CheckinThrottle
 from .models import (
@@ -108,8 +109,31 @@ class EventViewSet(viewsets.ModelViewSet):
             if locked_event.capacity and locked_event.registrations.count() >= locked_event.capacity:
                 return Response({'detail': 'This event has reached its capacity.'}, status=status.HTTP_400_BAD_REQUEST)
             registration = EventRegistration.objects.create(event=locked_event, user=request.user)
+        self._tell_about_registration(request.user, locked_event, registered=True)
         serializer = EventRegistrationSerializer(registration, context={'request': request})
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def _tell_about_registration(self, user, event, registered):
+        """The person gets a confirmation, and LYDO is told who registered (or cancelled), with a link to that event's list. Never blocks the registration."""
+        who = user.full_name or user.email
+        count = event.registrations.count()
+        seats = f'{count}/{event.capacity}' if event.capacity else str(count)
+        when = timezone.localtime(event.start_datetime).strftime('%b %d, %Y %I:%M %p') if event.start_datetime else ''
+        try:
+            if registered:
+                create_notification(user, 'Event registration confirmed', f'You are registered for "{event.title}"' + (f' on {when}.' if when else '.'), 'system', link='/events')
+            else:
+                create_notification(user, 'Event registration cancelled', f'You are no longer registered for "{event.title}".', 'system', link='/events')
+        except Exception:
+            pass
+        try:
+            from django.contrib.auth import get_user_model
+            title = 'New event registration' if registered else 'Event registration cancelled'
+            text = f'{who} registered for "{event.title}" ({seats} registered).' if registered else f'{who} cancelled their registration for "{event.title}" ({seats} registered).'
+            for admin in get_user_model().objects.filter(role__in=['lgu_admin', 'super_admin'], is_active=True):
+                create_notification(admin, title, text, 'system', link=f'/admin/calendar?event={event.pk}')
+        except Exception:
+            pass
 
     @action(detail=True, methods=['post'], url_path='unregister', permission_classes=[IsAuthenticated])
     def unregister(self, request, pk=None):
@@ -121,6 +145,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         registration.delete()
+        self._tell_about_registration(request.user, event, registered=False)
         return Response({'detail': 'Unregistered successfully.'}, status=status.HTTP_200_OK)
 
     @action(
