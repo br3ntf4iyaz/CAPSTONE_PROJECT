@@ -75,6 +75,10 @@ class OrgListSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     requirements_total = serializers.SerializerMethodField()
     requirements_submitted = serializers.SerializerMethodField()
+    has_officer_reviewer = serializers.SerializerMethodField()
+
+    def get_has_officer_reviewer(self, obj):
+        return obj.submitted_by_id is not None
 
     def get_requirements_total(self, obj):
         return len(obj.requirements.all())  # prefetched by the viewset
@@ -94,6 +98,11 @@ class OrgListSerializer(serializers.ModelSerializer):
             'description',
             'contact_person',
             'is_compliant',
+            'accepting_members',
+            'application_mode',
+            'acronym',
+            'registration_number',
+            'has_officer_reviewer',
             'status',
             'created_at',
             'logo_url',

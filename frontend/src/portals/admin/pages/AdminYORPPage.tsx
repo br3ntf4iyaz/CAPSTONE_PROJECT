@@ -18,6 +18,11 @@ interface YouthOrg {
   registration_category: string
   barangay: string
   is_compliant: boolean
+  accepting_members?: boolean
+  application_mode?: 'in_app' | 'external' | 'contact'
+  acronym?: string
+  registration_number?: string
+  has_officer_reviewer?: boolean
   accomplishments?: string
   upcoming_events?: string
   requirements_submitted?: number
@@ -28,11 +33,22 @@ interface YouthOrg {
 
 interface NewOrgForm {
   name: string
+  acronym: string
   classification: string
   sub_classification: string
   registration_category: string
   barangay: string
+  application_mode: 'in_app' | 'external' | 'contact'
+  external_apply_url: string
 }
+
+// the kinds the public directory understands (SK councils have their own pages)
+const SUBCLASSIFICATIONS = [
+  { value: 'youth_org', label: 'Youth Organization (15–30)' },
+  { value: 'youth_serving', label: 'Youth-Serving Organization' },
+]
+const subLabel = (v?: string) => SUBCLASSIFICATIONS.find(c => c.value === v)?.label ?? (v === 'sk_council' ? 'SK Council' : (v ?? '').replace('_', ' '))
+const MODE_LABEL = { in_app: 'Applies in LYDOP', external: 'Applies by own link', contact: 'Contact only' } as const
 
 const CLASSIFICATIONS = [
   { value: 'school_based', label: 'School-Based' },
@@ -40,15 +56,16 @@ const CLASSIFICATIONS = [
   { value: 'faith_based', label: 'Faith-Based' },
 ]
 const REG_CATEGORIES = [
-  { value: 'lydo', label: 'Lydo Registered' },
-  { value: 'nyc', label: 'NYC Registered' },
+  { value: 'lydo', label: 'YORP Registered (LYDO)' },
+  { value: 'nyc', label: 'LYDO & NYC Verified' },
   { value: 'not_registered', label: 'Not Yet Registered' },
 ]
 const classLabel = (v: string) => CLASSIFICATIONS.find(c => c.value === v)?.label ?? v
 const regLabel = (v: string) => REG_CATEGORIES.find(c => c.value === v)?.label ?? v
 
 const initialForm: NewOrgForm = {
-  name: '', classification: '', sub_classification: '', registration_category: '', barangay: '',
+  name: '', acronym: '', classification: '', sub_classification: 'youth_org', registration_category: '', barangay: '',
+  application_mode: 'contact', external_apply_url: '',
 }
 
 interface RequirementRow { id: number; name: string; is_submitted: boolean; file: string | null }
@@ -286,7 +303,7 @@ export default function AdminYORPPage() {
       setShowModal(false)
       setForm(initialForm)
     },
-    onError: () => toast.error('Failed to create organization'),
+    onError: (e: any) => toast.error(e?.response?.data?.external_apply_url?.[0] ?? e?.response?.data?.name?.[0] ?? 'Failed to create organization'),
   })
 
   // Open on "Pending" when applications are waiting, so they are not missed.
@@ -307,9 +324,10 @@ export default function AdminYORPPage() {
   })
 
   const exportCSV = () => {
-    const headers = ['ID', 'Name', 'Classification', 'Sub-Classification', 'Registration Category', 'Barangay', 'Compliant']
+    const headers = ['ID', 'Name', 'Classification', 'Sub-Classification', 'Registration Category', 'Barangay', 'Compliant', 'Membership', 'How people apply', 'YORP Registration No.']
     const rows = filtered.map(o => [
-      o.id, o.name, o.classification, o.sub_classification ?? '', o.registration_category, o.barangay, o.is_compliant ? 'Yes' : 'No'
+      o.id, `"${o.name.replace(/"/g, '""')}"`, o.classification, o.sub_classification ?? '', o.registration_category, o.barangay, o.is_compliant ? 'Yes' : 'No',
+      o.accepting_members === false ? 'Closed' : 'Open', o.application_mode ?? 'in_app', o.registration_number ?? ''
     ])
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -373,11 +391,11 @@ export default function AdminYORPPage() {
             <option value="">All Classifications</option>
             {CLASSIFICATIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
-          <input
-            value={filters.sub_classification}
-            onChange={e => setFilters(f => ({ ...f, sub_classification: e.target.value }))}
-            className="input" placeholder="Sub-classification…"
-          />
+          <select value={filters.sub_classification} onChange={e => setFilters(f => ({ ...f, sub_classification: e.target.value }))} className="input">
+            <option value="">All Types</option>
+            {SUBCLASSIFICATIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+            <option value="sk_council">SK Council</option>
+          </select>
           <select value={filters.registration_category} onChange={e => setFilters(f => ({ ...f, registration_category: e.target.value }))} className="input">
             <option value="">All Categories</option>
             {REG_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -403,7 +421,7 @@ export default function AdminYORPPage() {
               <div className="flex items-center gap-4 p-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-gray-800">{org.name}</span>
+                    <span className="font-semibold text-gray-800">{org.name}{org.acronym ? <span className="font-normal text-gray-500"> ({org.acronym})</span> : null}</span>
                     {org.is_compliant && (
                       <span className="badge-green text-xs">Compliant</span>
                     )}
@@ -416,10 +434,21 @@ export default function AdminYORPPage() {
                   </div>
                   <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
                     <span>{classLabel(org.classification)}</span>
-                    {org.sub_classification && <span>· {org.sub_classification.replace('_', ' ')}</span>}
+                    {org.sub_classification && <span>· {subLabel(org.sub_classification)}</span>}
                     <span>· {regLabel(org.registration_category)}</span>
                     <span>· {org.barangay}</span>
                   </div>
+                  {org.sub_classification !== 'sk_council' && (
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                      <span className={cn('rounded-full border px-2 py-0.5 font-semibold', org.accepting_members === false ? 'border-gray-200 bg-gray-50 text-gray-600' : 'border-emerald-200 bg-emerald-50 text-emerald-800')}>
+                        {org.accepting_members === false ? 'Membership closed' : 'Open for members'}
+                      </span>
+                      <span className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 font-semibold text-primary-800">{MODE_LABEL[org.application_mode ?? 'in_app']}</span>
+                      {(org.application_mode ?? 'in_app') === 'in_app' && org.has_officer_reviewer === false && (
+                        <span className="rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 font-semibold text-amber-800" title="No officer account is linked to this organization, so nobody reviews applications made in LYDOP. Choose another way to apply, or link an officer account.">No officer account to review applications</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <label className="flex items-center gap-1.5 cursor-pointer select-none">
@@ -509,8 +538,14 @@ export default function AdminYORPPage() {
                 </select>
               </div>
               <div>
-                <label className="label">Sub-Classification</label>
-                <input className="input" value={form.sub_classification} onChange={e => setForm(f => ({ ...f, sub_classification: e.target.value }))} placeholder="Optional" />
+                <label className="label">Acronym (optional)</label>
+                <input className="input" maxLength={30} value={form.acronym} onChange={e => setForm(f => ({ ...f, acronym: e.target.value }))} placeholder="e.g. LYA" />
+              </div>
+              <div>
+                <label className="label">Type</label>
+                <select className="input" value={form.sub_classification} onChange={e => setForm(f => ({ ...f, sub_classification: e.target.value }))}>
+                  {SUBCLASSIFICATIONS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
               </div>
               <div>
                 <label className="label">Registration Category</label>
@@ -523,12 +558,27 @@ export default function AdminYORPPage() {
                 <label className="label">Barangay</label>
                 <input className="input" value={form.barangay} onChange={e => setForm(f => ({ ...f, barangay: e.target.value }))} placeholder="Barangay name" />
               </div>
+              <div>
+                <label className="label">How people apply</label>
+                <select className="input" value={form.application_mode} onChange={e => setForm(f => ({ ...f, application_mode: e.target.value as NewOrgForm['application_mode'] }))}>
+                  <option value="contact">Contact only: people reach out directly</option>
+                  <option value="external">The organization&apos;s own link (Google Form, Facebook)</option>
+                  <option value="in_app">In LYDOP: needs an officer account to review</option>
+                </select>
+                {form.application_mode === 'in_app' && <p className="mt-1 text-xs text-amber-700">An organization you add yourself has no officer account yet, so nobody in the organization can review applications made in LYDOP. LYDO only passes them on.</p>}
+              </div>
+              {form.application_mode === 'external' && (
+                <div>
+                  <label className="label">Link where people apply</label>
+                  <input className="input" value={form.external_apply_url} onChange={e => setForm(f => ({ ...f, external_apply_url: e.target.value }))} placeholder="https://forms.gle/..." />
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowModal(false)} className="btn-secondary btn-sm">Cancel</button>
               <button
                 onClick={() => createOrg.mutate(form)}
-                disabled={createOrg.isPending || !form.name || !form.classification}
+                disabled={createOrg.isPending || !form.name || !form.classification || (form.application_mode === 'external' && !form.external_apply_url.trim())}
                 className="btn-primary btn-sm"
               >
                 {createOrg.isPending ? 'Saving…' : 'Add Organization'}
