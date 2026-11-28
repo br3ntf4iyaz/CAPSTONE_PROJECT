@@ -32,4 +32,5 @@ export const PROGRAM_TYPE_LABELS: Record<string, string> = {
   law:         'Law',
 }
 
+export const UNAVAILABLE_NOTE_STRANDS = "LYDO has not published the strands this school offers yet. This is about the school's information, not your account. Please check with the school directly."
 export const UNAVAILABLE_NOTE = "LYDO has not published this school's list of courses yet. This is about the school's information, not your account. Please check with the school directly."

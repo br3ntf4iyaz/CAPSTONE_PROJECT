@@ -14,7 +14,7 @@ import { ListSkeleton } from '@/components/ui/Skeleton'
 import { QueryError } from '@/components/ui/QueryError'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { CompareSheet, CompareTray, MAX_COMPARE } from './schools/SchoolCompare'
-import { TYPE_LABELS, FIELD_LABELS, PROGRAM_TYPE_LABELS, UNAVAILABLE_NOTE } from './schools/constants'
+import { TYPE_LABELS, FIELD_LABELS, PROGRAM_TYPE_LABELS, UNAVAILABLE_NOTE, UNAVAILABLE_NOTE_STRANDS } from './schools/constants'
 
 interface SchoolProgram {
   id: number
@@ -67,6 +67,9 @@ interface School {
   is_featured?: boolean
 }
 
+/** A school that teaches Senior High only has strands, not courses. */
+const shsOnly = (s: { offers_college?: boolean; offers_senior_high?: boolean }) => !!s.offers_senior_high && s.offers_college === false
+
 /** Which level(s) a school teaches, so a College and a Senior High School are never mixed up. */
 function levelLabel(s: { offers_college?: boolean; offers_senior_high?: boolean }) {
   const college = s.offers_college !== false
@@ -101,14 +104,15 @@ const TYPE_COLORS: Record<string, string> = {
 // ─── Detail Drawer ──────────────────────────────────────────────────────────
 
 /** What a visitor sees instead of the courses: a clear reason, and the two ways in. */
-function CoursesLock({ count, next = '/schools' }: { count?: number; next?: string }) {
+function CoursesLock({ count, next = '/schools', strand = false }: { count?: number; next?: string; strand?: boolean }) {
+  const unit = strand ? 'strand' : 'course'
   return (
     <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-5 text-center">
       <span className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white"><Lock size={18} /></span>
-      <p className="font-display text-base font-bold text-gray-900">Sign in to see the courses</p>
+      <p className="font-display text-base font-bold text-gray-900">Sign in to see the {unit}s</p>
       <p className="mx-auto mt-1 max-w-sm text-sm text-gray-600">
-        {count && count > 0 ? `This school has ${count} verified course${count === 1 ? '' : 's'}. ` : ''}
-        The list of courses is for LYDO members. It is free to create an account.
+        {count && count > 0 ? `This school has ${count} verified ${unit}${count === 1 ? '' : 's'}. ` : ''}
+        The list of {unit}s is for LYDO members. It is free to create an account.
       </p>
       <div className="mt-4 flex flex-wrap justify-center gap-2">
         <Link to={`/login?next=${encodeURIComponent(next)}`} className="btn-primary btn-sm">Sign in</Link>
@@ -219,13 +223,13 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
             </div>
 
             {/* Programs, grouped by field of study (verified only). Visitors get a sign-in prompt instead. */}
-            {detail && !signedIn && <CoursesLock count={detail.program_count} />}
+            {detail && !signedIn && <CoursesLock count={detail.program_count} strand={shsOnly(s)} />}
             {detail && signedIn && (
               detail.programs && detail.programs.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-primary-900 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                     <BookOpen size={14} className="text-primary-700" />
-                    Verified Courses
+                    {shsOnly(s) ? 'Verified Strands' : 'Verified Courses'}
                     <span className="text-xs font-normal text-gray-400">({detail.programs.length})</span>
                   </h3>
                   {Object.entries(
@@ -266,7 +270,7 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
               ) : (
                 <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-800">
                   <AlertCircle size={15} className="flex-shrink-0 mt-0.5" />
-                  <span>{UNAVAILABLE_NOTE}</span>
+                  <span>{shsOnly(s) ? UNAVAILABLE_NOTE_STRANDS : UNAVAILABLE_NOTE}</span>
                 </div>
               )
             )}
@@ -362,7 +366,7 @@ function SchoolCard({
               </span>
             ) : visitor ? null : (
               <span className="flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 font-medium text-amber-700">
-                <AlertCircle size={10} /> Course list not published yet
+                <AlertCircle size={10} /> {shsOnly(school) ? 'Strand list not published yet' : 'Course list not published yet'}
               </span>
             )}
           </div>
@@ -370,7 +374,7 @@ function SchoolCard({
             <p className="text-xs text-ink-600 mt-1.5 line-clamp-1">{school.address}</p>
           )}
           <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary-700">
-            {visitor ? <><Lock size={12} /> School details · sign in for courses</> : <><BookOpen size={12} /> View Courses</>}
+            {visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
           </span>
         </div>
       </div>
@@ -475,7 +479,7 @@ export default function YouthSchoolsPage() {
       {view === 'schools' && (
         <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 text-sm" role="tablist" aria-label="Level">
           {([['college', 'College'], ['senior_high', 'Senior High School']] as const).map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={level === k} onClick={() => { setLevel(k); setSchoolType('') }}
+            <button key={k} type="button" role="tab" aria-selected={level === k} onClick={() => { setLevel(k); setSchoolType(''); if (k === 'senior_high') { setView('schools'); setField(''); setPtype(''); setSchoolFilter('') } }}
               className={cn('rounded-lg px-4 py-1.5 font-semibold transition-colors', level === k ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 hover:text-primary-700')}>
               {l}
             </button>
@@ -511,7 +515,7 @@ export default function YouthSchoolsPage() {
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder={visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
+          placeholder={visitor || level === 'senior_high' ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -523,7 +527,7 @@ export default function YouthSchoolsPage() {
       </div>
 
       {/* Filters: they are about courses, so visitors do not get them */}
-      {signedIn && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+      {signedIn && level === 'college' && <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
         <select className="input" value={field} onChange={e => setField(e.target.value)} aria-label="Field of study">
           <option value="">All fields of study</option>
           {Object.entries(FIELD_LABELS).filter(([k]) => k !== 'other').map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -543,8 +547,8 @@ export default function YouthSchoolsPage() {
         </select>
       </div>}
 
-      {/* View switch */}
-      <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
+      {/* View switch (the courses view is for College) */}
+      {level === 'college' && <div className="inline-flex rounded-lg border border-gray-200 overflow-hidden text-xs font-semibold">
         {(['schools', 'courses'] as const).map(v => (
           <button
             key={v}
@@ -554,7 +558,7 @@ export default function YouthSchoolsPage() {
             {v === 'schools' ? 'Schools' : <span className="inline-flex items-center gap-1">{visitor && <Lock size={11} />} Courses</span>}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Course results (visitors get the sign-in prompt) */}
       {view === 'courses' && visitor && <CoursesLock />}
