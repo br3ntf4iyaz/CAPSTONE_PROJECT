@@ -20,6 +20,8 @@ from django.utils import timezone
 
 from apps.schools.models import School, SchoolOffering
 
+from ._lucena_master_list import JHS_ONLY, MASTER
+
 DASH = '–'
 GENERIC = {'', 'lucena city', 'lucena city, quezon'}
 LIST_NOTE = 'Name, address and classification come from the LYDO project list. Not yet checked against the DepEd SDO Lucena City or TESDA records.'
@@ -161,6 +163,16 @@ def _find(name, phrases):
     return None
 
 
+def _similar(a, b):
+    """True when two addresses name the same place, ignoring 'Brgy', 'Barangay', the postal code and word order."""
+    skip = {'brgy', 'barangay', 'lucena', 'city', 'quezon', '4301', 'street', 'st', 'avenue', 'ave', 'road', 'rd', 'highway', 'hwy', 'purok'}
+    ta = {w for w in _norm(a).split() if w not in skip}
+    tb = {w for w in _norm(b).split() if w not in skip}
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / len(ta | tb) >= 0.5
+
+
 def _note(school, text):
     if text and text not in (school.verification_note or ''):
         school.verification_note = ((school.verification_note or '').rstrip() + '\n' + text).strip()
@@ -204,16 +216,57 @@ class Command(BaseCommand):
         school.save()
         return school
 
+    def _master(self):
+        """Levels and categories of the LYDO master list: added to what a school already has, never removed. Missing schools are added."""
+        for name, phrases, kind, address, levels, tags in MASTER:
+            school = _find(name, phrases)
+            if school is None:
+                school = School(name=name, school_type=kind, address=address or 'Lucena City, Quezon', municipality='Lucena City', province='Quezon',
+                                region='Region IV-A (CALABARZON)', offers_college=False, offers_senior_high=False, info_status='pending',
+                                verification_note=LIST_NOTE, is_active=True)
+                match = re.search(r'Brgy\.\s*([^,]+)', address or '')
+                if match:
+                    school.barangay = match.group(1).strip()
+                self.added += 1
+            else:
+                self.updated += 1
+                if address and not _similar(school.address, address):
+                    if _norm(school.address) in {_norm(g) for g in GENERIC} or not school.address:
+                        school.address = address
+                    else:
+                        _note(school, f'Address discrepancy: the LYDO master list gives "{address}", the School Finder has "{school.address}". Kept the existing one: LYDO to confirm.')
+                        self.flags.append(school.name)
+            before = (school.offers_college, school.offers_senior_high, school.offers_tvet, school.offers_tvl, school.tesda_provider)
+            school.offers_college = school.offers_college or 'college' in levels
+            school.offers_senior_high = school.offers_senior_high or 'shs' in levels
+            school.offers_tvet = school.offers_tvet or 'tvet' in levels
+            school.offers_tvl = school.offers_tvl or 'tvl' in tags
+            school.tesda_provider = school.tesda_provider or 'tesda' in tags
+            if before != (school.offers_college, school.offers_senior_high, school.offers_tvet, school.offers_tvl, school.tesda_provider):
+                _note(school, 'Levels and categories (Senior High, College, TVET, Tech-Voc, TESDA) come from the LYDO master list and are not yet checked against DepEd / CHED / TESDA records.')
+            school.save()
+
+    def _jhs_only(self):
+        """The annexes and extensions that the LYDO list says are Junior High only are taken out of the Senior High results (archived, not deleted)."""
+        for phrase in JHS_ONLY:
+            for school in School.objects.filter(name__icontains=phrase, municipality__icontains='Lucena'):
+                school.offers_senior_high = False
+                school.shs_note = ''
+                school.is_active = False
+                _note(school, 'Left out of the Senior High results: the LYDO list says this extension / annex is Junior High School only. Restore it in the admin page if it does offer Senior High.')
+                school.save()
+
     def handle(self, *args, **options):
         self.added = self.updated = 0
         self.flags = []
         for name, phrases, address, brgy, tv, extra in PUBLIC:
             self._apply(name, phrases, 'public', address, brgy, tv, extra)
-        for name, phrases, address, brgy in EXTENSIONS:
-            self._apply(name, phrases, 'public', address, brgy, False, EXT_NOTE, shs_note=PENDING_SHS, created_note=LIST_NOTE + ' ' + EXT_NOTE)
         for name, phrases, address, brgy, tv, extra in PRIVATE:
             unverified = 'SHS authorization' in extra
             self._apply(name, phrases, 'private', address, brgy, tv or name in TESDA_VERIFIED, extra, shs_note=PENDING_SHS if unverified else '', tesda=tv or name in TESDA_VERIFIED)
+
+        self._master()
+        self._jhs_only()
 
         # SLSU Lucena Campus: a college / TESDA campus, NOT a Senior High provider
         slsu = _find('Southern Luzon State University (SLSU) ' + DASH + ' Lucena Campus', ['Southern Luzon State University'])

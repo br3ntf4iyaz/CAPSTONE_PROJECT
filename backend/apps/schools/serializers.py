@@ -108,6 +108,7 @@ class SchoolListSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
             'barangay',
             'offers_tvl',
             'tesda_provider',
+            'offers_tvet',
             'shs_note',
             'info_status',
             'last_verified_at',
@@ -171,6 +172,7 @@ class SchoolDetailSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
             'barangay',
             'offers_tvl',
             'tesda_provider',
+            'offers_tvet',
             'shs_note',
             'info_status',
             'last_verified_at',
@@ -248,6 +250,7 @@ class SchoolWriteSerializer(serializers.ModelSerializer):
             'barangay',
             'offers_tvl',
             'tesda_provider',
+            'offers_tvet',
             'shs_note',
             'info_status',
         ]

@@ -45,27 +45,60 @@ class ShsDirectoryTests(TestCase):
     def test_tech_voc_and_tesda_are_two_separate_filters(self):
         call_command('update_shs_directory')
         tvl_pub = self.names(tvl=1, sector='public')
-        self.assertEqual(len(tvl_pub), 5)
+        self.assertEqual(len(tvl_pub), 7)  # QNHS, LCNHS, Gulang-Gulang, Dalahican, Cotta, Ibabang Talim, Mayao Parada
         self.assertIn('Gulang-Gulang National High School', tvl_pub)
         tvl_priv = self.names(tvl=1, sector='private')
-        self.assertEqual(len(tvl_priv), 11)  # the ten of the LYDO list and CEFI, whose own page shows the TVL track
+        self.assertEqual(len(tvl_priv), 19)
         self.assertFalse(tvl_pub & tvl_priv)
         self.assertEqual(self.names(tvl=1), tvl_pub | tvl_priv)
-        # TESDA: training providers, apart from the Senior High TVL track. The public schools are not TESDA providers.
+        # TESDA (on the Senior High tab): the Senior High schools that are TESDA providers; no public Senior High school is one
         self.assertEqual(self.names(tesda=1, sector='public'), set())
         tesda = self.names(tesda=1, sector='private')
-        self.assertEqual(len(tesda), 11)
-        self.assertEqual(self.names(tesda=1), tesda)
         self.assertTrue(any('STI College' in n for n in tesda))
-        # a public TVL school is not shown under TESDA
         self.assertNotIn('Cotta National High School', self.names(tesda=1))
-        # both together: schools that are both
         self.assertEqual(self.names(tvl=1, tesda=1, sector='private'), tesda)
-        # a school can be both a private SHS and a TVL and TESDA provider with the same record
+        # one record serves every tab
         self.assertEqual(School.objects.filter(name__icontains='STI College').count(), 1)
         sti = School.objects.get(name__icontains='STI College')
-        self.assertTrue(sti.offers_senior_high and sti.offers_tvl and sti.tesda_provider)
+        self.assertTrue(sti.offers_senior_high and sti.offers_college and sti.offers_tvet and sti.offers_tvl and sti.tesda_provider)
         self.assertFalse(School.objects.get(name='Cotta National High School').tesda_provider)
+
+    def test_the_tesda_tab_lists_every_training_provider_including_the_centers(self):
+        call_command('update_shs_directory')
+        def tab(**p):
+            return {x['name'] for x in APIClient().get('/api/schools/', {'page_size': 200, 'level': 'tesda', **p}).data['results']}
+        every = tab()
+        self.assertEqual(len(every), 21)
+        for n in ('Lucena Security Training Center, Inc.', 'PROFES-SKILLS INSTITUTE Training and Assessment Center, Inc.', 'Dalubhasaan ng Lungsod ng Lucena (DLL)'):
+            self.assertIn(n, every)
+        self.assertEqual({n for n in tab(sector='public')}, {'Dalubhasaan ng Lungsod ng Lucena (DLL)'})
+        self.assertEqual(len(tab(sector='private')), 20)
+        # a TESDA-only center is not offered as a Senior High School or a College
+        self.assertNotIn('Lucena Security Training Center, Inc.', self.names())
+        college = {x['name'] for x in APIClient().get('/api/schools/', {'page_size': 200, 'level': 'college'}).data['results']}
+        self.assertNotIn('Lucena Security Training Center, Inc.', college)
+
+    def test_the_junior_high_only_annexes_are_left_out_of_the_senior_high_results(self):
+        make_school(name='Lucena City National High School - Mayao Crossing Extension', school_type='public', offers_college=False, offers_senior_high=True,
+                    shs_note='The Senior High School offering of this school is still being verified.')
+        make_school(name='Lucena Dalahican National High School - Barra Annex', school_type='public', offers_college=False, offers_senior_high=True)
+        call_command('update_shs_directory')
+        self.assertFalse([n for n in self.names() if 'Extension' in n and 'Mayao Crossing' in n or 'Barra Annex' in n])
+        archived = School.objects.filter(is_active=False)
+        self.assertEqual(archived.count(), 2)  # archived, not deleted: an administrator can restore them
+        self.assertTrue(all(not a.offers_senior_high for a in archived))
+
+    def test_the_master_list_only_adds_flags_and_new_schools(self):
+        keep = make_school(name='Hyong Yang Institute of Technology Inc.', school_type='technical_vocational', offers_senior_high=True, offers_tvl=True, tesda_provider=True)
+        call_command('update_shs_directory')
+        keep.refresh_from_db()
+        self.assertTrue(keep.offers_tvl and keep.tesda_provider and keep.is_active)  # a school that is not in the list is left alone
+        n = School.objects.count()
+        call_command('update_shs_directory')
+        self.assertEqual(School.objects.count(), n)
+        abe = School.objects.get(name__icontains='ABE International')
+        self.assertTrue(abe.offers_senior_high and abe.offers_college and abe.offers_tvl and not abe.tesda_provider)
+        self.assertEqual(School.objects.get(name__icontains='Baptist Voice').offers_senior_high, False)
 
     def test_nothing_is_duplicated_and_existing_records_are_kept(self):
         make_school(name="Boater's Wheel Educational System and Technology College", school_type='technical_vocational', offers_senior_high=True)

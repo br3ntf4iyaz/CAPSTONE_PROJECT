@@ -39,6 +39,7 @@ class School(models.Model):
     # Senior High School finder
     barangay = models.CharField(max_length=100, blank=True)
     offers_tvl = models.BooleanField(default=False, help_text='Tech-Voc: the school offers the Technical-Vocational-Livelihood (TVL) track of Senior High School.')
+    offers_tvet = models.BooleanField(default=False, help_text='TVET: the school gives post-secondary technical-vocational (TESDA) training. Shown on the TESDA list.')
     tesda_provider = models.BooleanField(default=False, help_text='TESDA: the school gives TESDA training programs (NC levels). This is separate from Senior High School.')
     shs_note = models.TextField(blank=True, help_text='Shown to the public on the Senior High list, e.g. a clarification about where the Senior High School is.')
     INFO_STATUS_CHOICES = [

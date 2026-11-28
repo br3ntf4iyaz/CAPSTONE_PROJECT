@@ -75,7 +75,9 @@ interface School {
   last_verified_at?: string | null
   strands?: ShsOffering[]
   tesda_programs?: ShsOffering[]
+  offers_tvet?: boolean
   _shs?: boolean
+  _tesda?: boolean
 }
 interface ShsOffering { id: number; name: string; code?: string; note?: string; source_url?: string; source_note?: string }
 
@@ -148,8 +150,8 @@ const TYPE_COLORS: Record<string, string> = {
 // ─── Detail Drawer ──────────────────────────────────────────────────────────
 
 /** What a visitor sees instead of the courses: a clear reason, and the two ways in. */
-function CoursesLock({ count, next = '/schools', strand = false }: { count?: number; next?: string; strand?: boolean }) {
-  const unit = strand ? 'strand' : 'course'
+function CoursesLock({ count, next = '/schools', strand = false, unit: unitName }: { count?: number; next?: string; strand?: boolean; unit?: string }) {
+  const unit = unitName ?? (strand ? 'strand' : 'course')
   return (
     <div className="rounded-2xl border border-primary-100 bg-primary-50/60 p-5 text-center">
       <span className="mx-auto mb-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-primary-600 text-white"><Lock size={18} /></span>
@@ -169,6 +171,24 @@ function CoursesLock({ count, next = '/schools', strand = false }: { count?: num
 /** On the Senior High tab a school is shown only as a Senior High School: its college courses belong to the College tab. */
 function asSeniorHigh<T extends School>(s: T): T {
   return { ...s, offers_college: false, program_count: 0, programs: [], _shs: true } as T
+}
+
+/** On the TESDA / TVET tab a school is shown only for its TESDA training. */
+function asTesda<T extends School>(s: T): T {
+  return { ...s, offers_college: false, program_count: 0, programs: [], _tesda: true } as T
+}
+
+/** The badges of a school on the TESDA / TVET list: its classification, TESDA, and what else it teaches. */
+function TesdaBadges({ s, small }: { s: School; small?: boolean }) {
+  const c = small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5'
+  const sector = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private')
+  return (
+    <>
+      <span className={cn('font-semibold rounded-full', c, SECTOR_COLORS[sector])}>{SECTOR_LABELS[sector]}</span>
+      <span className={cn('font-semibold rounded-full border bg-teal-50 text-teal-800 border-teal-300', c)}>TESDA / TVET</span>
+      {s.info_status === 'needs_update' && <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>Needs update</span>}
+    </>
+  )
 }
 
 function OfferingList({ title, rows, empty, tesda }: { title: string; rows: ShsOffering[]; empty: string; tesda?: boolean }) {
@@ -198,14 +218,14 @@ function OfferingList({ title, rows, empty, tesda }: { title: string; rows: ShsO
   )
 }
 
-function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; onClose: () => void; seniorHigh?: boolean }) {
+function SchoolDetailDrawer({ school, onClose, mode }: { school: School; onClose: () => void; mode?: 'college' | 'senior_high' | 'tesda' }) {
   const signedIn = useAuthStore().isAuthenticated
   const { data: detail, isLoading } = useQuery<School>({
     queryKey: ['school-detail', school.id],
     queryFn: () => apiClient.get(`/schools/${school.id}/`).then(r => r.data),
   })
 
-  const s = seniorHigh ? asSeniorHigh(detail ?? school) : (detail ?? school)
+  const s = mode === 'senior_high' ? asSeniorHigh(detail ?? school) : mode === 'tesda' ? asTesda(detail ?? school) : (detail ?? school)
 
   return (
     <div
@@ -231,7 +251,7 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                {s._shs ? <ShsBadges s={s} /> : <>
+                {s._shs ? <ShsBadges s={s} /> : s._tesda ? <TesdaBadges s={s} /> : <>
                 <span className={cn('text-xs font-semibold px-2.5 py-0.5 rounded-full', TYPE_COLORS[s.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[s.school_type] ?? s.school_type}
                 </span>
@@ -317,7 +337,14 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
                 )}
               </div>
             )}
-            {s._shs && (
+            {s._tesda && detail && !signedIn && <CoursesLock unit="TESDA program" />}
+            {s._tesda && detail && signedIn && (
+              <div className="space-y-1.5">
+                <p className="text-[11px] text-teal-800">TESDA training is separate from Senior High School and College. It gives a National Certificate (NC).</p>
+                <OfferingList title="TESDA qualifications" rows={s.tesda_programs ?? []} empty="TESDA qualification information not yet available." tesda />
+              </div>
+            )}
+            {(s._shs || s._tesda) && (
               <div className="space-y-1 text-[11px] text-gray-500">
                 {s.info_status === 'verified' && (
                   <p className="inline-flex items-center gap-1 text-emerald-700"><BadgeCheck size={11} /> Verified{s.last_verified_at ? ` · ${new Date(s.last_verified_at).toLocaleDateString()}` : ''}</p>
@@ -328,8 +355,8 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
             )}
 
             {/* Programs, grouped by field of study (verified only). Visitors get a sign-in prompt instead. */}
-            {!s._shs && detail && !signedIn && <CoursesLock count={s.program_count} strand={shsOnly(s)} />}
-            {!s._shs && detail && signedIn && (
+            {!s._shs && !s._tesda && detail && !signedIn && <CoursesLock count={s.program_count} strand={shsOnly(s)} />}
+            {!s._shs && !s._tesda && detail && signedIn && (
               s.programs && s.programs.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-primary-900 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
@@ -447,7 +474,7 @@ function SchoolCard({
                     <Star size={8} fill="currentColor" /> Featured
                   </span>
                 )}
-                {school._shs ? <ShsBadges s={school} small /> : <>
+                {school._shs ? <ShsBadges s={school} small /> : school._tesda ? <TesdaBadges s={school} small /> : <>
                 <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[school.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[school.school_type] ?? school.school_type}
                 </span>
@@ -466,7 +493,7 @@ function SchoolCard({
                 <MapPin size={10} className="text-primary-500" /> {school.municipality}{school.province ? `, ${school.province}` : ''}
               </span>
             )}
-            {school._shs ? null : school.program_count > 0 ? (
+            {school._shs || school._tesda ? null : school.program_count > 0 ? (
               <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-800">
                 <BadgeCheck size={10} /> {school.program_count} verified program{school.program_count !== 1 ? 's' : ''}
               </span>
@@ -477,9 +504,19 @@ function SchoolCard({
             )}
           </div>
           {school.address && (
-            <p className={cn('text-xs text-ink-600 mt-1.5', school._shs ? 'line-clamp-2' : 'line-clamp-1')}>{school.address}</p>
+            <p className={cn('text-xs text-ink-600 mt-1.5', school._shs || school._tesda ? 'line-clamp-2' : 'line-clamp-1')}>{school.address}</p>
           )}
           {school._shs && school.shs_note && <p className="mt-1.5 text-[11px] text-sky-800 line-clamp-2">{school.shs_note}</p>}
+          {school._tesda && !visitor && (
+            <div className="mt-1.5">
+              {(school.tesda_programs ?? []).length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {(school.tesda_programs ?? []).slice(0, 3).map(x => <span key={x.id} className="rounded-full border border-teal-300 bg-teal-50 px-2 py-0.5 text-[10px] font-semibold text-teal-800">{x.name}{x.code ? ` ${x.code}` : ''}</span>)}
+                  {(school.tesda_programs ?? []).length > 3 && <span className="text-[10px] text-gray-500 self-center">+{(school.tesda_programs ?? []).length - 3} more</span>}
+                </div>
+              ) : <p className="text-[11px] text-amber-700">TESDA qualification information not yet available.</p>}
+            </div>
+          )}
           {school._shs && school.offers_senior_high && !visitor && (
             <div className="mt-1.5 space-y-1">
               {(school.strands ?? []).length > 0 ? (
@@ -496,7 +533,7 @@ function SchoolCard({
             </div>
           )}
           <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary-700">
-            {school._shs ? (!school.offers_senior_high ? <><BookOpen size={12} /> View details</> : visitor ? <><Lock size={12} /> School details · sign in for strands</> : <><BookOpen size={12} /> View details</>) : visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
+            {school._tesda ? (visitor ? <><Lock size={12} /> School details · sign in for programs</> : <><BookOpen size={12} /> View details</>) : school._shs ? (!school.offers_senior_high ? <><BookOpen size={12} /> View details</> : visitor ? <><Lock size={12} /> School details · sign in for strands</> : <><BookOpen size={12} /> View details</>) : visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
           </span>
         </div>
       </div>
@@ -530,7 +567,7 @@ export default function YouthSchoolsPage() {
   const [shsKind, setShsKind] = useState('')   // Senior High: '' | suc | public | private | tvl | tesda
   const [tvKind, setTvKind] = useState('')     // inside Tech-Voc or TESDA: '' | public | private
   const [view, setView] = useState<'schools' | 'courses'>('schools')
-  const [level, setLevel] = useState<'college' | 'senior_high'>('college') // College and Senior High are listed apart
+  const [level, setLevel] = useState<'college' | 'senior_high' | 'tesda'>('college') // College and Senior High are listed apart
   const [field, setField] = useState('')
   const [ptype, setPtype] = useState('')
   const [schoolFilter, setSchoolFilter] = useState('')
@@ -551,6 +588,10 @@ export default function YouthSchoolsPage() {
   if (field) params.set('field_of_study', field)
   if (ptype) params.set('program_type', ptype)
   params.set('level', level)
+  if (level === 'tesda') {
+    params.delete('school_type')
+    if (tvKind) params.set('sector', tvKind)
+  }
   if (level === 'senior_high') {
     params.delete('school_type')
     if (shsKind === 'tvl' || shsKind === 'tesda') { params.set(shsKind, '1'); if (tvKind) params.set('sector', tvKind) }
@@ -583,18 +624,19 @@ export default function YouthSchoolsPage() {
 
   // the numbers on the Senior High chips come from the whole Senior High list
   const { data: shsAll } = useQuery({
-    queryKey: ['youth-schools-shs-all', signedIn],
-    enabled: level === 'senior_high',
-    queryFn: () => apiClient.get('/schools/?level=senior_high&page_size=200').then(r => toArray<School>(r.data)),
+    queryKey: ['youth-schools-shs-all', signedIn, level],
+    enabled: level === 'senior_high' || level === 'tesda',
+    queryFn: () => apiClient.get(`/schools/?level=${level}&page_size=200`).then(r => toArray<School>(r.data)),
   })
   const shsCount = (kind: string, sub = '') => (shsAll ?? []).filter(x => {
     const sec = x.sector ?? 'private'
+    if (kind === 'sector') return !sub || sec === sub
     if (kind === 'tvl') return !!x.offers_tvl && (!sub || sec === sub)
     if (kind === 'tesda') return !!x.tesda_provider && (!sub || sec === sub)
     return !kind || sec === kind
   }).length
 
-  const schools = (data ?? []).map(x => (level === 'senior_high' ? asSeniorHigh(x) : x))
+  const schools = (data ?? []).map(x => (level === 'senior_high' ? asSeniorHigh(x) : level === 'tesda' ? asTesda(x) : x))
   const featured = schools.filter(s => s.is_featured)
   const rest     = schools.filter(s => !s.is_featured)
 
@@ -610,7 +652,7 @@ export default function YouthSchoolsPage() {
           <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
         <p className="page-subtitle">
-          {level === 'senior_high' ? 'Senior High Schools in Lucena City' : visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
+          {level === 'senior_high' ? 'Senior High Schools in Lucena City' : level === 'tesda' ? 'TESDA and technical-vocational training in Lucena City' : visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
           {!isLoading && schools.length > 0 && (
             <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>
           )}
@@ -620,12 +662,30 @@ export default function YouthSchoolsPage() {
       {/* College and Senior High are two separate lists */}
       {view === 'schools' && (
         <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 text-sm" role="tablist" aria-label="Level">
-          {([['college', 'College'], ['senior_high', 'Senior High School']] as const).map(([k, l]) => (
-            <button key={k} type="button" role="tab" aria-selected={level === k} onClick={() => { setLevel(k); setSchoolType(''); if (k === 'senior_high') { setView('schools'); setField(''); setPtype(''); setSchoolFilter('') } }}
+          {([['college', 'College'], ['senior_high', 'Senior High School'], ['tesda', 'TESDA / TVET']] as const).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={level === k} onClick={() => { setLevel(k); setSchoolType(''); setShsKind(''); setTvKind(''); if (k !== 'college') { setView('schools'); setField(''); setPtype(''); setSchoolFilter('') } }}
               className={cn('rounded-lg px-4 py-1.5 font-semibold transition-colors', level === k ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 hover:text-primary-700')}>
               {l}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* TESDA / TVET: every training provider, by Public or Private */}
+      {level === 'tesda' && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {([['', 'All'], ['public', 'Public'], ['private', 'Private']] as const).map(([v, l]) => (
+              <button key={v} onClick={() => setTvKind(v)}
+                className={cn('text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150',
+                  tvKind === v ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-teal-300 hover:text-teal-700')}>
+                {l}{shsAll && <span className={cn('ml-1.5', tvKind === v ? 'opacity-70' : 'opacity-50')}>({shsCount('sector', v)})</span>}
+              </button>
+            ))}
+          </div>
+          <p className="rounded-xl border border-teal-200 bg-teal-50/60 px-3 py-2 text-[11px] text-teal-900">
+            TESDA training gives a National Certificate (NC) in a skill. It is not a Senior High strand. A school here may also have Senior High or College.
+          </p>
         </div>
       )}
 
@@ -694,7 +754,7 @@ export default function YouthSchoolsPage() {
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder={level === 'senior_high' ? (visitor ? 'Search school, barangay, street or public / private…' : 'Search school, barangay, street, strand or TESDA qualification…') : visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
+          placeholder={level === 'tesda' ? (visitor ? 'Search school, barangay or street…' : 'Search school, barangay, street or TESDA qualification…') : level === 'senior_high' ? (visitor ? 'Search school, barangay, street or public / private…' : 'Search school, barangay, street, strand or TESDA qualification…') : visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -839,7 +899,7 @@ export default function YouthSchoolsPage() {
 
       {/* Detail drawer */}
       {selected && (
-        <SchoolDetailDrawer school={selected} onClose={() => setSelected(null)} seniorHigh={level === 'senior_high'} />
+        <SchoolDetailDrawer school={selected} onClose={() => setSelected(null)} mode={level} />
       )}
     </div>
   )

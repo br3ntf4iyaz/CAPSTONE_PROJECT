@@ -109,6 +109,9 @@ class SchoolViewSet(viewsets.ModelViewSet):
             qs = qs.filter(Q(offers_senior_high=True) | ~Q(shs_note=''))
         elif level == 'college':
             qs = qs.filter(offers_college=True)
+        elif level == 'tesda':
+            # the TESDA / TVET list: every TESDA training provider, including the centers that teach nothing else
+            qs = qs.filter(Q(tesda_provider=True) | Q(offers_tvet=True))
 
         field = self.request.query_params.get('field_of_study') if signed_in else None
         if field:
