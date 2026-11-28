@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { X, Check, CheckCircle2, Upload, Eye, RefreshCw, Trash2, FileText, AlertCircle, ArrowLeft, ArrowRight, Pencil } from 'lucide-react'
@@ -48,9 +49,24 @@ const PERSONAL: FieldDef[] = [
   { key: 'address', label: 'Complete residential address', required: true, wide: true },
   { key: 'barangay', label: 'Barangay', required: true, type: 'select', options: LUCENA_BARANGAYS },
 ]
+const LEVELS = ['Senior High School', 'College', 'Vocational / TESDA', 'Graduate / Board exam taker', 'Other']
+// the strands of Senior High School (DepEd); the applicant picks their own, no school is said to offer a particular one
+const SHS_STRANDS = [
+  'STEM: Science, Technology, Engineering and Mathematics', 'ABM: Accountancy, Business and Management', 'HUMSS: Humanities and Social Sciences',
+  'GAS: General Academic Strand', 'TVL: Information and Communications Technology', 'TVL: Home Economics', 'TVL: Industrial Arts', 'TVL: Agri-Fishery Arts',
+  'Sports Track', 'Arts and Design Track',
+]
+const YEAR_LEVELS: Record<string, string[]> = {
+  'Senior High School': ['Grade 11', 'Grade 12'],
+  'College': ['1st year', '2nd year', '3rd year', '4th year', '5th year', '6th year or higher'],
+  'Vocational / TESDA': ['Currently enrolled', 'Graduating', 'Graduated'],
+  'Graduate / Board exam taker': ['Graduated, preparing for the board exam', 'Graduated'],
+}
+const OTHER = '__other__'
+interface SchoolOption { id: number; name: string; address: string }
+
 const EDUCATION = (gwa: boolean): FieldDef[] => [
-  { key: 'level', label: 'Current educational level', required: true, type: 'select',
-    options: ['Senior High School', 'College', 'Vocational / TESDA', 'Graduate School', 'Other'] },
+  { key: 'level', label: 'Current educational level', required: true, type: 'select', options: LEVELS },
   { key: 'school_name', label: 'School name', required: true, wide: true },
   { key: 'school_address', label: 'School address', required: true, wide: true },
   { key: 'course', label: 'Course or strand', required: true },
@@ -110,6 +126,122 @@ function FieldInput({ d, value, error, onChange }: { d: FieldDef; value: string;
       )}
       {error && <p id={`${id}-err`} className="mt-1 text-xs text-red-600">{error}</p>}
     </div>
+  )
+}
+
+/** The education step: the school, the course or strand and the year level depend on the level of the applicant. The saved values are plain text, as before. */
+function EducationFields({ value, errors, onChange, defs }: { value: Section; errors: Record<string, string>; onChange: (k: string, v: string) => void; defs: FieldDef[] }) {
+  const level = value.level ?? ''
+  const listed = level !== 'Other' && level !== ''
+  const levelParam = level === 'Senior High School' ? 'senior_high' : 'college'
+
+  const schools = useQuery<SchoolOption[]>({
+    queryKey: ['scholarship-form-schools', levelParam],
+    queryFn: () => apiClient.get('/schools/', { params: { level: levelParam, page_size: 200 } })
+      .then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? []).map((x: any) => ({ id: x.id, name: x.name, address: x.address ?? '' }))),
+    enabled: listed,
+    staleTime: 10 * 60 * 1000,
+  })
+  const options = schools.data ?? []
+  const picked = options.find(o => o.name === value.school_name)
+  const [typing, setTyping] = useState(false) // "Other school": the applicant types the name
+  const needLevel = level === ''
+  const showTyped = !needLevel && (!listed || typing || (!!value.school_name && !picked && !schools.isLoading))
+  const selectValue = typing ? OTHER : picked ? picked.name : value.school_name ? OTHER : ''
+
+  // the courses this school is known to offer (College and above), when the School Finder has them
+  const courses = useQuery<string[]>({
+    queryKey: ['scholarship-form-courses', picked?.id],
+    queryFn: () => apiClient.get(`/schools/${picked!.id}/`).then(r => Array.from(new Set<string>((r.data?.programs ?? []).map((p: any) => p?.program?.name).filter(Boolean)))),
+    enabled: !!picked && level !== 'Senior High School',
+    staleTime: 10 * 60 * 1000,
+  })
+  const courseList = courses.data ?? []
+  const [typingCourse, setTypingCourse] = useState(false)
+  const courseIsTyped = typingCourse || (!!value.course && level !== 'Senior High School' && courseList.length > 0 && !courseList.includes(value.course))
+
+  const yearOptions = YEAR_LEVELS[level]
+  const def = (k: string) => defs.find(d => d.key === k)!
+
+  const chooseLevel = (v: string) => {
+    onChange('level', v)
+    onChange('school_name', ''); onChange('school_address', ''); onChange('course', ''); onChange('year_level', '')
+    setTyping(false); setTypingCourse(false)
+  }
+  const chooseSchool = (v: string) => {
+    if (v === OTHER) { setTyping(true); onChange('school_name', ''); onChange('school_address', ''); onChange('course', ''); return }
+    setTyping(false)
+    const o = options.find(x => x.name === v)
+    onChange('school_name', v)
+    onChange('school_address', o?.address ?? '')
+    onChange('course', '')
+    setTypingCourse(false)
+  }
+  const label = (d: FieldDef) => <>{d.label}{d.required && <span className="text-red-500"> *</span>}</>
+  const err = (k: string) => errors[k] ? <p className="mt-1 text-xs text-red-600">{errors[k]}</p> : null
+  const cls = (k: string) => cn('input w-full', errors[k] && 'border-red-400')
+
+  return (
+    <>
+      <FieldInput d={def('level')} value={level} error={errors.level} onChange={chooseLevel} />
+
+      <div className="sm:col-span-2">
+        <label htmlFor="sch-school_pick" className="block text-xs font-semibold text-ink-700 mb-1">{label(def('school_name'))}</label>
+        {needLevel && (
+          <select id="sch-school_pick" className="input w-full" disabled value=""><option value="">Choose your educational level first</option></select>
+        )}
+        {listed && (
+          <select id="sch-school_pick" className={cls('school_name')} value={selectValue} onChange={e => chooseSchool(e.target.value)}>
+            <option value="">{schools.isLoading ? 'Loading schools…' : 'Select your school...'}</option>
+            {options.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+            <option value={OTHER}>Other school (type the name)</option>
+          </select>
+        )}
+        {showTyped && (
+          <input id="sch-school_name" className={cn(cls('school_name'), listed && 'mt-2')} placeholder="Name of your school" maxLength={200}
+            value={value.school_name ?? ''} onChange={e => onChange('school_name', e.target.value)} />
+        )}
+        {listed && options.length === 0 && !schools.isLoading && <p className="mt-1 text-[11px] text-ink-500">No schools are listed for this level yet. Type the name of your school.</p>}
+        {err('school_name')}
+      </div>
+
+      <FieldInput d={def('school_address')} value={value.school_address ?? ''} error={errors.school_address} onChange={v => onChange('school_address', v)} />
+
+      <div>
+        <label htmlFor="sch-course" className="block text-xs font-semibold text-ink-700 mb-1">{level === 'Senior High School' ? 'Strand' : 'Course'}{def('course').required && <span className="text-red-500"> *</span>}</label>
+        {level === 'Senior High School' ? (
+          <select id="sch-course" className={cls('course')} value={value.course ?? ''} onChange={e => onChange('course', e.target.value)}>
+            <option value="">Select your strand...</option>
+            {SHS_STRANDS.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : courseList.length > 0 && !courseIsTyped ? (
+          <select id="sch-course" className={cls('course')} value={value.course ?? ''} onChange={e => { if (e.target.value === OTHER) { setTypingCourse(true); onChange('course', '') } else onChange('course', e.target.value) }}>
+            <option value="">Select your course...</option>
+            {courseList.map(o => <option key={o} value={o}>{o}</option>)}
+            <option value={OTHER}>Other (type it)</option>
+          </select>
+        ) : (
+          <input id="sch-course" className={cls('course')} value={value.course ?? ''} maxLength={200} placeholder={level === 'Graduate / Board exam taker' ? 'Your degree, e.g. BS Nursing' : 'e.g. BS Information Technology'} onChange={e => onChange('course', e.target.value)} />
+        )}
+        {err('course')}
+      </div>
+
+      <div>
+        <label htmlFor="sch-year_level" className="block text-xs font-semibold text-ink-700 mb-1">{label(def('year_level'))}</label>
+        {yearOptions ? (
+          <select id="sch-year_level" className={cls('year_level')} value={value.year_level ?? ''} onChange={e => onChange('year_level', e.target.value)}>
+            <option value="">Select...</option>
+            {yearOptions.map(o => <option key={o} value={o}>{o}</option>)}
+          </select>
+        ) : (
+          <input id="sch-year_level" className={cls('year_level')} value={value.year_level ?? ''} maxLength={40} onChange={e => onChange('year_level', e.target.value)} />
+        )}
+        {err('year_level')}
+      </div>
+
+      <FieldInput d={def('student_id')} value={value.student_id ?? ''} error={errors.student_id} onChange={v => onChange('student_id', v)} />
+      <FieldInput d={def('gwa')} value={value.gwa ?? ''} error={errors.gwa} onChange={v => onChange('gwa', v)} />
+    </>
   )
 }
 
@@ -318,7 +450,9 @@ function ScholarshipForm({ scholarship: s, onClose }: { scholarship: ApplySchola
                 <>
                   <h3 className="font-bold text-primary-900 border-l-4 border-primary-500 pl-2">{['Personal information', 'Educational background', 'Family and financial information'][step]}</h3>
                   <div className="grid gap-3 sm:grid-cols-2 rounded-2xl border border-primary-100 bg-primary-50/40 p-4">
-                    {sections[step].defs.map(d => (
+                    {step === 1 ? (
+                      <EducationFields value={education} errors={errors} defs={eduDefs} onChange={(k, v) => setField(1)(k, v)} />
+                    ) : sections[step].defs.map(d => (
                       <FieldInput key={d.key} d={d} value={sections[step].v[d.key] ?? ''} error={errors[d.key]} onChange={v => setField(step)(d.key, v)} />
                     ))}
                   </div>

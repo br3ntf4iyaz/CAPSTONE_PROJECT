@@ -33,6 +33,9 @@ class School(models.Model):
     )
     is_active = models.BooleanField(default=True)
     is_featured = models.BooleanField(default=False)
+    # which levels the school teaches: the scholarship form shows each school under the level of the applicant
+    offers_college = models.BooleanField(default=True)
+    offers_senior_high = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

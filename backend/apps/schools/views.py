@@ -71,6 +71,11 @@ class SchoolViewSet(viewsets.ModelViewSet):
         school_type = self.request.query_params.get('school_type')
         if school_type:
             qs = qs.filter(school_type=school_type)
+        level = self.request.query_params.get('level')  # the level the applicant is in, for the scholarship form
+        if level == 'senior_high':
+            qs = qs.filter(offers_senior_high=True)
+        elif level == 'college':
+            qs = qs.filter(offers_college=True)
 
         field = self.request.query_params.get('field_of_study') if signed_in else None
         if field:

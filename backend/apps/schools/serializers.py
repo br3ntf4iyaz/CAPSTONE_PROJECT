@@ -66,6 +66,8 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'program_count',
             'programs_unavailable',
             'source_url',
+            'offers_college',
+            'offers_senior_high',
         ]
 
     def get_programs_unavailable(self, obj):
@@ -115,6 +117,8 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'programs',
             'program_count',
             'courses_locked',
+            'offers_college',
+            'offers_senior_high',
         ]
 
     def get_logo_url(self, obj):
