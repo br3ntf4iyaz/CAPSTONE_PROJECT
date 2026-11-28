@@ -27,7 +27,8 @@ PENDING_SHS = 'The Senior High School offering of this school is still being ver
 EXT_NOTE = ('Extension / annex: it is listed as a school on the SDO Lucena City public secondary schools page (lucenacity.deped.gov.ph/secondary/), but that page does not say whether it offers Senior High School. '
             'Do not treat it as an independent Senior High provider until confirmed.')
 
-# (name, phrases that identify an existing record, type, address, barangay, techvoc, extra note)
+# (name, phrases that identify an existing record, address, barangay, Tech-Voc (TVL track), extra note)
+# A private school of the TVL / TESDA list is also a TESDA provider; the public schools of that list are TVL only.
 PUBLIC = [
     ('Quezon National High School (QNHS)', ['Quezon National High School'], 'M.L. Tagarao Street, Barangay Iyam, Lucena City', 'Iyam', True,
      'Not listed on the SDO Lucena City public secondary schools page (lucenacity.deped.gov.ph/secondary/). To be confirmed with DepEd.'),
@@ -136,6 +137,8 @@ CONTACTS = {
     'Manuel S. Enverga University Foundation (MSEUF)': {'phone': '(042) 710-2541', 'website': 'https://mseuf.edu.ph', 'facebook_url': 'https://www.facebook.com/EnvergaU'},
     'Sacred Heart College of Lucena City, Inc.': {'website': 'https://shc.edu.ph', 'facebook_url': 'https://www.facebook.com/sacred.heart.college.official'},
 }
+# a private school whose own page lists TESDA programs (NC II) and the TVL track, though it is not on the LYDO Tech-Voc / TESDA list
+TESDA_VERIFIED = {'Calayan Educational Foundation, Inc. (CEFI)'}
 # schools whose name, address, contacts and strands were all read on an official page (marked Verified)
 VERIFIED = {'STI College Lucena', 'Calayan Educational Foundation, Inc. (CEFI)', 'Lucena City National High School (LCNHS)',
             'Gulang-Gulang National High School', 'Cotta National High School', 'Lucena Dalahican National High School'}
@@ -166,7 +169,7 @@ def _note(school, text):
 class Command(BaseCommand):
     help = 'Complete the Senior High School part of the School Finder (classification, addresses, Tech-Voc / TESDA, verified strands).'
 
-    def _apply(self, name, phrases, kind, address, barangay, techvoc, extra, shs=True, shs_note='', created_note=LIST_NOTE):
+    def _apply(self, name, phrases, kind, address, barangay, techvoc, extra, shs=True, shs_note='', created_note=LIST_NOTE, tesda=False):
         school = _find(name, phrases)
         is_new = school is None
         if is_new:
@@ -186,7 +189,9 @@ class Command(BaseCommand):
         if barangay and not school.barangay:
             school.barangay = barangay
         if techvoc:
-            school.in_techvoc = True
+            school.offers_tvl = True
+        if tesda:
+            school.tesda_provider = True
         if shs_note and not school.shs_note:
             school.shs_note = shs_note
         _note(school, extra)
@@ -208,7 +213,7 @@ class Command(BaseCommand):
             self._apply(name, phrases, 'public', address, brgy, False, EXT_NOTE, shs_note=PENDING_SHS, created_note=LIST_NOTE + ' ' + EXT_NOTE)
         for name, phrases, address, brgy, tv, extra in PRIVATE:
             unverified = 'SHS authorization' in extra
-            self._apply(name, phrases, 'private', address, brgy, tv, extra, shs_note=PENDING_SHS if unverified else '')
+            self._apply(name, phrases, 'private', address, brgy, tv or name in TESDA_VERIFIED, extra, shs_note=PENDING_SHS if unverified else '', tesda=tv or name in TESDA_VERIFIED)
 
         # SLSU Lucena Campus: a college / TESDA campus, NOT a Senior High provider
         slsu = _find('Southern Luzon State University (SLSU) ' + DASH + ' Lucena Campus', ['Southern Luzon State University'])

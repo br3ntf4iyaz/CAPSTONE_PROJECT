@@ -76,8 +76,10 @@ class SchoolViewSet(viewsets.ModelViewSet):
                      'suc': ['state_university'], 'state university': ['state_university']}
             if word in kinds:
                 cond = cond | Q(school_type__in=kinds[word])
-            if 'tesda' in word or 'tech-voc' in word or 'techvoc' in word or 'tvl' in word:
-                cond = cond | Q(in_techvoc=True)
+            if 'tesda' in word:
+                cond = cond | Q(tesda_provider=True)
+            if 'tech-voc' in word or 'techvoc' in word or 'tvl' in word:
+                cond = cond | Q(offers_tvl=True)
             if signed_in:
                 cond = (cond
                         | Q(offerings__name__icontains=search, offerings__verification_status='verified')
@@ -96,9 +98,11 @@ class SchoolViewSet(viewsets.ModelViewSet):
         sector = self.request.query_params.get('sector')
         if sector in ('suc', 'public', 'private'):
             qs = qs.filter(school_type__in={'suc': ['state_university'], 'public': ['public'], 'private': ['private', 'technical_vocational']}[sector])
-        # Tech-Voc / TESDA: the schools listed under it
-        if self.request.query_params.get('techvoc') in ('1', 'true'):
-            qs = qs.filter(in_techvoc=True)
+        # Tech-Voc (the TVL track of Senior High) and TESDA (training programs) are two separate filters
+        if self.request.query_params.get('tvl') in ('1', 'true'):
+            qs = qs.filter(offers_tvl=True)
+        if self.request.query_params.get('tesda') in ('1', 'true'):
+            qs = qs.filter(tesda_provider=True)
         level = self.request.query_params.get('level')  # the level the applicant is in, for the scholarship form
         if level == 'senior_high':
             # a school that explains where its Senior High School is (SLSU Lucena) is listed too, with that note

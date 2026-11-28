@@ -68,7 +68,8 @@ interface School {
   offers_college?: boolean
   offers_senior_high?: boolean
   barangay?: string
-  in_techvoc?: boolean
+  offers_tvl?: boolean
+  tesda_provider?: boolean
   shs_note?: string
   info_status?: string
   last_verified_at?: string | null
@@ -80,7 +81,8 @@ const initialSchoolForm = {
   barangay: '',
   offers_college: true,
   offers_senior_high: false,
-  in_techvoc: false,
+  offers_tvl: false,
+  tesda_provider: false,
   shs_note: '',
   info_status: 'pending',
   name: '',
@@ -295,7 +297,8 @@ export default function AdminJobsSchoolsPage() {
       barangay: s.barangay ?? '',
       offers_college: s.offers_college ?? true,
       offers_senior_high: s.offers_senior_high ?? false,
-      in_techvoc: s.in_techvoc ?? false,
+      offers_tvl: s.offers_tvl ?? false,
+      tesda_provider: s.tesda_provider ?? false,
       shs_note: s.shs_note ?? '',
       info_status: s.info_status ?? 'pending',
       is_featured: s.is_featured,
@@ -630,7 +633,7 @@ export default function AdminJobsSchoolsPage() {
                           <td className="text-xs text-gray-500">{[s.municipality, s.province].filter(Boolean).join(', ') || '\u2014'}</td>
                           <td className="text-center text-sm">{s.program_count}</td>
                           <td className="text-xs text-gray-600">
-                            {[s.offers_college !== false && 'College', s.offers_senior_high && 'Senior High', s.in_techvoc && 'Tech-Voc / TESDA'].filter(Boolean).join(' · ') || '\u2014'}
+                            {[s.offers_college !== false && 'College', s.offers_senior_high && 'Senior High', s.offers_tvl && 'Tech-Voc (TVL)', s.tesda_provider && 'TESDA'].filter(Boolean).join(' · ') || '\u2014'}
                           </td>
                           <td>
                             <span className={s.info_status === 'verified' ? 'badge-green' : s.info_status === 'needs_update' ? 'badge-red' : 'badge-gray'}>
@@ -988,7 +991,10 @@ export default function AdminJobsSchoolsPage() {
                     <input type="checkbox" className="rounded" checked={schoolForm.offers_senior_high} onChange={e => setSchoolForm(f => ({ ...f, offers_senior_high: e.target.checked }))} /> Senior High School
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
-                    <input type="checkbox" className="rounded" checked={schoolForm.in_techvoc} onChange={e => setSchoolForm(f => ({ ...f, in_techvoc: e.target.checked }))} /> Tech-Voc / TESDA
+                    <input type="checkbox" className="rounded" checked={schoolForm.offers_tvl} onChange={e => setSchoolForm(f => ({ ...f, offers_tvl: e.target.checked }))} /> Tech-Voc (TVL track of Senior High)
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" className="rounded" checked={schoolForm.tesda_provider} onChange={e => setSchoolForm(f => ({ ...f, tesda_provider: e.target.checked }))} /> TESDA training provider
                   </label>
                 </div>
                 <div>

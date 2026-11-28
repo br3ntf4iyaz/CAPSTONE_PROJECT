@@ -42,20 +42,30 @@ class ShsDirectoryTests(TestCase):
         # and not as a Senior High provider anywhere else
         self.assertNotIn(slsu[0], self.names(sector='public'))
 
-    def test_techvoc_public_and_private_are_separate(self):
+    def test_tech_voc_and_tesda_are_two_separate_filters(self):
         call_command('update_shs_directory')
-        pub = self.names(techvoc=1, sector='public')
-        self.assertEqual(len(pub), 5)
-        self.assertIn('Gulang-Gulang National High School', pub)
-        priv = self.names(techvoc=1, sector='private')
-        self.assertEqual(len(priv), 10)
-        self.assertTrue(any('STI College' in n for n in priv))
-        self.assertFalse(pub & priv)
-        self.assertEqual(self.names(techvoc=1), pub | priv)
-        # a school can be both a private SHS and a Tech-Voc provider with the same record
-        sti = School.objects.get(name__icontains='STI College')
+        tvl_pub = self.names(tvl=1, sector='public')
+        self.assertEqual(len(tvl_pub), 5)
+        self.assertIn('Gulang-Gulang National High School', tvl_pub)
+        tvl_priv = self.names(tvl=1, sector='private')
+        self.assertEqual(len(tvl_priv), 11)  # the ten of the LYDO list and CEFI, whose own page shows the TVL track
+        self.assertFalse(tvl_pub & tvl_priv)
+        self.assertEqual(self.names(tvl=1), tvl_pub | tvl_priv)
+        # TESDA: training providers, apart from the Senior High TVL track. The public schools are not TESDA providers.
+        self.assertEqual(self.names(tesda=1, sector='public'), set())
+        tesda = self.names(tesda=1, sector='private')
+        self.assertEqual(len(tesda), 11)
+        self.assertEqual(self.names(tesda=1), tesda)
+        self.assertTrue(any('STI College' in n for n in tesda))
+        # a public TVL school is not shown under TESDA
+        self.assertNotIn('Cotta National High School', self.names(tesda=1))
+        # both together: schools that are both
+        self.assertEqual(self.names(tvl=1, tesda=1, sector='private'), tesda)
+        # a school can be both a private SHS and a TVL and TESDA provider with the same record
         self.assertEqual(School.objects.filter(name__icontains='STI College').count(), 1)
-        self.assertTrue(sti.offers_senior_high and sti.in_techvoc)
+        sti = School.objects.get(name__icontains='STI College')
+        self.assertTrue(sti.offers_senior_high and sti.offers_tvl and sti.tesda_provider)
+        self.assertFalse(School.objects.get(name='Cotta National High School').tesda_provider)
 
     def test_nothing_is_duplicated_and_existing_records_are_kept(self):
         make_school(name="Boater's Wheel Educational System and Technology College", school_type='technical_vocational', offers_senior_high=True)
@@ -128,6 +138,8 @@ class ShsDirectoryTests(TestCase):
         self.assertTrue(any('Ransohan' in n for n in self.names(search='Ransohan')))
         self.assertIn('Cotta National High School', self.names(search='public'))
         self.assertTrue(any('Hyong' in n for n in self.names(search='TESDA')))
+        self.assertNotIn('Cotta National High School', self.names(search='TESDA'))
+        self.assertIn('Cotta National High School', self.names(search='tech-voc'))
 
     def test_college_finder_is_unchanged(self):
         call_command('update_shs_directory')

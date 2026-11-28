@@ -68,7 +68,8 @@ interface School {
   // Senior High finder
   barangay?: string
   sector?: 'suc' | 'public' | 'private'
-  in_techvoc?: boolean
+  offers_tvl?: boolean
+  tesda_provider?: boolean
   shs_note?: string
   info_status?: 'verified' | 'pending' | 'needs_update'
   last_verified_at?: string | null
@@ -80,13 +81,14 @@ interface ShsOffering { id: number; name: string; code?: string; note?: string; 
 
 const SECTOR_LABELS: Record<string, string> = { suc: 'State University / SUC', public: 'Public', private: 'Private' }
 const SECTOR_COLORS: Record<string, string> = { suc: 'bg-primary-50 text-primary-700', public: 'bg-emerald-100 text-emerald-800', private: 'bg-purple-100 text-purple-800' }
-// the Senior High filters: the classification, and Tech-Voc / TESDA with its own Public and Private
+// the Senior High filters: the classification, then Tech-Voc (the TVL track) and TESDA (training programs) as two separate filters, each with its own Public and Private
 const SHS_CHIPS = [
   { value: '', label: 'All' },
   { value: 'suc', label: 'State University / SUC' },
   { value: 'public', label: 'Public' },
   { value: 'private', label: 'Private' },
-  { value: 'techvoc', label: 'Tech-Voc / TESDA' },
+  { value: 'tvl', label: 'Tech-Voc (TVL)' },
+  { value: 'tesda', label: 'TESDA' },
 ]
 const SHS_NO_STRANDS = 'Strand information not yet available.'
 
@@ -119,7 +121,8 @@ function ShsBadges({ s, small }: { s: School; small?: boolean }) {
       {s.offers_senior_high
         ? <span className={cn('font-semibold rounded-full border bg-sky-50 text-sky-800 border-sky-200', c)}>Senior High School</span>
         : <span className={cn('font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200', c)}>No Senior High here</span>}
-      {s.in_techvoc && <span className={cn('font-semibold rounded-full border bg-amber-50 text-amber-800 border-amber-300', c)}>Tech-Voc / TESDA</span>}
+      {s.offers_tvl && <span className={cn('font-semibold rounded-full border bg-amber-50 text-amber-800 border-amber-300', c)}>Tech-Voc (TVL)</span>}
+      {s.tesda_provider && <span className={cn('font-semibold rounded-full border bg-teal-50 text-teal-800 border-teal-300', c)}>TESDA</span>}
       {s.info_status === 'needs_update' && (
         <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>Needs update</span>
       )}
@@ -306,8 +309,11 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
             {s._shs && detail && signedIn && s.offers_senior_high && (
               <div className="space-y-4">
                 <OfferingList title="Senior High School strands" rows={s.strands ?? []} empty={SHS_NO_STRANDS} />
-                {(s.in_techvoc || (s.tesda_programs ?? []).length > 0) && (
-                  <OfferingList title="TESDA qualifications" rows={s.tesda_programs ?? []} empty="TESDA qualification information not yet available." tesda />
+                {(s.tesda_provider || (s.tesda_programs ?? []).length > 0) && (
+                  <div className="space-y-1.5">
+                    <p className="text-[11px] text-teal-800">TESDA training is separate from Senior High School. It gives a National Certificate (NC), not a Senior High strand.</p>
+                    <OfferingList title="TESDA qualifications" rows={s.tesda_programs ?? []} empty="TESDA qualification information not yet available." tesda />
+                  </div>
                 )}
               </div>
             )}
@@ -521,8 +527,8 @@ export default function YouthSchoolsPage() {
   const visitor = !signedIn
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
-  const [shsKind, setShsKind] = useState('')   // Senior High: '' | suc | public | private | techvoc
-  const [tvKind, setTvKind] = useState('')     // inside Tech-Voc / TESDA: '' | public | private
+  const [shsKind, setShsKind] = useState('')   // Senior High: '' | suc | public | private | tvl | tesda
+  const [tvKind, setTvKind] = useState('')     // inside Tech-Voc or TESDA: '' | public | private
   const [view, setView] = useState<'schools' | 'courses'>('schools')
   const [level, setLevel] = useState<'college' | 'senior_high'>('college') // College and Senior High are listed apart
   const [field, setField] = useState('')
@@ -547,7 +553,7 @@ export default function YouthSchoolsPage() {
   params.set('level', level)
   if (level === 'senior_high') {
     params.delete('school_type')
-    if (shsKind === 'techvoc') { params.set('techvoc', '1'); if (tvKind) params.set('sector', tvKind) }
+    if (shsKind === 'tvl' || shsKind === 'tesda') { params.set(shsKind, '1'); if (tvKind) params.set('sector', tvKind) }
     else if (shsKind) params.set('sector', shsKind)
   }
 
@@ -583,7 +589,8 @@ export default function YouthSchoolsPage() {
   })
   const shsCount = (kind: string, sub = '') => (shsAll ?? []).filter(x => {
     const sec = x.sector ?? 'private'
-    if (kind === 'techvoc') return !!x.in_techvoc && (!sub || sec === sub)
+    if (kind === 'tvl') return !!x.offers_tvl && (!sub || sec === sub)
+    if (kind === 'tesda') return !!x.tesda_provider && (!sub || sec === sub)
     return !kind || sec === kind
   }).length
 
@@ -635,16 +642,25 @@ export default function YouthSchoolsPage() {
               </button>
             ))}
           </div>
-          {shsKind === 'techvoc' && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Tech-Voc / TESDA</span>
-              {([['', 'All'], ['public', 'Public'], ['private', 'Private']] as const).map(([v, l]) => (
-                <button key={v} onClick={() => setTvKind(v)}
-                  className={cn('text-xs px-3 py-1 rounded-full border font-medium transition-colors',
-                    tvKind === v ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-900 border-amber-200 hover:border-amber-400')}>
-                  {l}{shsAll && <span className="ml-1 opacity-60">({shsCount('techvoc', v)})</span>}
-                </button>
-              ))}
+          {(shsKind === 'tvl' || shsKind === 'tesda') && (
+            <div className={cn('rounded-xl border px-3 py-2 space-y-1.5', shsKind === 'tvl' ? 'border-amber-200 bg-amber-50/60' : 'border-teal-200 bg-teal-50/60')}>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={cn('text-[11px] font-bold uppercase tracking-wide', shsKind === 'tvl' ? 'text-amber-800' : 'text-teal-800')}>{shsKind === 'tvl' ? 'Tech-Voc (TVL)' : 'TESDA'}</span>
+                {([['', 'All'], ['public', 'Public'], ['private', 'Private']] as const).map(([v, l]) => (
+                  <button key={v} onClick={() => setTvKind(v)}
+                    className={cn('text-xs px-3 py-1 rounded-full border font-medium transition-colors',
+                      tvKind === v
+                        ? (shsKind === 'tvl' ? 'bg-amber-500 text-white border-amber-500' : 'bg-teal-600 text-white border-teal-600')
+                        : (shsKind === 'tvl' ? 'bg-white text-amber-900 border-amber-200 hover:border-amber-400' : 'bg-white text-teal-900 border-teal-200 hover:border-teal-400'))}>
+                    {l}{shsAll && <span className="ml-1 opacity-60">({shsCount(shsKind, v)})</span>}
+                  </button>
+                ))}
+              </div>
+              <p className={cn('text-[11px]', shsKind === 'tvl' ? 'text-amber-900' : 'text-teal-900')}>
+                {shsKind === 'tvl'
+                  ? 'Tech-Voc (TVL) is a track of Senior High School (Grades 11 and 12). You finish Senior High with a skills specialization.'
+                  : 'TESDA is separate skills training that gives a National Certificate (NC). It is not a Senior High strand.'}
+              </p>
             </div>
           )}
         </div>
