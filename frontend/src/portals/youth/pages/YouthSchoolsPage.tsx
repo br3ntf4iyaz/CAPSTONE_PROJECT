@@ -83,48 +83,33 @@ interface ShsOffering { id: number; name: string; code?: string; note?: string; 
 
 const SECTOR_LABELS: Record<string, string> = { suc: 'State University / SUC', public: 'Public', private: 'Private' }
 const SECTOR_COLORS: Record<string, string> = { suc: 'bg-primary-50 text-primary-700', public: 'bg-emerald-100 text-emerald-800', private: 'bg-purple-100 text-purple-800' }
-// the Senior High filters: the classification, then Tech-Voc (the TVL track) and TESDA (training programs) as two separate filters, each with its own Public and Private
+// the Senior High filters: the classification, and Tech-Voc (the TVL track) with its own Public and Private. TESDA has its own tab.
 const SHS_CHIPS = [
   { value: '', label: 'All' },
   { value: 'suc', label: 'State University / SUC' },
   { value: 'public', label: 'Public' },
   { value: 'private', label: 'Private' },
   { value: 'tvl', label: 'Tech-Voc (TVL)' },
-  { value: 'tesda', label: 'TESDA' },
 ]
 const SHS_NO_STRANDS = 'Strand information not yet available.'
 
 /** A school that teaches Senior High only has strands, not courses. */
 const shsOnly = (s: { offers_college?: boolean; offers_senior_high?: boolean }) => !!s.offers_senior_high && s.offers_college === false
 
-/** Which level(s) a school teaches, so a College and a Senior High School are never mixed up. */
-function levelLabel(s: { offers_college?: boolean; offers_senior_high?: boolean }) {
-  const college = s.offers_college !== false
-  if (college && s.offers_senior_high) return 'College + Senior High'
-  return s.offers_senior_high ? 'Senior High' : 'College'
-}
-function LevelBadge({ s, small }: { s: { offers_college?: boolean; offers_senior_high?: boolean }; small?: boolean }) {
-  const label = levelLabel(s)
-  return (
-    <span className={cn('font-semibold rounded-full border', small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5',
-      label === 'Senior High' ? 'bg-sky-50 text-sky-800 border-sky-200' : label === 'College' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-teal-50 text-teal-800 border-teal-200')}>
-      {label}
-    </span>
-  )
+/** The Public / Private / State University badge, the same on every tab. */
+function SectorBadge({ s, small }: { s: School; small?: boolean }) {
+  const sector = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private')
+  return <span className={cn('font-semibold rounded-full', small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5', SECTOR_COLORS[sector])}>{SECTOR_LABELS[sector]}</span>
 }
 
 /** The badges of a school on the Senior High list: its classification, the level, Tech-Voc / TESDA, and the state of its information. */
 function ShsBadges({ s, small }: { s: School; small?: boolean }) {
   const c = small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5'
-  const sector = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private')
   return (
     <>
-      <span className={cn('font-semibold rounded-full', c, SECTOR_COLORS[sector])}>{SECTOR_LABELS[sector]}</span>
-      {s.offers_senior_high
-        ? <span className={cn('font-semibold rounded-full border bg-sky-50 text-sky-800 border-sky-200', c)}>Senior High School</span>
-        : <span className={cn('font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200', c)}>No Senior High here</span>}
+      <SectorBadge s={s} small={small} />
+      {!s.offers_senior_high && <span className={cn('font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200', c)}>No Senior High here</span>}
       {s.offers_tvl && <span className={cn('font-semibold rounded-full border bg-amber-50 text-amber-800 border-amber-300', c)}>Tech-Voc (TVL)</span>}
-      {s.tesda_provider && <span className={cn('font-semibold rounded-full border bg-teal-50 text-teal-800 border-teal-300', c)}>TESDA</span>}
       {s.info_status === 'needs_update' && (
         <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>Needs update</span>
       )}
@@ -134,10 +119,9 @@ function ShsBadges({ s, small }: { s: School; small?: boolean }) {
 
 const TYPE_CHIPS = [
   { value: '',                   label: 'All' },
-  { value: 'state_university',   label: 'State University' },
+  { value: 'suc',                label: 'State University' },
   { value: 'public',             label: 'Public' },
   { value: 'private',            label: 'Private' },
-  { value: 'technical_vocational', label: 'Tech-Voc' },
 ]
 
 const TYPE_COLORS: Record<string, string> = {
@@ -181,11 +165,9 @@ function asTesda<T extends School>(s: T): T {
 /** The badges of a school on the TESDA / TVET list: its classification, TESDA, and what else it teaches. */
 function TesdaBadges({ s, small }: { s: School; small?: boolean }) {
   const c = small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5'
-  const sector = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private')
   return (
     <>
-      <span className={cn('font-semibold rounded-full', c, SECTOR_COLORS[sector])}>{SECTOR_LABELS[sector]}</span>
-      <span className={cn('font-semibold rounded-full border bg-teal-50 text-teal-800 border-teal-300', c)}>TESDA / TVET</span>
+      <SectorBadge s={s} small={small} />
       {s.info_status === 'needs_update' && <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>Needs update</span>}
     </>
   )
@@ -252,10 +234,7 @@ function SchoolDetailDrawer({ school, onClose, mode }: { school: School; onClose
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 {s._shs ? <ShsBadges s={s} /> : s._tesda ? <TesdaBadges s={s} /> : <>
-                <span className={cn('text-xs font-semibold px-2.5 py-0.5 rounded-full', TYPE_COLORS[s.school_type] ?? 'bg-gray-100 text-gray-700')}>
-                  {TYPE_LABELS[s.school_type] ?? s.school_type}
-                </span>
-                <LevelBadge s={s} /></>}
+                <SectorBadge s={s} /></>}
                 {s.is_featured && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                     <Star size={9} fill="currentColor" /> Featured
@@ -329,12 +308,6 @@ function SchoolDetailDrawer({ school, onClose, mode }: { school: School; onClose
             {s._shs && detail && signedIn && s.offers_senior_high && (
               <div className="space-y-4">
                 <OfferingList title="Senior High School strands" rows={s.strands ?? []} empty={SHS_NO_STRANDS} />
-                {(s.tesda_provider || (s.tesda_programs ?? []).length > 0) && (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] text-teal-800">TESDA training is separate from Senior High School. It gives a National Certificate (NC), not a Senior High strand.</p>
-                    <OfferingList title="TESDA qualifications" rows={s.tesda_programs ?? []} empty="TESDA qualification information not yet available." tesda />
-                  </div>
-                )}
               </div>
             )}
             {s._tesda && detail && !signedIn && <CoursesLock unit="TESDA program" />}
@@ -475,10 +448,7 @@ function SchoolCard({
                   </span>
                 )}
                 {school._shs ? <ShsBadges s={school} small /> : school._tesda ? <TesdaBadges s={school} small /> : <>
-                <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[school.school_type] ?? 'bg-gray-100 text-gray-700')}>
-                  {TYPE_LABELS[school.school_type] ?? school.school_type}
-                </span>
-                <LevelBadge s={school} small /></>}
+                <SectorBadge s={school} small /></>}
               </div>
               <h3 className="font-bold text-primary-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
                 {school.name}
@@ -488,7 +458,7 @@ function SchoolCard({
           </div>
 
           <div className="flex flex-wrap gap-1.5 text-xs mt-1.5">
-            {school.municipality && (
+            {school.municipality && !school.address && (
               <span className="flex items-center gap-1 rounded-full border border-primary-200 bg-primary-50 px-2.5 py-0.5 font-medium text-primary-800">
                 <MapPin size={10} className="text-primary-500" /> {school.municipality}{school.province ? `, ${school.province}` : ''}
               </span>
@@ -583,7 +553,7 @@ export default function YouthSchoolsPage() {
     )
 
   const params = new URLSearchParams()
-  if (schoolType) params.set('school_type', schoolType)
+  if (schoolType) params.set('sector', schoolType)
   if (search) params.set('search', search)
   if (field) params.set('field_of_study', field)
   if (ptype) params.set('program_type', ptype)
@@ -605,7 +575,7 @@ export default function YouthSchoolsPage() {
   })
 
   const courseParams = new URLSearchParams()
-  if (schoolType) courseParams.set('school_type', schoolType)
+  if (schoolType) courseParams.set('school_type', schoolType === 'suc' ? 'state_university' : schoolType)
   if (search) courseParams.set('search', search)
   if (field) courseParams.set('field_of_study', field)
   if (ptype) courseParams.set('program_type', ptype)
@@ -642,7 +612,7 @@ export default function YouthSchoolsPage() {
 
   // Counts per type (for chip labels)
   const typeCounts: Record<string, number> = {}
-  schools.forEach(s => { typeCounts[s.school_type] = (typeCounts[s.school_type] ?? 0) + 1 })
+  schools.forEach(s => { const k = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private'); typeCounts[k] = (typeCounts[k] ?? 0) + 1 })
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
@@ -702,7 +672,7 @@ export default function YouthSchoolsPage() {
               </button>
             ))}
           </div>
-          {(shsKind === 'tvl' || shsKind === 'tesda') && (
+          {shsKind === 'tvl' && (
             <div className={cn('rounded-xl border px-3 py-2 space-y-1.5', shsKind === 'tvl' ? 'border-amber-200 bg-amber-50/60' : 'border-teal-200 bg-teal-50/60')}>
               <div className="flex flex-wrap items-center gap-2">
                 <span className={cn('text-[11px] font-bold uppercase tracking-wide', shsKind === 'tvl' ? 'text-amber-800' : 'text-teal-800')}>{shsKind === 'tvl' ? 'Tech-Voc (TVL)' : 'TESDA'}</span>

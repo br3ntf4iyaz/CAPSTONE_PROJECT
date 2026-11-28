@@ -209,3 +209,22 @@ class ShsDirectoryTests(TestCase):
         self.assertEqual([a['name'] for a in archived], ['Test SHS'])
         self.assertEqual(c.patch(f'/api/schools/{s.id}/', {'is_active': True}, format='json').status_code, 200)
         self.assertIn('Test SHS', self.names())
+
+    def test_a_tesda_center_is_not_listed_as_a_college_and_the_same_school_is_not_listed_twice(self):
+        make_school(name='St. Gabriel College of Technology and Assessment Center Inc.', school_type='technical_vocational')  # offers_college defaults to True
+        make_school(name='Gulang-gulang National High School - Ibabang Talim Extension', school_type='public', offers_college=False, offers_senior_high=True)
+        call_command('update_shs_directory')
+        college = {x['name'] for x in APIClient().get('/api/schools/', {'page_size': 200, 'level': 'college'}).data['results']}
+        self.assertFalse([n for n in college if 'St. Gabriel' in n])
+        shs = self.names()
+        self.assertIn('Ibabang Talim Integrated High School', shs)
+        self.assertFalse([n for n in shs if 'Ibabang Talim Extension' in n])
+        self.assertTrue(School.objects.filter(name__icontains='Ibabang Talim Extension', is_active=False).exists())  # archived, not deleted
+
+    def test_the_duplicate_finder_reports_the_same_school_written_twice(self):
+        from io import StringIO
+        make_school(name='Maryhill College')
+        make_school(name='Maryhill College, Inc.')
+        out = StringIO()
+        call_command('find_duplicate_schools', stdout=out)
+        self.assertIn('Maryhill', out.getvalue())

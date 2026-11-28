@@ -237,7 +237,8 @@ class Command(BaseCommand):
                         _note(school, f'Address discrepancy: the LYDO master list gives "{address}", the School Finder has "{school.address}". Kept the existing one: LYDO to confirm.')
                         self.flags.append(school.name)
             before = (school.offers_college, school.offers_senior_high, school.offers_tvet, school.offers_tvl, school.tesda_provider)
-            school.offers_college = school.offers_college or 'college' in levels
+            # a school the list does not give a College level (a TESDA center, a Senior High School) is not listed under College
+            school.offers_college = 'college' in levels
             school.offers_senior_high = school.offers_senior_high or 'shs' in levels
             school.offers_tvet = school.offers_tvet or 'tvet' in levels
             school.offers_tvl = school.offers_tvl or 'tvl' in tags
@@ -245,6 +246,19 @@ class Command(BaseCommand):
             if before != (school.offers_college, school.offers_senior_high, school.offers_tvet, school.offers_tvl, school.tesda_provider):
                 _note(school, 'Levels and categories (Senior High, College, TVET, Tech-Voc, TESDA) come from the LYDO master list and are not yet checked against DepEd / CHED / TESDA records.')
             school.save()
+
+    def _merge_ibabang_talim(self):
+        """The SDO profile lists "Gulang-gulang NHS - Ibabang Talim Extension"; the SDO school list and the LYDO list have "Ibabang Talim Integrated High School".
+        They are the same place, so the older entry is archived (not deleted) and only the integrated high school is shown."""
+        keep = School.objects.filter(name__iexact='Ibabang Talim Integrated High School', is_active=True).first()
+        if not keep:
+            return
+        for old in School.objects.filter(name__icontains='Ibabang Talim Extension', is_active=True).exclude(pk=keep.pk):
+            old.is_active = False
+            _note(old, 'Archived as a duplicate of "Ibabang Talim Integrated High School", which the DepEd SDO Lucena City school list shows as its own school. Restore it in the admin page if they are different schools.')
+            old.save()
+            _note(keep, 'An older entry, "' + old.name + '", was archived as the same school.')
+            keep.save()
 
     def _jhs_only(self):
         """The annexes and extensions that the LYDO list says are Junior High only are taken out of the Senior High results (archived, not deleted)."""
@@ -267,6 +281,7 @@ class Command(BaseCommand):
 
         self._master()
         self._jhs_only()
+        self._merge_ibabang_talim()
 
         # SLSU Lucena Campus: a college / TESDA campus, NOT a Senior High provider
         slsu = _find('Southern Luzon State University (SLSU) ' + DASH + ' Lucena Campus', ['Southern Luzon State University'])
