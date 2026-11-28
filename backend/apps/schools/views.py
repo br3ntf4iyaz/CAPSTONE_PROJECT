@@ -69,6 +69,7 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 | Q(description__icontains=search)
                 | Q(province__icontains=search)
                 | Q(barangay__icontains=search)
+                | Q(acronym__icontains=search)
             )
             # a word like "public", "private" or "TESDA" finds schools by classification
             word = search.lower()

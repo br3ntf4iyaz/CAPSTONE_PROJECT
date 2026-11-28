@@ -68,6 +68,7 @@ interface School {
   offers_college?: boolean
   offers_senior_high?: boolean
   barangay?: string
+  acronym?: string
   offers_tvl?: boolean
   tesda_provider?: boolean
   offers_tvet?: boolean
@@ -80,6 +81,7 @@ const INFO_STATUS: Record<string, string> = { verified: 'Verified', pending: 'Pe
 
 const initialSchoolForm = {
   barangay: '',
+  acronym: '',
   offers_college: true,
   offers_senior_high: false,
   offers_tvl: false,
@@ -297,6 +299,7 @@ export default function AdminJobsSchoolsPage() {
       source_url: full.source_url ?? '',
       verification_note: full.verification_note ?? '',
       barangay: s.barangay ?? '',
+      acronym: s.acronym ?? '',
       offers_college: s.offers_college ?? true,
       offers_senior_high: s.offers_senior_high ?? false,
       offers_tvl: s.offers_tvl ?? false,
@@ -978,6 +981,11 @@ export default function AdminJobsSchoolsPage() {
               <div>
                 <label className="label">Address</label>
                 <input className="input" value={schoolForm.address} onChange={e => setSchoolForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" />
+              </div>
+              <div>
+                <label className="label">Acronym</label>
+                <input className="input" value={schoolForm.acronym} onChange={e => setSchoolForm(f => ({ ...f, acronym: e.target.value }))} placeholder="e.g., MSEUF (separate several with commas)" />
+                <p className="mt-1 text-[11px] text-gray-500">Searching the acronym finds this school.</p>
               </div>
               <div>
                 <label className="label">Barangay</label>

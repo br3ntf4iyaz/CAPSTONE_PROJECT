@@ -721,7 +721,7 @@ export default function YouthSchoolsPage() {
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder={level === 'tesda' ? (visitor ? 'Search school, barangay or street…' : 'Search school, barangay, street or TESDA qualification…') : level === 'senior_high' || level === 'tvl' ? (visitor ? 'Search school, barangay, street or public / private…' : 'Search school, barangay, street, strand or TESDA qualification…') : visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
+          placeholder={level === 'tesda' ? (visitor ? 'Search school, acronym, barangay or street…' : 'Search school, acronym, barangay, street or TESDA qualification…') : level === 'senior_high' || level === 'tvl' ? (visitor ? 'Search school, acronym, barangay or street…' : 'Search school, acronym, barangay, street or strand…') : visitor ? 'Search school name, acronym or place…' : 'Search school name, acronym, course, program, or field of study…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

@@ -59,3 +59,25 @@ MASTER = [
 # These annexes and extensions are Junior High School only, according to the LYDO list: they are left out of the Senior High results.
 # Ransohan Integrated School has no Senior High School (told by LYDO), so it is left out of the Senior High results too.
 JHS_ONLY = ['Mayao Crossing Extension', 'Ilayang Dupay Extension', 'Mayao Castillo Annex', 'Silangang Mayao Annex', 'Barra Annex', 'Ransohan']
+
+# Acronyms that appear in the school's own name or that the school uses for itself (taken from the LYDO lists and the official names). (acronym, phrases that find the school)
+ACRONYMS = [
+    ('SLSU', ['Southern Luzon State University']),
+    ('DLL', ['Dalubhasaan']),
+    ('QNHS', ['Quezon National High School']),
+    ('LCNHS', ['Lucena City National High School']),
+    ('GGNHS', ['Gulang-gulang National High School']),
+    ('MSEUF', ['Enverga']),
+    ('SHC', ['Sacred Heart College']),
+    ('CEFI', ['Calayan', 'CEFI']),
+    ('SACLI', ['St. Anne College', 'Saint Anne College']),
+    ('CSTC', ['CSTC', 'College of Sciences, Technology and Communications']),
+    ('BWEST', ['Boater', 'BWEST']),
+    ('QCRS', ['QCRS']),
+    ('ACES', ['Alpha Centauri']),
+    ('ISBB', ['International School for Better Beginnings']),
+    ('CHAMS', ["Children's House", 'Annunciation Montessori']),
+    ('STI', ['STI College', 'STI Education']),
+    ('AMA', ['AMA Computer College']),
+    ('UCC', ['Technological College of Quezon']),
+]

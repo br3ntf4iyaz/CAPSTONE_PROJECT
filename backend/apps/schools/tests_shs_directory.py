@@ -254,3 +254,21 @@ class ShsDirectoryTests(TestCase):
         call_command('update_shs_directory')
         self.assertFalse([n for n in self.names() if 'Ransohan' in n])
         self.assertFalse(School.objects.get(name__icontains='Ransohan').is_active)  # archived, not deleted
+
+    def test_a_school_is_found_by_its_acronym(self):
+        call_command('update_shs_directory')
+        client = APIClient()
+        def find(q):
+            return {x['name'] for x in client.get('/api/schools/', {'search': q, 'page_size': 200}).data['results']}
+        self.assertTrue(any('Enverga' in n for n in find('MSEUF')))
+        self.assertTrue(any('Sacred Heart' in n for n in find('shc')))
+        self.assertTrue(any('Calayan' in n for n in find('CEFI')))
+        self.assertTrue(any('Southern Luzon' in n for n in find('SLSU')))
+        self.assertIn('Quezon National High School (QNHS)', find('QNHS'))
+        # an acronym an administrator already typed is kept
+        s = School.objects.get(name__icontains='Enverga')
+        s.acronym = 'MSEUF, Enverga U'
+        s.save()
+        call_command('update_shs_directory')
+        s.refresh_from_db()
+        self.assertEqual(s.acronym, 'MSEUF, Enverga U')

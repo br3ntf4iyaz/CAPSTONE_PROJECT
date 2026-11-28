@@ -106,6 +106,7 @@ class SchoolListSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
             'offers_college',
             'offers_senior_high',
             'barangay',
+            'acronym',
             'offers_tvl',
             'tesda_provider',
             'offers_tvet',
@@ -170,6 +171,7 @@ class SchoolDetailSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
             'offers_college',
             'offers_senior_high',
             'barangay',
+            'acronym',
             'offers_tvl',
             'tesda_provider',
             'offers_tvet',
@@ -248,6 +250,7 @@ class SchoolWriteSerializer(serializers.ModelSerializer):
             'offers_college',
             'offers_senior_high',
             'barangay',
+            'acronym',
             'offers_tvl',
             'tesda_provider',
             'offers_tvet',
@@ -259,6 +262,9 @@ class SchoolWriteSerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
 
     def validate_shs_note(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_acronym(self, value):
         return bleach.clean(value, tags=[], strip=True)
 
     def validate_barangay(self, value):

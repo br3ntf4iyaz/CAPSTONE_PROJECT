@@ -20,7 +20,7 @@ from django.utils import timezone
 
 from apps.schools.models import School, SchoolOffering
 
-from ._lucena_master_list import JHS_ONLY, MASTER
+from ._lucena_master_list import ACRONYMS, JHS_ONLY, MASTER
 
 DASH = '–'
 GENERIC = {'', 'lucena city', 'lucena city, quezon'}
@@ -257,6 +257,14 @@ class Command(BaseCommand):
                 _note(school, 'Levels and categories (Senior High, College, TVET, Tech-Voc, TESDA) come from the LYDO master list and are not yet checked against DepEd / CHED / TESDA records.')
             school.save()
 
+    def _acronyms(self):
+        """The acronyms the schools are known by, so that searching an acronym finds the school. An acronym an administrator typed is kept."""
+        for acronym, phrases in ACRONYMS:
+            school = _find(phrases[0], phrases)
+            if school and not school.acronym:
+                school.acronym = acronym
+                school.save(update_fields=['acronym'])
+
     def _merge_ibabang_talim(self):
         """The SDO profile lists "Gulang-gulang NHS - Ibabang Talim Extension"; the SDO school list and the LYDO list have "Ibabang Talim Integrated High School".
         They are the same place, so the older entry is archived (not deleted) and only the integrated high school is shown."""
@@ -290,6 +298,7 @@ class Command(BaseCommand):
             self._apply(name, phrases, 'private', address, brgy, tv or name in TESDA_VERIFIED, extra, shs_note=PENDING_SHS if unverified else '', tesda=tv or name in TESDA_VERIFIED)
 
         self._master()
+        self._acronyms()
         self._jhs_only()
         self._merge_ibabang_talim()
 
