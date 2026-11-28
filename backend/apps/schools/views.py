@@ -8,11 +8,12 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminRole, IsSuperAdmin
 
-from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolProgram
+from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolOffering, SchoolProgram
 from .serializers import (
     ProgramSerializer,
     AdminSchoolProgramSerializer,
     CourseSearchSerializer,
+    OfferingSerializer,
     SchoolBookmarkSerializer,
     SchoolComparisonSerializer,
     SchoolDetailSerializer,
@@ -44,8 +45,15 @@ class SchoolViewSet(viewsets.ModelViewSet):
     ordering = ['name']
 
     def get_queryset(self):
-        qs = School.objects.filter(is_active=True).prefetch_related(
-            'school_programs__program'
+        user = self.request.user
+        is_admin = user.is_authenticated and getattr(user, 'role', None) in ('lgu_admin', 'super_admin')
+        # an administrator can open an archived school to edit or restore it, and list the archived ones
+        if is_admin and (self.action != 'list' or self.request.query_params.get('archived') in ('1', 'true')):
+            base = School.objects.all() if self.action != 'list' else School.objects.filter(is_active=False)
+        else:
+            base = School.objects.filter(is_active=True)
+        qs = base.prefetch_related(
+            'school_programs__program', 'offerings'
         ).annotate(program_count=Count('school_programs', filter=Q(school_programs__is_active=True, school_programs__verification_status='verified'), distinct=True))
 
         # A visitor can find a school by its name or place, but not by the courses it offers: the courses need an account.
@@ -60,7 +68,20 @@ class SchoolViewSet(viewsets.ModelViewSet):
                 | Q(address__icontains=search)
                 | Q(description__icontains=search)
                 | Q(province__icontains=search)
+                | Q(barangay__icontains=search)
             )
+            # a word like "public", "private" or "TESDA" finds schools by classification
+            word = search.lower()
+            kinds = {'public': ['public'], 'private': ['private', 'technical_vocational'],
+                     'suc': ['state_university'], 'state university': ['state_university']}
+            if word in kinds:
+                cond = cond | Q(school_type__in=kinds[word])
+            if 'tesda' in word or 'tech-voc' in word or 'techvoc' in word or 'tvl' in word:
+                cond = cond | Q(in_techvoc=True)
+            if signed_in:
+                cond = (cond
+                        | Q(offerings__name__icontains=search, offerings__verification_status='verified')
+                        | Q(offerings__code__icontains=search, offerings__verification_status='verified'))
             if signed_in:
                 cond = (cond
                         | Q(school_programs__program__name__icontains=search, school_programs__verification_status='verified')
@@ -71,9 +92,17 @@ class SchoolViewSet(viewsets.ModelViewSet):
         school_type = self.request.query_params.get('school_type')
         if school_type:
             qs = qs.filter(school_type=school_type)
+        # Senior High finder: SUC / Public / Private (a technical-vocational school counts as private)
+        sector = self.request.query_params.get('sector')
+        if sector in ('suc', 'public', 'private'):
+            qs = qs.filter(school_type__in={'suc': ['state_university'], 'public': ['public'], 'private': ['private', 'technical_vocational']}[sector])
+        # Tech-Voc / TESDA: the schools listed under it
+        if self.request.query_params.get('techvoc') in ('1', 'true'):
+            qs = qs.filter(in_techvoc=True)
         level = self.request.query_params.get('level')  # the level the applicant is in, for the scholarship form
         if level == 'senior_high':
-            qs = qs.filter(offers_senior_high=True)
+            # a school that explains where its Senior High School is (SLSU Lucena) is listed too, with that note
+            qs = qs.filter(Q(offers_senior_high=True) | ~Q(shs_note=''))
         elif level == 'college':
             qs = qs.filter(offers_college=True)
 
@@ -162,6 +191,53 @@ class SchoolViewSet(viewsets.ModelViewSet):
             {'message': 'School added to comparison.', 'comparison': serializer.data},
             status=status.HTTP_200_OK,
         )
+
+
+    def _log(self, action_name, school, changed=''):
+        from apps.accounts.models import AuditLog
+        AuditLog.objects.create(user=self.request.user, action=action_name, model_name='School', object_id=school.pk,
+                                details={'school': school.name, 'changed': changed})
+
+    def perform_create(self, serializer):
+        school = serializer.save()
+        self._log('create', school)
+
+    def perform_update(self, serializer):
+        before = {f: getattr(serializer.instance, f) for f in serializer.validated_data if f != 'logo'}
+        school = serializer.save()
+        changed = ', '.join(f for f, v in before.items() if getattr(school, f) != v)
+        if changed:
+            if school.info_status == 'verified' and 'info_status' in changed:
+                from django.utils import timezone
+                school.last_verified_at = timezone.now()
+                school.save(update_fields=['last_verified_at'])
+            self._log('update', school, changed)
+
+
+class SchoolOfferingViewSet(viewsets.ModelViewSet):
+    """The SHS strands and TESDA qualifications of a school, kept by LYDO administrators (verified or pending)."""
+
+    serializer_class = OfferingSerializer
+    permission_classes = [IsAuthenticated, IsAdminRole]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = SchoolOffering.objects.all()
+        school = self.request.query_params.get('school')
+        return qs.filter(school_id=school) if school else qs
+
+    def perform_create(self, serializer):
+        self._stamp(serializer.save())
+
+    def perform_update(self, serializer):
+        self._stamp(serializer.save())
+
+    def _stamp(self, obj):
+        from django.utils import timezone
+        want = timezone.now() if obj.verification_status == 'verified' else None
+        if (obj.verified_at is None) != (want is None):
+            obj.verified_at = want
+            obj.save(update_fields=['verified_at'])
 
 
 class ProgramViewSet(viewsets.ModelViewSet):

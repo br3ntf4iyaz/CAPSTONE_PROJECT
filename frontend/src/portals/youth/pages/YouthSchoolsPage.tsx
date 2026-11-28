@@ -65,7 +65,30 @@ interface School {
   courses_locked?: boolean
   source_url?: string
   is_featured?: boolean
+  // Senior High finder
+  barangay?: string
+  sector?: 'suc' | 'public' | 'private'
+  in_techvoc?: boolean
+  shs_note?: string
+  info_status?: 'verified' | 'pending' | 'needs_update'
+  last_verified_at?: string | null
+  strands?: ShsOffering[]
+  tesda_programs?: ShsOffering[]
+  _shs?: boolean
 }
+interface ShsOffering { id: number; name: string; code?: string; note?: string; source_url?: string; source_note?: string }
+
+const SECTOR_LABELS: Record<string, string> = { suc: 'State University / SUC', public: 'Public', private: 'Private' }
+const SECTOR_COLORS: Record<string, string> = { suc: 'bg-primary-50 text-primary-700', public: 'bg-emerald-100 text-emerald-800', private: 'bg-purple-100 text-purple-800' }
+// the Senior High filters: the classification, and Tech-Voc / TESDA with its own Public and Private
+const SHS_CHIPS = [
+  { value: '', label: 'All' },
+  { value: 'suc', label: 'State University / SUC' },
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+  { value: 'techvoc', label: 'Tech-Voc / TESDA' },
+]
+const SHS_NO_STRANDS = 'Strand information not yet available.'
 
 /** A school that teaches Senior High only has strands, not courses. */
 const shsOnly = (s: { offers_college?: boolean; offers_senior_high?: boolean }) => !!s.offers_senior_high && s.offers_college === false
@@ -83,6 +106,24 @@ function LevelBadge({ s, small }: { s: { offers_college?: boolean; offers_senior
       label === 'Senior High' ? 'bg-sky-50 text-sky-800 border-sky-200' : label === 'College' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-teal-50 text-teal-800 border-teal-200')}>
       {label}
     </span>
+  )
+}
+
+/** The badges of a school on the Senior High list: its classification, the level, Tech-Voc / TESDA, and the state of its information. */
+function ShsBadges({ s, small }: { s: School; small?: boolean }) {
+  const c = small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5'
+  const sector = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private')
+  return (
+    <>
+      <span className={cn('font-semibold rounded-full', c, SECTOR_COLORS[sector])}>{SECTOR_LABELS[sector]}</span>
+      {s.offers_senior_high
+        ? <span className={cn('font-semibold rounded-full border bg-sky-50 text-sky-800 border-sky-200', c)}>Senior High School</span>
+        : <span className={cn('font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200', c)}>No Senior High here</span>}
+      {s.in_techvoc && <span className={cn('font-semibold rounded-full border bg-amber-50 text-amber-800 border-amber-300', c)}>Tech-Voc / TESDA</span>}
+      {s.info_status && s.info_status !== 'verified' && (
+        <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>{s.info_status === 'needs_update' ? 'Needs update' : 'Pending verification'}</span>
+      )}
+    </>
   )
 }
 
@@ -124,7 +165,34 @@ function CoursesLock({ count, next = '/schools', strand = false }: { count?: num
 
 /** On the Senior High tab a school is shown only as a Senior High School: its college courses belong to the College tab. */
 function asSeniorHigh<T extends School>(s: T): T {
-  return { ...s, offers_college: false, offers_senior_high: true, program_count: 0, programs: [] } as T
+  return { ...s, offers_college: false, program_count: 0, programs: [], _shs: true } as T
+}
+
+function OfferingList({ title, rows, empty, tesda }: { title: string; rows: ShsOffering[]; empty: string; tesda?: boolean }) {
+  return (
+    <div>
+      <h3 className={cn('text-sm font-bold flex items-center gap-1.5 border-l-4 pl-2', tesda ? 'text-amber-900 border-amber-400' : 'text-primary-900 border-primary-500')}>
+        <BookOpen size={14} /> {title} <span className="text-xs font-normal text-gray-400">({rows.length})</span>
+      </h3>
+      {rows.length === 0 ? (
+        <p className="mt-2 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800"><AlertCircle size={15} className="mt-0.5 flex-shrink-0" /> {empty}</p>
+      ) : (
+        <ul className="mt-2 space-y-1.5">
+          {rows.map(r => (
+            <li key={r.id} className={cn('rounded-xl border px-3 py-2', tesda ? 'border-amber-200 bg-amber-50/50' : 'border-primary-100 bg-primary-50/50')}>
+              <p className="text-sm font-medium text-gray-900 break-words">{r.name}{r.code ? <span className="ml-1.5 text-xs font-semibold text-gray-500">({r.code})</span> : null}</p>
+              {r.note && <p className="text-[11px] text-gray-500">{r.note}</p>}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 text-[11px]">
+                <span className="inline-flex items-center gap-1 text-emerald-700"><BadgeCheck size={11} /> Verified</span>
+                {r.source_url ? <a href={r.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline">Source <ExternalLink size={10} /></a>
+                  : r.source_note ? <span className="text-gray-400">{r.source_note}</span> : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; onClose: () => void; seniorHigh?: boolean }) {
@@ -160,10 +228,11 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
+                {s._shs ? <ShsBadges s={s} /> : <>
                 <span className={cn('text-xs font-semibold px-2.5 py-0.5 rounded-full', TYPE_COLORS[s.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[s.school_type] ?? s.school_type}
                 </span>
-                <LevelBadge s={s} />
+                <LevelBadge s={s} /></>}
                 {s.is_featured && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                     <Star size={9} fill="currentColor" /> Featured
@@ -227,9 +296,35 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
               )}
             </div>
 
+            {/* Senior High: strands and TESDA qualifications are kept apart */}
+            {s._shs && s.shs_note && (
+              <div className="flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-3 text-sm text-sky-900">
+                <AlertCircle size={15} className="flex-shrink-0 mt-0.5" /><span>{s.shs_note}</span>
+              </div>
+            )}
+            {s._shs && detail && !signedIn && s.offers_senior_high && <CoursesLock strand />}
+            {s._shs && detail && signedIn && s.offers_senior_high && (
+              <div className="space-y-4">
+                <OfferingList title="Senior High School strands" rows={s.strands ?? []} empty={SHS_NO_STRANDS} />
+                {(s.in_techvoc || (s.tesda_programs ?? []).length > 0) && (
+                  <OfferingList title="TESDA qualifications" rows={s.tesda_programs ?? []} empty="TESDA qualification information not yet available." tesda />
+                )}
+              </div>
+            )}
+            {s._shs && (
+              <div className="space-y-1 text-[11px] text-gray-500">
+                <p>
+                  Information status: <span className="font-semibold">{s.info_status === 'verified' ? 'Verified' : s.info_status === 'needs_update' ? 'Needs update' : 'Pending verification'}</span>
+                  {s.last_verified_at ? ` · last verified ${new Date(s.last_verified_at).toLocaleDateString()}` : ''}
+                </p>
+                {s.source_url && <a href={s.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline">Reference <ExternalLink size={10} /></a>}
+                {s.address && <p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + ' ' + s.address)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline"><MapPin size={10} /> Open in Maps</a></p>}
+              </div>
+            )}
+
             {/* Programs, grouped by field of study (verified only). Visitors get a sign-in prompt instead. */}
-            {detail && !signedIn && <CoursesLock count={s.program_count} strand={shsOnly(s)} />}
-            {detail && signedIn && (
+            {!s._shs && detail && !signedIn && <CoursesLock count={s.program_count} strand={shsOnly(s)} />}
+            {!s._shs && detail && signedIn && (
               s.programs && s.programs.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-primary-900 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
@@ -347,10 +442,11 @@ function SchoolCard({
                     <Star size={8} fill="currentColor" /> Featured
                   </span>
                 )}
+                {school._shs ? <ShsBadges s={school} small /> : <>
                 <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[school.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[school.school_type] ?? school.school_type}
                 </span>
-                <LevelBadge s={school} small />
+                <LevelBadge s={school} small /></>}
               </div>
               <h3 className="font-bold text-primary-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
                 {school.name}
@@ -365,7 +461,7 @@ function SchoolCard({
                 <MapPin size={10} className="text-primary-500" /> {school.municipality}{school.province ? `, ${school.province}` : ''}
               </span>
             )}
-            {school.program_count > 0 ? (
+            {school._shs ? null : school.program_count > 0 ? (
               <span className="flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 font-medium text-emerald-800">
                 <BadgeCheck size={10} /> {school.program_count} verified program{school.program_count !== 1 ? 's' : ''}
               </span>
@@ -376,10 +472,26 @@ function SchoolCard({
             )}
           </div>
           {school.address && (
-            <p className="text-xs text-ink-600 mt-1.5 line-clamp-1">{school.address}</p>
+            <p className={cn('text-xs text-ink-600 mt-1.5', school._shs ? 'line-clamp-2' : 'line-clamp-1')}>{school.address}</p>
+          )}
+          {school._shs && school.shs_note && <p className="mt-1.5 text-[11px] text-sky-800 line-clamp-2">{school.shs_note}</p>}
+          {school._shs && school.offers_senior_high && !visitor && (
+            <div className="mt-1.5 space-y-1">
+              {(school.strands ?? []).length > 0 ? (
+                <div className="flex flex-wrap gap-1">
+                  {(school.strands ?? []).slice(0, 3).map(x => <span key={x.id} className="rounded-full border border-primary-200 bg-primary-50 px-2 py-0.5 text-[10px] font-semibold text-primary-800">{x.code || x.name}</span>)}
+                  {(school.strands ?? []).length > 3 && <span className="text-[10px] text-gray-500 self-center">+{(school.strands ?? []).length - 3} more</span>}
+                </div>
+              ) : <p className="text-[11px] text-amber-700">{SHS_NO_STRANDS}</p>}
+              {(school.tesda_programs ?? []).length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {(school.tesda_programs ?? []).slice(0, 2).map(x => <span key={x.id} className="rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800">{x.name}{x.code ? ` ${x.code}` : ''}</span>)}
+                </div>
+              )}
+            </div>
           )}
           <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary-700">
-            {visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
+            {school._shs ? (visitor ? <><Lock size={12} /> School details · sign in for strands</> : <><BookOpen size={12} /> View details</>) : visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
           </span>
         </div>
       </div>
@@ -410,6 +522,8 @@ export default function YouthSchoolsPage() {
   const visitor = !signedIn
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
+  const [shsKind, setShsKind] = useState('')   // Senior High: '' | suc | public | private | techvoc
+  const [tvKind, setTvKind] = useState('')     // inside Tech-Voc / TESDA: '' | public | private
   const [view, setView] = useState<'schools' | 'courses'>('schools')
   const [level, setLevel] = useState<'college' | 'senior_high'>('college') // College and Senior High are listed apart
   const [field, setField] = useState('')
@@ -432,10 +546,15 @@ export default function YouthSchoolsPage() {
   if (field) params.set('field_of_study', field)
   if (ptype) params.set('program_type', ptype)
   params.set('level', level)
+  if (level === 'senior_high') {
+    params.delete('school_type')
+    if (shsKind === 'techvoc') { params.set('techvoc', '1'); if (tvKind) params.set('sector', tvKind) }
+    else if (shsKind) params.set('sector', shsKind)
+  }
 
   // Backend already filters to is_active=True
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['youth-schools', schoolType, search, field, ptype, level],
+    queryKey: ['youth-schools', schoolType, search, field, ptype, level, shsKind, tvKind],
     queryFn: () => apiClient.get(`/schools/?${params.toString()}`).then(r => toArray<School>(r.data)),
   })
 
@@ -456,6 +575,18 @@ export default function YouthSchoolsPage() {
     queryKey: ['youth-schools-all'],
     queryFn: () => apiClient.get('/schools/?page_size=200').then(r => toArray<School>(r.data)),
   })
+
+  // the numbers on the Senior High chips come from the whole Senior High list
+  const { data: shsAll } = useQuery({
+    queryKey: ['youth-schools-shs-all', signedIn],
+    enabled: level === 'senior_high',
+    queryFn: () => apiClient.get('/schools/?level=senior_high&page_size=200').then(r => toArray<School>(r.data)),
+  })
+  const shsCount = (kind: string, sub = '') => (shsAll ?? []).filter(x => {
+    const sec = x.sector ?? 'private'
+    if (kind === 'techvoc') return !!x.in_techvoc && (!sub || sec === sub)
+    return !kind || sec === kind
+  }).length
 
   const schools = (data ?? []).map(x => (level === 'senior_high' ? asSeniorHigh(x) : x))
   const featured = schools.filter(s => s.is_featured)
@@ -492,8 +623,36 @@ export default function YouthSchoolsPage() {
         </div>
       )}
 
-      {/* Type chips */}
-      <div className="flex flex-wrap gap-2">
+      {/* Senior High filters: classification, then Public / Private inside Tech-Voc / TESDA */}
+      {level === 'senior_high' && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            {SHS_CHIPS.map(t => (
+              <button key={t.value} onClick={() => { setShsKind(t.value); setTvKind('') }}
+                className={cn('text-xs px-3 py-1.5 rounded-full border font-medium transition-all duration-150',
+                  shsKind === t.value ? 'bg-primary-600 text-white border-primary-600 shadow-sm' : 'bg-white text-gray-600 border-gray-200 hover:border-primary-300 hover:text-primary-700')}>
+                {t.label}
+                {shsAll && <span className={cn('ml-1.5', shsKind === t.value ? 'opacity-70' : 'opacity-50')}>({shsCount(t.value)})</span>}
+              </button>
+            ))}
+          </div>
+          {shsKind === 'techvoc' && (
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-amber-800">Tech-Voc / TESDA</span>
+              {([['', 'All'], ['public', 'Public'], ['private', 'Private']] as const).map(([v, l]) => (
+                <button key={v} onClick={() => setTvKind(v)}
+                  className={cn('text-xs px-3 py-1 rounded-full border font-medium transition-colors',
+                    tvKind === v ? 'bg-amber-500 text-white border-amber-500' : 'bg-white text-amber-900 border-amber-200 hover:border-amber-400')}>
+                  {l}{shsAll && <span className="ml-1 opacity-60">({shsCount('techvoc', v)})</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Type chips (College) */}
+      {level === 'college' && <div className="flex flex-wrap gap-2">
         {TYPE_CHIPS.map(t => (
           <button
             key={t.value}
@@ -513,14 +672,14 @@ export default function YouthSchoolsPage() {
             ) : null}
           </button>
         ))}
-      </div>
+      </div>}
 
       {/* Search */}
       <div className="relative">
         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
         <input
           className="input pl-9 w-full"
-          placeholder={visitor || level === 'senior_high' ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
+          placeholder={level === 'senior_high' ? (visitor ? 'Search school, barangay, street or public / private…' : 'Search school, barangay, street, strand or TESDA qualification…') : visitor ? 'Search school name or place…' : 'Search school name, course, program, or field of study…'}
           value={search}
           onChange={e => setSearch(e.target.value)}
         />

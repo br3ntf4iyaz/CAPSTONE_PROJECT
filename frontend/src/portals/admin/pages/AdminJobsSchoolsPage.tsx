@@ -11,6 +11,7 @@ import { PageSpinner } from '@/components/ui/Spinner'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { formatDate, cn, toArray } from '@/utils'
 import AdminSchoolCoursesModal from './AdminSchoolCoursesModal'
+import AdminSchoolOfferingsModal from './AdminSchoolOfferingsModal'
 import { confirmDeletion } from '@/components/ui/ConfirmDialog'
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
@@ -64,9 +65,24 @@ interface School {
   program_count: number
   is_active: boolean
   is_featured: boolean
+  offers_college?: boolean
+  offers_senior_high?: boolean
+  barangay?: string
+  in_techvoc?: boolean
+  shs_note?: string
+  info_status?: string
+  last_verified_at?: string | null
 }
 
+const INFO_STATUS: Record<string, string> = { verified: 'Verified', pending: 'Pending verification', needs_update: 'Needs update' }
+
 const initialSchoolForm = {
+  barangay: '',
+  offers_college: true,
+  offers_senior_high: false,
+  in_techvoc: false,
+  shs_note: '',
+  info_status: 'pending',
   name: '',
   school_type: 'public',
   municipality: '',
@@ -178,6 +194,8 @@ export default function AdminJobsSchoolsPage() {
   const [showSchoolModal, setShowSchoolModal] = useState(false)
   const [editSchool, setEditSchool] = useState<School | null>(null)
   const [coursesFor, setCoursesFor] = useState<School | null>(null)
+  const [offeringsFor, setOfferingsFor] = useState<School | null>(null)
+  const [showArchived, setShowArchived] = useState(false)
   const [schoolForm, setSchoolForm] = useState({ ...initialSchoolForm })
 
   // ── Scholarships state ────────────────────────────────────────────────────────
@@ -240,8 +258,8 @@ export default function AdminJobsSchoolsPage() {
 
   // ─── Schools queries ──────────────────────────────────────────────────────
   const { data: schools = [], isLoading: schoolsLoading } = useQuery<School[]>({
-    queryKey: ['admin-schools'],
-    queryFn: () => apiClient.get('/schools/').then(r => toArray<School>(r.data)),
+    queryKey: ['admin-schools', showArchived],
+    queryFn: () => apiClient.get('/schools/', { params: { page_size: 200, ...(showArchived ? { archived: 1 } : {}) } }).then(r => toArray<School>(r.data)),
     enabled: activeTab === 'schools',
   })
 
@@ -274,6 +292,12 @@ export default function AdminJobsSchoolsPage() {
       description: full.description ?? '',
       source_url: full.source_url ?? '',
       verification_note: full.verification_note ?? '',
+      barangay: s.barangay ?? '',
+      offers_college: s.offers_college ?? true,
+      offers_senior_high: s.offers_senior_high ?? false,
+      in_techvoc: s.in_techvoc ?? false,
+      shs_note: s.shs_note ?? '',
+      info_status: s.info_status ?? 'pending',
       is_featured: s.is_featured,
       is_active: s.is_active,
     })
@@ -565,7 +589,12 @@ export default function AdminJobsSchoolsPage() {
           {activeTab === 'schools' && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500">{schools.length} school{schools.length !== 1 ? 's' : ''} in directory</p>
+                <div className="flex items-center gap-4">
+                  <p className="text-sm text-gray-500">{schools.length} {showArchived ? 'archived ' : ''}school{schools.length !== 1 ? 's' : ''}{showArchived ? '' : ' in directory'}</p>
+                  <label className="flex items-center gap-1.5 text-xs text-gray-600 cursor-pointer">
+                    <input type="checkbox" className="rounded" checked={showArchived} onChange={e => setShowArchived(e.target.checked)} /> Show archived
+                  </label>
+                </div>
                 <button onClick={openSchoolCreate} className="btn-primary btn-sm flex items-center gap-1.5">
                   <Plus size={14} /> Add School
                 </button>
@@ -582,7 +611,8 @@ export default function AdminJobsSchoolsPage() {
                         <th>Type</th>
                         <th>Location</th>
                         <th>Programs</th>
-                        <th>Contact</th>
+                        <th>Level</th>
+                        <th>Information</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -599,16 +629,26 @@ export default function AdminJobsSchoolsPage() {
                           <td className="text-xs capitalize">{s.school_type?.replace('_', ' ')}</td>
                           <td className="text-xs text-gray-500">{[s.municipality, s.province].filter(Boolean).join(', ') || '\u2014'}</td>
                           <td className="text-center text-sm">{s.program_count}</td>
-                          <td className="text-xs text-gray-500">{s.phone || s.email || '\u2014'}</td>
+                          <td className="text-xs text-gray-600">
+                            {[s.offers_college !== false && 'College', s.offers_senior_high && 'Senior High', s.in_techvoc && 'Tech-Voc / TESDA'].filter(Boolean).join(' · ') || '\u2014'}
+                          </td>
+                          <td>
+                            <span className={s.info_status === 'verified' ? 'badge-green' : s.info_status === 'needs_update' ? 'badge-red' : 'badge-gray'}>
+                              {INFO_STATUS[s.info_status ?? 'pending']}
+                            </span>
+                          </td>
                           <td>
                             <span className={s.is_active ? 'badge-green' : 'badge-gray'}>
-                              {s.is_active ? 'Active' : 'Inactive'}
+                              {s.is_active ? 'Active' : 'Archived'}
                             </span>
                           </td>
                           <td>
                             <div className="flex items-center gap-1.5">
                               <button onClick={() => setCoursesFor(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Manage courses">
                                 <BookOpen size={13} />
+                              </button>
+                              <button onClick={() => setOfferingsFor(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Senior High strands and TESDA qualifications">
+                                <Award size={13} />
                               </button>
                               <button onClick={() => openSchoolEdit(s)} className="btn-secondary btn-sm text-xs p-1.5" title="Edit">
                                 <Edit2 size={13} />
@@ -627,6 +667,7 @@ export default function AdminJobsSchoolsPage() {
       )}
 
       {coursesFor && <AdminSchoolCoursesModal school={coursesFor} onClose={() => setCoursesFor(null)} />}
+      {offeringsFor && <AdminSchoolOfferingsModal school={offeringsFor} onClose={() => setOfferingsFor(null)} />}
 
       {/* ── Job Modal ──────────────────────────────────────────────────────────── */}
       {showJobModal && (
@@ -931,6 +972,36 @@ export default function AdminJobsSchoolsPage() {
               <div>
                 <label className="label">Address</label>
                 <input className="input" value={schoolForm.address} onChange={e => setSchoolForm(f => ({ ...f, address: e.target.value }))} placeholder="Full address" />
+              </div>
+              <div>
+                <label className="label">Barangay</label>
+                <input className="input" value={schoolForm.barangay} onChange={e => setSchoolForm(f => ({ ...f, barangay: e.target.value }))} placeholder="e.g., Ibabang Dupay" />
+              </div>
+
+              <div className="rounded-xl border border-primary-100 bg-primary-50/40 p-3 space-y-3">
+                <p className="text-xs font-bold uppercase tracking-wide text-primary-800">Levels and categories</p>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" className="rounded" checked={schoolForm.offers_college} onChange={e => setSchoolForm(f => ({ ...f, offers_college: e.target.checked }))} /> College
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" className="rounded" checked={schoolForm.offers_senior_high} onChange={e => setSchoolForm(f => ({ ...f, offers_senior_high: e.target.checked }))} /> Senior High School
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" className="rounded" checked={schoolForm.in_techvoc} onChange={e => setSchoolForm(f => ({ ...f, in_techvoc: e.target.checked }))} /> Tech-Voc / TESDA
+                  </label>
+                </div>
+                <div>
+                  <label className="label">Note shown to the public on the Senior High list</label>
+                  <textarea className="input min-h-[50px]" value={schoolForm.shs_note} onChange={e => setSchoolForm(f => ({ ...f, shs_note: e.target.value }))} placeholder="e.g., where its Senior High School is, or that this is still being verified" />
+                </div>
+                <div>
+                  <label className="label">Information status</label>
+                  <select className="input" value={schoolForm.info_status} onChange={e => setSchoolForm(f => ({ ...f, info_status: e.target.value }))}>
+                    {Object.entries(INFO_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                  </select>
+                  <p className="mt-1 text-[11px] text-gray-500">Mark it Verified only after the address, the level and the classification are checked against the DepEd or TESDA records.</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

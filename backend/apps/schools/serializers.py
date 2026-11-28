@@ -1,7 +1,7 @@
 import bleach
 from rest_framework import serializers
 
-from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolProgram
+from .models import Program, School, SchoolBookmark, SchoolComparison, SchoolOffering, SchoolProgram
 
 
 class ProgramSerializer(serializers.ModelSerializer):
@@ -47,7 +47,44 @@ class SchoolProgramSerializer(serializers.ModelSerializer):
         return bleach.clean(value, tags=[], strip=True)
 
 
-class SchoolListSerializer(serializers.ModelSerializer):
+class OfferingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SchoolOffering
+        fields = ['id', 'school', 'kind', 'name', 'code', 'note', 'verification_status', 'source_url', 'source_note', 'verified_at']
+        read_only_fields = ['verified_at']
+
+    def validate_name(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_note(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+
+class SchoolOfferingsMixin:
+    """Strands and TESDA qualifications are listed apart. Only verified ones are shown, and only to a signed-in user (like the courses)."""
+
+    def _offerings(self, obj, kind):
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if not (user and user.is_authenticated):
+            return []
+        rows = [o for o in obj.offerings.all() if o.kind == kind and o.verification_status == 'verified']
+        return [{'id': o.id, 'name': o.name, 'code': o.code, 'note': o.note, 'source_url': o.source_url, 'source_note': o.source_note} for o in rows]
+
+    def get_strands(self, obj):
+        return self._offerings(obj, 'strand')
+
+    def get_tesda_programs(self, obj):
+        return self._offerings(obj, 'tesda')
+
+    def get_sector(self, obj):
+        return obj.sector
+
+
+class SchoolListSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
+    strands = serializers.SerializerMethodField()
+    tesda_programs = serializers.SerializerMethodField()
+    sector = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     program_count = serializers.IntegerField(read_only=True)
     programs_unavailable = serializers.SerializerMethodField()
@@ -68,6 +105,14 @@ class SchoolListSerializer(serializers.ModelSerializer):
             'source_url',
             'offers_college',
             'offers_senior_high',
+            'barangay',
+            'in_techvoc',
+            'shs_note',
+            'info_status',
+            'last_verified_at',
+            'sector',
+            'strands',
+            'tesda_programs',
         ]
 
     def get_programs_unavailable(self, obj):
@@ -80,7 +125,10 @@ class SchoolListSerializer(serializers.ModelSerializer):
         return None
 
 
-class SchoolDetailSerializer(serializers.ModelSerializer):
+class SchoolDetailSerializer(SchoolOfferingsMixin, serializers.ModelSerializer):
+    strands = serializers.SerializerMethodField()
+    tesda_programs = serializers.SerializerMethodField()
+    sector = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     programs = serializers.SerializerMethodField()
     program_count = serializers.IntegerField(read_only=True)
@@ -119,6 +167,14 @@ class SchoolDetailSerializer(serializers.ModelSerializer):
             'courses_locked',
             'offers_college',
             'offers_senior_high',
+            'barangay',
+            'in_techvoc',
+            'shs_note',
+            'info_status',
+            'last_verified_at',
+            'sector',
+            'strands',
+            'tesda_programs',
         ]
 
     def get_logo_url(self, obj):
@@ -185,9 +241,21 @@ class SchoolWriteSerializer(serializers.ModelSerializer):
             'verification_note',
             'is_active',
             'is_featured',
+            'offers_college',
+            'offers_senior_high',
+            'barangay',
+            'in_techvoc',
+            'shs_note',
+            'info_status',
         ]
 
     def validate_description(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_shs_note(self, value):
+        return bleach.clean(value, tags=[], strip=True)
+
+    def validate_barangay(self, value):
         return bleach.clean(value, tags=[], strip=True)
 
     def validate_name(self, value):

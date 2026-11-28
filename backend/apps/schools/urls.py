@@ -8,6 +8,7 @@ from .views import (
     RecommendSchoolsView,
     SchoolBookmarkViewSet,
     SchoolComparisonView,
+    SchoolOfferingViewSet,
     SchoolViewSet,
 )
 
@@ -17,6 +18,7 @@ from .views import (
 router = DefaultRouter()
 router.register(r'bookmarks', SchoolBookmarkViewSet, basename='school-bookmark')
 router.register(r'programs', ProgramViewSet, basename='program')
+router.register(r'offerings', SchoolOfferingViewSet, basename='school-offering')
 router.register(r'school-programs', AdminSchoolProgramViewSet, basename='school-program')
 router.register(r'', SchoolViewSet, basename='school')
 
