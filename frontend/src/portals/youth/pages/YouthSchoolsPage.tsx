@@ -595,7 +595,6 @@ export default function YouthSchoolsPage() {
   // the numbers on the Senior High chips come from the whole Senior High list
   const { data: shsAll } = useQuery({
     queryKey: ['youth-schools-shs-all', signedIn, level],
-    enabled: level !== 'college',
     queryFn: () => apiClient.get(`/schools/?level=${level === 'tvl' ? 'senior_high&tvl=1' : level}&page_size=200`).then(r => toArray<School>(r.data)),
   })
   const shsCount = (kind: string, sub = '') => (shsAll ?? []).filter(x => {
@@ -612,7 +611,9 @@ export default function YouthSchoolsPage() {
 
   // Counts per type (for chip labels)
   const typeCounts: Record<string, number> = {}
-  schools.forEach(s => { const k = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private'); typeCounts[k] = (typeCounts[k] ?? 0) + 1 })
+  // the College chips count the whole College list, not only what is shown now
+  const countBase = level === 'college' ? (shsAll ?? schools) : schools
+  countBase.forEach(s => { const k = s.sector ?? (s.school_type === 'state_university' ? 'suc' : s.school_type === 'public' ? 'public' : 'private'); typeCounts[k] = (typeCounts[k] ?? 0) + 1 })
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-5">
@@ -621,8 +622,9 @@ export default function YouthSchoolsPage() {
         <h1 className="page-title flex items-center gap-2">
           <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
-        <p className="page-subtitle">
-          {level === 'senior_high' ? 'Senior High Schools in Lucena City' : level === 'tvl' ? 'Senior High Schools with the Tech-Voc (TVL) track in Lucena City' : level === 'tesda' ? 'TESDA and technical-vocational training in Lucena City' : visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
+        <p className="page-subtitle">Compare schools, programs, and admission paths in Lucena City and nearby areas</p>
+        <p className="mt-1 text-sm text-gray-600">
+          {level === 'senior_high' ? 'Senior High Schools in Lucena City' : level === 'tvl' ? 'Tech-Voc (TVL) Senior High Schools in Lucena City' : level === 'tesda' ? 'TESDA / TVET Schools in Lucena City' : 'College Schools in Lucena City'}
           {!isLoading && schools.length > 0 && (
             <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>
           )}
@@ -705,9 +707,9 @@ export default function YouthSchoolsPage() {
             )}
           >
             {t.label}
-            {t.value && typeCounts[t.value] ? (
+            {(t.value ? typeCounts[t.value] : countBase.length) ? (
               <span className={cn('ml-1.5', schoolType === t.value ? 'opacity-70' : 'opacity-50')}>
-                ({typeCounts[t.value]})
+                ({t.value ? typeCounts[t.value] : countBase.length})
               </span>
             ) : null}
           </button>
