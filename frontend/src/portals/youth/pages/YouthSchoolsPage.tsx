@@ -122,14 +122,19 @@ function CoursesLock({ count, next = '/schools', strand = false }: { count?: num
   )
 }
 
-function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () => void }) {
+/** On the Senior High tab a school is shown only as a Senior High School: its college courses belong to the College tab. */
+function asSeniorHigh<T extends School>(s: T): T {
+  return { ...s, offers_college: false, offers_senior_high: true, program_count: 0, programs: [] } as T
+}
+
+function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; onClose: () => void; seniorHigh?: boolean }) {
   const signedIn = useAuthStore().isAuthenticated
   const { data: detail, isLoading } = useQuery<School>({
     queryKey: ['school-detail', school.id],
     queryFn: () => apiClient.get(`/schools/${school.id}/`).then(r => r.data),
   })
 
-  const s = detail ?? school
+  const s = seniorHigh ? asSeniorHigh(detail ?? school) : (detail ?? school)
 
   return (
     <div
@@ -223,17 +228,17 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
             </div>
 
             {/* Programs, grouped by field of study (verified only). Visitors get a sign-in prompt instead. */}
-            {detail && !signedIn && <CoursesLock count={detail.program_count} strand={shsOnly(s)} />}
+            {detail && !signedIn && <CoursesLock count={s.program_count} strand={shsOnly(s)} />}
             {detail && signedIn && (
-              detail.programs && detail.programs.length > 0 ? (
+              s.programs && s.programs.length > 0 ? (
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-primary-900 flex items-center gap-1.5 border-l-4 border-primary-500 pl-2">
                     <BookOpen size={14} className="text-primary-700" />
                     {shsOnly(s) ? 'Verified Strands' : 'Verified Courses'}
-                    <span className="text-xs font-normal text-gray-400">({detail.programs.length})</span>
+                    <span className="text-xs font-normal text-gray-400">({s.programs.length})</span>
                   </h3>
                   {Object.entries(
-                    detail.programs.reduce<Record<string, SchoolProgram[]>>((acc, sp) => {
+                    s.programs.reduce<Record<string, SchoolProgram[]>>((acc, sp) => {
                       const k = sp.program.field_of_study ?? 'other'
                       ;(acc[k] ??= []).push(sp)
                       return acc
@@ -452,7 +457,7 @@ export default function YouthSchoolsPage() {
     queryFn: () => apiClient.get('/schools/?page_size=200').then(r => toArray<School>(r.data)),
   })
 
-  const schools = data ?? []
+  const schools = (data ?? []).map(x => (level === 'senior_high' ? asSeniorHigh(x) : x))
   const featured = schools.filter(s => s.is_featured)
   const rest     = schools.filter(s => !s.is_featured)
 
@@ -660,7 +665,7 @@ export default function YouthSchoolsPage() {
 
       {/* Detail drawer */}
       {selected && (
-        <SchoolDetailDrawer school={selected} onClose={() => setSelected(null)} />
+        <SchoolDetailDrawer school={selected} onClose={() => setSelected(null)} seniorHigh={level === 'senior_high'} />
       )}
     </div>
   )
