@@ -63,7 +63,27 @@ const YEAR_LEVELS: Record<string, string[]> = {
   'Graduate / Board exam taker': ['Graduated, preparing for the board exam', 'Graduated'],
 }
 const OTHER = '__other__'
-interface SchoolOption { id: number; name: string; address: string }
+interface SchoolOption { id: number; name: string; address: string; type: string }
+// the kinds of school, in the order they are shown
+const SCHOOL_KINDS: [string, string][] = [['state_university', 'State University'], ['public', 'Public'], ['private', 'Private'], ['technical_vocational', 'Tech-Voc']]
+
+/** The schools as options, grouped by kind (State University, Public, Private, Tech-Voc) so it is clear which is which. */
+function SchoolOptions({ options, level }: { options: SchoolOption[]; level: string }) {
+  const known = new Set(SCHOOL_KINDS.map(k => k[0]))
+  const kinds: [string, string][] = [...SCHOOL_KINDS, ['__other_kind__', 'Other']]
+  return (
+    <>
+      {kinds.map(([k, label]) => {
+        const rows = options.filter(o => (k === '__other_kind__' ? !known.has(o.type) : o.type === k))
+        return rows.length === 0 ? null : (
+          <optgroup key={k} label={`${level === 'Senior High School' ? 'Senior High' : 'College'} · ${label}`}>
+            {rows.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+          </optgroup>
+        )
+      })}
+    </>
+  )
+}
 
 const EDUCATION = (gwa: boolean): FieldDef[] => [
   { key: 'level', label: 'Current educational level', required: true, type: 'select', options: LEVELS },
@@ -138,7 +158,7 @@ function EducationFields({ value, errors, onChange, defs }: { value: Section; er
   const schools = useQuery<SchoolOption[]>({
     queryKey: ['scholarship-form-schools', levelParam],
     queryFn: () => apiClient.get('/schools/', { params: { level: levelParam, page_size: 200 } })
-      .then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? []).map((x: any) => ({ id: x.id, name: x.name, address: x.address ?? '' }))),
+      .then(r => (Array.isArray(r.data) ? r.data : r.data.results ?? []).map((x: any) => ({ id: x.id, name: x.name, address: x.address ?? '', type: x.school_type ?? '' }))),
     enabled: listed,
     staleTime: 10 * 60 * 1000,
   })
@@ -193,7 +213,7 @@ function EducationFields({ value, errors, onChange, defs }: { value: Section; er
         {listed && (
           <select id="sch-school_pick" className={cls('school_name')} value={selectValue} onChange={e => chooseSchool(e.target.value)}>
             <option value="">{schools.isLoading ? 'Loading schools…' : 'Select your school...'}</option>
-            {options.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+            <SchoolOptions options={options} level={level} />
             <option value={OTHER}>Other school (type the name)</option>
           </select>
         )}

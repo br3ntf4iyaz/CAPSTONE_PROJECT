@@ -48,6 +48,8 @@ interface School {
   name: string
   slug: string
   school_type: string
+  offers_college?: boolean
+  offers_senior_high?: boolean
   description?: string
   address?: string
   municipality?: string
@@ -63,6 +65,22 @@ interface School {
   courses_locked?: boolean
   source_url?: string
   is_featured?: boolean
+}
+
+/** Which level(s) a school teaches, so a College and a Senior High School are never mixed up. */
+function levelLabel(s: { offers_college?: boolean; offers_senior_high?: boolean }) {
+  const college = s.offers_college !== false
+  if (college && s.offers_senior_high) return 'College + Senior High'
+  return s.offers_senior_high ? 'Senior High' : 'College'
+}
+function LevelBadge({ s, small }: { s: { offers_college?: boolean; offers_senior_high?: boolean }; small?: boolean }) {
+  const label = levelLabel(s)
+  return (
+    <span className={cn('font-semibold rounded-full border', small ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-0.5',
+      label === 'Senior High' ? 'bg-sky-50 text-sky-800 border-sky-200' : label === 'College' ? 'bg-indigo-50 text-indigo-800 border-indigo-200' : 'bg-teal-50 text-teal-800 border-teal-200')}>
+      {label}
+    </span>
+  )
 }
 
 const TYPE_CHIPS = [
@@ -136,6 +154,7 @@ function SchoolDetailDrawer({ school, onClose }: { school: School; onClose: () =
                 <span className={cn('text-xs font-semibold px-2.5 py-0.5 rounded-full', TYPE_COLORS[s.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[s.school_type] ?? s.school_type}
                 </span>
+                <LevelBadge s={s} />
                 {s.is_featured && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
                     <Star size={9} fill="currentColor" /> Featured
@@ -322,6 +341,7 @@ function SchoolCard({
                 <span className={cn('text-[10px] font-semibold px-2 py-0.5 rounded-full', TYPE_COLORS[school.school_type] ?? 'bg-gray-100 text-gray-700')}>
                   {TYPE_LABELS[school.school_type] ?? school.school_type}
                 </span>
+                <LevelBadge s={school} small />
               </div>
               <h3 className="font-bold text-primary-900 text-sm leading-snug group-hover:text-primary-700 transition-colors line-clamp-2">
                 {school.name}
@@ -382,6 +402,7 @@ export default function YouthSchoolsPage() {
   const [search, setSearch] = useState('')
   const [schoolType, setSchoolType] = useState('')
   const [view, setView] = useState<'schools' | 'courses'>('schools')
+  const [level, setLevel] = useState<'college' | 'senior_high'>('college') // College and Senior High are listed apart
   const [field, setField] = useState('')
   const [ptype, setPtype] = useState('')
   const [schoolFilter, setSchoolFilter] = useState('')
@@ -401,10 +422,11 @@ export default function YouthSchoolsPage() {
   if (search) params.set('search', search)
   if (field) params.set('field_of_study', field)
   if (ptype) params.set('program_type', ptype)
+  params.set('level', level)
 
   // Backend already filters to is_active=True
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['youth-schools', schoolType, search, field, ptype],
+    queryKey: ['youth-schools', schoolType, search, field, ptype, level],
     queryFn: () => apiClient.get(`/schools/?${params.toString()}`).then(r => toArray<School>(r.data)),
   })
 
@@ -442,12 +464,24 @@ export default function YouthSchoolsPage() {
           <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
         <p className="page-subtitle">
-          {visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
+          {level === 'senior_high' ? 'Senior High Schools in Lucena City' : visitor ? 'Every college and school in Lucena City and nearby areas' : 'Compare schools, programs, and admission paths in Lucena City and nearby areas'}
           {!isLoading && schools.length > 0 && (
             <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>
           )}
         </p>
       </div>
+
+      {/* College and Senior High are two separate lists */}
+      {view === 'schools' && (
+        <div className="inline-flex rounded-xl border border-gray-200 bg-white p-1 text-sm" role="tablist" aria-label="Level">
+          {([['college', 'College'], ['senior_high', 'Senior High School']] as const).map(([k, l]) => (
+            <button key={k} type="button" role="tab" aria-selected={level === k} onClick={() => { setLevel(k); setSchoolType('') }}
+              className={cn('rounded-lg px-4 py-1.5 font-semibold transition-colors', level === k ? 'bg-primary-600 text-white shadow-sm' : 'text-gray-600 hover:text-primary-700')}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Type chips */}
       <div className="flex flex-wrap gap-2">
