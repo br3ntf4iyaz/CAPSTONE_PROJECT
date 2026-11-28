@@ -10,7 +10,7 @@ import { cn } from '@/utils'
 import PasswordRules, { PASSWORD_RULES } from '@/components/ui/PasswordRules'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
-import PolicyLinks from '@/components/PolicyLinks'
+import { openCookieSettings } from '@/lib/consent'
 
 export const LUCENA_BARANGAYS = [
   'Barangay 1 (Poblacion)', 'Barangay 2 (Poblacion)', 'Barangay 3 (Poblacion)',
@@ -412,7 +412,8 @@ export default function YouthRegisterPage() {
                 )}
               </button>
             </form>
-            <PolicyLinks className="mt-6 text-xs text-ink-500" linkClassName="hover:text-primary-700" />
+            {/* The agreement above already links the Terms, the Privacy Policy and the Cookie Policy: only the cookie settings are left here */}
+            <button type="button" onClick={openCookieSettings} className="mt-5 block text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
 
             <p className="mt-8 text-xs text-ink-500 leading-relaxed text-center">
               By creating an account, you agree to receive notifications from LYDO
