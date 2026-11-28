@@ -9,7 +9,7 @@ import { useLogin, loginErrorMessage } from '@/hooks/useAuth'
 import { cn } from '@/utils'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
-import PolicyLinks from '@/components/PolicyLinks'
+import { openCookieSettings } from '@/lib/consent'
 import { peekRememberedNext } from '../components/OrgJoin'
 
 const GOOGLE_ENABLED = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
@@ -213,10 +213,14 @@ export default function YouthLoginPage() {
               </a>
             </p>
             <p className="mt-4 text-xs leading-relaxed text-ink-500">
-              By signing in you agree to our <Link to="/terms" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link> and{' '}
-              <Link to="/privacy" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link>.
+              By signing in you agree to our <Link to="/terms" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link>,{' '}
+              <Link to="/privacy" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link> and{' '}
+              <Link to="/cookies" className="font-semibold text-primary-700 underline underline-offset-2">Cookie Policy</Link>.
             </p>
-            <PolicyLinks className="mt-3 text-xs text-ink-500" linkClassName="hover:text-primary-700" />
+            {/* The sentence above already links the three policies: only the cookie settings are left here */}
+            <p className="mt-3">
+              <button type="button" onClick={openCookieSettings} className="text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
+            </p>
           </div>
         </main>
       </div>
