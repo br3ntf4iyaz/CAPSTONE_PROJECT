@@ -412,12 +412,14 @@ export default function YouthRegisterPage() {
                 )}
               </button>
             </form>
-            {/* The agreement above already links the Terms, the Privacy Policy and the Cookie Policy: only the cookie settings are left here */}
-            <button type="button" onClick={openCookieSettings} className="mt-5 block text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
 
             <p className="mt-8 text-xs text-ink-500 leading-relaxed text-center">
               By creating an account, you agree to receive notifications from LYDO
               about programs and events relevant to your barangay.
+            </p>
+            {/* The agreement above already links the Terms, the Privacy Policy and the Cookie Policy: only the cookie settings are left here */}
+            <p className="mt-3 text-center">
+              <button type="button" onClick={openCookieSettings} className="text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
             </p>
           </div>
         </main>
