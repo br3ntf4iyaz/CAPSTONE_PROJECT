@@ -213,10 +213,10 @@ export default function YouthLoginPage() {
               </a>
             </p>
             <p className="mt-4 text-xs leading-relaxed text-ink-500">
-              By signing in you agree to our <Link to="/terms" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link>,{' '}
-              <Link to="/privacy" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link> and{' '}
-              <Link to="/cookies" className="font-semibold text-primary-700 underline underline-offset-2">Cookie Policy</Link>.{' '}
-              <button type="button" onClick={openCookieSettings} className="text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Change cookie settings</button>
+              By signing in you agree to our <Link to="/terms" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Terms of Use</Link>,{' '}
+              <Link to="/privacy" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Privacy Policy</Link> and{' '}
+              <Link to="/cookies" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Cookie Policy</Link>.{' '}
+              <button type="button" onClick={openCookieSettings} className="text-ink-500 hover:text-primary-700">Change cookie settings</button>
             </p>
           </div>
         </main>

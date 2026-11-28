@@ -377,11 +377,11 @@ export default function YouthRegisterPage() {
                   />
                   <span className="text-sm text-ink-700 leading-relaxed">
                     I have read and agree to the{' '}
-                    <Link to="/terms" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Terms of Use</Link>{' '}
+                    <Link to="/terms" target="_blank" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Terms of Use</Link>{' '}
                     and the{' '}
-                    <Link to="/privacy" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Privacy Policy</Link>.
+                    <Link to="/privacy" target="_blank" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Privacy Policy</Link>.
                     {' '}See also the{' '}
-                    <Link to="/cookies" target="_blank" className="font-semibold text-primary-700 hover:text-primary-800 underline underline-offset-2">Cookie Policy</Link>.
+                    <Link to="/cookies" target="_blank" className="rounded bg-primary-50 px-1 font-semibold text-primary-700 hover:bg-primary-100">Cookie Policy</Link>.
                   </span>
                 </label>
                 {errors.terms && <p className="error-msg">{errors.terms.message}</p>}
@@ -423,7 +423,7 @@ export default function YouthRegisterPage() {
             </p>
             {/* The agreement above already links the Terms, the Privacy Policy and the Cookie Policy: only the cookie settings are left here */}
             <p className="mt-3 text-center">
-              <button type="button" onClick={openCookieSettings} className="text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
+              <button type="button" onClick={openCookieSettings} className="text-xs text-ink-500 hover:text-primary-700">Cookie settings</button>
             </p>
           </div>
         </main>
