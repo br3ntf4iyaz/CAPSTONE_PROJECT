@@ -7,35 +7,17 @@ import { Eye, EyeOff, Lock, ArrowRight, AlertCircle } from 'lucide-react'
 import { LydoLogo } from '@/components/ui/LydoLogo'
 import { useResetPassword } from '@/hooks/useAuth'
 import { cn } from '@/utils'
+import PasswordRules, { PASSWORD_RULES } from '@/components/ui/PasswordRules'
 import { Spinner } from '@/components/ui/Spinner'
 
 const schema = z.object({
-  password:  z.string().min(8, 'Password must be at least 8 characters'),
+  password:  z.string().min(8, 'Password must be at least 8 characters').refine(v => PASSWORD_RULES.every(r => r.ok(v)), 'Your password does not meet all the rules below'),
   password2: z.string().min(1, 'Please confirm your password'),
 }).refine(d => d.password === d.password2, {
   message: 'Passwords do not match',
   path: ['password2'],
 })
 type FormData = z.infer<typeof schema>
-
-function getStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string } {
-  if (!pw) return { level: 0, label: '', color: '' }
-  let score = 0
-  if (pw.length >= 8)  score++
-  if (pw.length >= 12) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/[0-9]/.test(pw)) score++
-  if (/[^A-Za-z0-9]/.test(pw)) score++
-  const level = Math.min(4, score) as 0 | 1 | 2 | 3 | 4
-  const meta: Record<number, { label: string; color: string }> = {
-    0: { label: '', color: '' },
-    1: { label: 'Weak', color: 'bg-red-500' },
-    2: { label: 'Fair', color: 'bg-amber-400' },
-    3: { label: 'Good', color: 'bg-yellow-400' },
-    4: { label: 'Strong', color: 'bg-emerald-500' },
-  }
-  return { level, ...meta[level] }
-}
 
 export default function ResetPasswordPage() {
   const [showPw, setShowPw]   = useState(false)
@@ -50,7 +32,6 @@ export default function ResetPasswordPage() {
   })
 
   const passwordValue = watch('password') ?? ''
-  const strength = useMemo(() => getStrength(passwordValue), [passwordValue])
 
   const onSubmit = (data: FormData) => {
     if (!token) return
@@ -128,18 +109,7 @@ export default function ResetPasswordPage() {
                 </button>
               </div>
               {errors.password && <p className="error-msg">{errors.password.message}</p>}
-              {passwordValue.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} className={cn('h-1 flex-1 rounded-full transition-colors', strength.level >= i ? strength.color : 'bg-ink-200')} />
-                    ))}
-                  </div>
-                  {strength.label && (
-                    <p className="text-xs text-ink-500">Strength: <span className="font-semibold">{strength.label}</span></p>
-                  )}
-                </div>
-              )}
+              <PasswordRules value={passwordValue} />
             </div>
 
             <div>

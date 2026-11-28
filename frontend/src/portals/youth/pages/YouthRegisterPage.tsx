@@ -7,6 +7,7 @@ import { Eye, EyeOff, ArrowRight, Mail, Lock, User, Check, MapPin, AlertCircle }
 import { LydoLogo } from '@/components/ui/LydoLogo'
 import { useRegister } from '@/hooks/useAuth'
 import { cn } from '@/utils'
+import PasswordRules, { PASSWORD_RULES } from '@/components/ui/PasswordRules'
 import { Spinner } from '@/components/ui/Spinner'
 import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
 import PolicyLinks from '@/components/PolicyLinks'
@@ -31,7 +32,7 @@ const schema = z.object({
   youth_type:   z.enum(['general_youth', 'sk', 'youth_org_leader'], { required_error: 'Select your role' }),
   organization: z.string().max(200).optional(),
   position:     z.string().max(200).optional(),
-  password:     z.string().min(8, 'Password must be at least 8 characters'),
+  password:     z.string().min(8, 'Password must be at least 8 characters').refine(v => PASSWORD_RULES.every(r => r.ok(v)), 'Your password does not meet all the rules below'),
   password2:    z.string().min(1, 'Please confirm your password'),
   terms:        z.boolean().refine(v => v === true, 'You must read and agree to the Terms of Use and Privacy Policy to create an account'),
 }).superRefine((data, ctx) => {
@@ -56,25 +57,6 @@ const YOUTH_TYPES = [
   { value: 'youth_org_leader' as const, label: 'Youth Organization Leaders', hint: 'Recognized organization rep' },
 ]
 
-function getPasswordStrength(pw: string): { level: 0 | 1 | 2 | 3 | 4; label: string; color: string } {
-  if (!pw) return { level: 0, label: '', color: '' }
-  let score = 0
-  if (pw.length >= 8)  score++
-  if (pw.length >= 12) score++
-  if (/[A-Z]/.test(pw)) score++
-  if (/[0-9]/.test(pw)) score++
-  if (/[^A-Za-z0-9]/.test(pw)) score++
-  const level = Math.min(4, score) as 0 | 1 | 2 | 3 | 4
-  const meta: Record<number, { label: string; color: string }> = {
-    0: { label: '', color: '' },
-    1: { label: 'Weak', color: 'bg-red-500' },
-    2: { label: 'Fair', color: 'bg-amber-400' },
-    3: { label: 'Good', color: 'bg-yellow-400' },
-    4: { label: 'Strong', color: 'bg-emerald-500' },
-  }
-  return { level, ...meta[level] }
-}
-
 export default function YouthRegisterPage() {
   const [showPw, setShowPw]   = useState(false)
   const [showPw2, setShowPw2] = useState(false)
@@ -90,7 +72,6 @@ export default function YouthRegisterPage() {
 
   const selectedType = watch('youth_type')
   const passwordValue = watch('password') ?? ''
-  const strength = useMemo(() => getPasswordStrength(passwordValue), [passwordValue])
 
   const onSubmit = (data: FormData) => {
     registerMutation.mutate({
@@ -353,19 +334,7 @@ export default function YouthRegisterPage() {
                     </button>
                   </div>
                   {errors.password && <p className="error-msg">{errors.password.message}</p>}
-                  {/* Strength bar */}
-                  {passwordValue.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4].map(i => (
-                          <div key={i} className={cn('h-1 flex-1 rounded-full transition-colors', strength.level >= i ? strength.color : 'bg-ink-200')} />
-                        ))}
-                      </div>
-                      {strength.label && (
-                        <p className="text-xs text-ink-500">Strength: <span className="font-semibold">{strength.label}</span></p>
-                      )}
-                    </div>
-                  )}
+                  <PasswordRules value={passwordValue} />
                 </div>
 
                 <div>
