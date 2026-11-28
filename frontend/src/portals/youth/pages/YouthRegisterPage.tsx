@@ -24,6 +24,8 @@ export const LUCENA_BARANGAYS = [
   'Ibabang Talim', 'Ilayang Talim',
 ]
 
+const GOOGLE_ENABLED = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
+
 const schema = z.object({
   first_name:   z.string().min(2, 'First name is required'),
   last_name:    z.string().min(2, 'Last name is required'),
@@ -174,12 +176,14 @@ export default function YouthRegisterPage() {
             {/* ── Google Sign-In ────────────────────────────────────── */}
             <GoogleSignInButton label="Sign up with Google" />
 
-            {/* Divider &mdash; only shown when Google button is available */}
-            <div className="relative flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-ink-100" />
-              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or register with email</span>
-              <div className="flex-1 h-px bg-ink-100" />
-            </div>
+            {/* The divider only makes sense under the Google button: it is hidden when Google sign-in is not set up */}
+            {GOOGLE_ENABLED ? (
+              <div className="relative flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-ink-100" />
+                <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or register with email</span>
+                <div className="flex-1 h-px bg-ink-100" />
+              </div>
+            ) : <div className="mt-6" />}
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 

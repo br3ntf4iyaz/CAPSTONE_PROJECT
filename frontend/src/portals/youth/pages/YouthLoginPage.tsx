@@ -12,6 +12,8 @@ import { GoogleSignInButton } from '@/components/ui/GoogleSignInButton'
 import PolicyLinks from '@/components/PolicyLinks'
 import { peekRememberedNext } from '../components/OrgJoin'
 
+const GOOGLE_ENABLED = !!import.meta.env.VITE_GOOGLE_CLIENT_ID
+
 const schema = z.object({
   email: z.string().email('Enter a valid email address'),
   password: z.string().min(1, 'Password is required'),
@@ -122,11 +124,14 @@ export default function YouthLoginPage() {
             {/* ── Google Sign-In ────────────────────────────────────── */}
             <GoogleSignInButton label="Sign in with Google" redirectTo={redirectTo} />
 
-            <div className="relative flex items-center gap-3 my-6">
-              <div className="flex-1 h-px bg-ink-100" />
-              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or sign in with email</span>
-              <div className="flex-1 h-px bg-ink-100" />
-            </div>
+            {/* The divider only makes sense under the Google button: it is hidden when Google sign-in is not set up */}
+            {GOOGLE_ENABLED ? (
+              <div className="relative flex items-center gap-3 my-6">
+                <div className="flex-1 h-px bg-ink-100" />
+                <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">or sign in with email</span>
+                <div className="flex-1 h-px bg-ink-100" />
+              </div>
+            ) : <div className="mt-6" />}
 
             <form onSubmit={handleSubmit(data => login.mutate(data))} className="space-y-5">
               <div>
