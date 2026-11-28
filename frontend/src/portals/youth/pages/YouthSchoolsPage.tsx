@@ -622,8 +622,7 @@ export default function YouthSchoolsPage() {
         <h1 className="page-title flex items-center gap-2">
           <GraduationCap size={22} className="text-primary-700" /> School Finder
         </h1>
-        <p className="page-subtitle">Compare schools, programs, and admission paths in Lucena City and nearby areas</p>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="page-subtitle">
           {level === 'senior_high' ? 'Senior High Schools in Lucena City' : level === 'tvl' ? 'Tech-Voc (TVL) Senior High Schools in Lucena City' : level === 'tesda' ? 'TESDA / TVET Schools in Lucena City' : 'College Schools in Lucena City'}
           {!isLoading && schools.length > 0 && (
             <span className="ml-1 text-primary-700 font-medium">· {schools.length} schools</span>

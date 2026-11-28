@@ -34,7 +34,7 @@ export function OpportunitiesSection() {
             {
               icon: School,
               title: 'School Finder',
-              desc: 'Compare colleges, programs, and admission paths around Lucena.',
+              desc: 'Compare schools, programs, and admission paths in Lucena City and nearby areas.',
               to: '/schools',
               color: 'bg-emerald-600',
             },

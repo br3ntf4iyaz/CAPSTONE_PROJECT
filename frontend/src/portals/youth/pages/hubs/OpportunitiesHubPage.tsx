@@ -218,7 +218,7 @@ export default function OpportunitiesHubPage() {
           />
           <HubCard
             title="School Finder"
-            description="Compare colleges, programs, and admission paths in Lucena and nearby cities."
+            description="Compare schools, programs, and admission paths in Lucena City and nearby areas."
             icon={School}
             image="/images/icons/school-finder.png"
             to="/schools"
