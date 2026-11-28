@@ -168,7 +168,7 @@ class ShsDirectoryTests(TestCase):
     def test_search_by_street_barangay_and_classification(self):
         call_command('update_shs_directory')
         self.assertTrue(any('Cotta' in n for n in self.names(search='Nicodemus')))
-        self.assertTrue(any('Ransohan' in n for n in self.names(search='Ransohan')))
+        self.assertTrue(any('Ibabang Talim' in n for n in self.names(search='Ibabang Talim')))
         self.assertIn('Cotta National High School', self.names(search='public'))
         self.assertTrue(any('Hyong' in n for n in self.names(search='TESDA')))
         self.assertNotIn('Cotta National High School', self.names(search='TESDA'))
@@ -247,3 +247,10 @@ class ShsDirectoryTests(TestCase):
         call_command('update_shs_directory')
         call_command('update_shs_directory')
         self.assertFalse(School.objects.get(name__icontains='Barra Annex').is_active)
+
+    def test_ransohan_has_no_senior_high_and_is_not_listed(self):
+        make_school(name='Ransohan Integrated School', school_type='public', offers_college=False, offers_senior_high=True)
+        call_command('update_shs_directory')
+        call_command('update_shs_directory')
+        self.assertFalse([n for n in self.names() if 'Ransohan' in n])
+        self.assertFalse(School.objects.get(name__icontains='Ransohan').is_active)  # archived, not deleted

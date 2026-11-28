@@ -41,9 +41,6 @@ PUBLIC = [
     ('Lucena Dalahican National High School', ['Lucena Dalahican National High School', 'Dalahican National High School'], 'Dalahican Road, Barangay Dalahican, Lucena City', 'Dalahican', True, ''),
     ('Ibabang Talim Integrated High School', ['Ibabang Talim Integrated High School'], 'Purok Masayahin, Barangay Ibabang Talim, Lucena City', 'Ibabang Talim', False,
      'The SDO Lucena City profile lists "Gulang-gulang National High School - Ibabang Talim Extension". It may be the same school as this one. Not merged: LYDO to confirm.'),
-    ('Ransohan Integrated High School', ['Ransohan Integrated High School'], 'Purok Maligaya, Barangay Ransohan, Lucena City', 'Ransohan', False,
-     'Not among the six public Senior High schools named on the SDO Lucena City profile that was read. SHS authorization to be confirmed. '
-     'The address adds "Purok Maligaya" as written on the SDO public secondary schools page (the LYDO list gave "Barangay Ransohan").'),
 ]
 EXTENSIONS = [
     ('Lucena City National High School (LCNHS) ' + DASH + ' Mayao Crossing Extension', ['Mayao Crossing Extension'], 'Purok Langka II, Barangay Mayao Crossing, Lucena City', 'Mayao Crossing'),
@@ -127,7 +124,6 @@ CONTACTS = {
     'Cotta National High School': {'phone': '(042) 785-0876', 'source_url': SDO},
     'Lucena Dalahican National High School': {'phone': '(042) 784-2026', 'email': '308501@deped.gov.ph', 'source_url': SDO},
     'Ibabang Talim Integrated High School': {'email': '308504@deped.gov.ph', 'source_url': SDO},
-    'Ransohan Integrated High School': {'phone': '(042) 717-3884', 'email': '500427@deped.gov.ph', 'source_url': SDO},
     'Lucena City National High School (LCNHS) ' + DASH + ' Ilayang Dupay Extension': {'phone': '(042) 785-0814', 'email': '308509@deped.gov.ph'},
     'Lucena City National High School (LCNHS) ' + DASH + ' Mayao Crossing Extension': {'phone': '(042) 785-6857'},
     'Lucena City National High School (LCNHS) ' + DASH + ' Mayao Castillo Annex': {'email': 'mayaocastillolcnhs@gmail.com'},
@@ -281,7 +277,7 @@ class Command(BaseCommand):
                 school.offers_senior_high = False
                 school.shs_note = ''
                 school.is_active = False
-                _note(school, 'Left out of the Senior High results: the LYDO list says this extension / annex is Junior High School only. Restore it in the admin page if it does offer Senior High.')
+                _note(school, 'Left out of the Senior High results: LYDO says this school, extension or annex has no Senior High School. Restore it in the admin page if it does.')
                 school.save()
 
     def handle(self, *args, **options):

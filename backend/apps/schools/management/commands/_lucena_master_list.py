@@ -21,7 +21,6 @@ MASTER = [
     ('Cotta National High School', ['Cotta National High School'], 'public', None, {'shs'}, {'tvl'}),
     ('Ibabang Talim Integrated High School', ['Ibabang Talim Integrated High School'], 'public', None, {'shs'}, {'tvl'}),
     ('Mayao Parada Agricultural Integrated School', ['Mayao Parada'], 'public', 'Brgy. Mayao Parada, Lucena City', {'shs'}, {'tvl'}),
-    ('Ransohan Integrated High School', ['Ransohan'], 'public', None, {'shs'}, set()),
 
     ('Manuel S. Enverga University Foundation (MSEUF)', ['Enverga'], 'private', None, {'shs', 'college'}, {'tvl'}),
     ('Sacred Heart College of Lucena City, Inc.', ['Sacred Heart College'], 'private', None, {'shs', 'college', 'tvet'}, {'tvl', 'tesda'}),
@@ -58,4 +57,5 @@ MASTER = [
 ]
 
 # These annexes and extensions are Junior High School only, according to the LYDO list: they are left out of the Senior High results.
-JHS_ONLY = ['Mayao Crossing Extension', 'Ilayang Dupay Extension', 'Mayao Castillo Annex', 'Silangang Mayao Annex', 'Barra Annex']
+# Ransohan Integrated School has no Senior High School (told by LYDO), so it is left out of the Senior High results too.
+JHS_ONLY = ['Mayao Crossing Extension', 'Ilayang Dupay Extension', 'Mayao Castillo Annex', 'Silangang Mayao Annex', 'Barra Annex', 'Ransohan']
