@@ -228,3 +228,22 @@ class ShsDirectoryTests(TestCase):
         out = StringIO()
         call_command('find_duplicate_schools', stdout=out)
         self.assertIn('Maryhill', out.getvalue())
+
+    def test_public_schools_hidden_by_an_older_seeding_are_shown_again(self):
+        # seed_school_finder hides the schools it does not know; the public Senior High schools of Lucena must still be listed
+        for n in ('Quezon National High School', 'Lucena City National High School', 'Gulang-Gulang National High School', 'Cotta National High School',
+                  'Dalahican National High School'):
+            make_school(name=n, school_type='public', is_active=False)
+        call_command('update_shs_directory')
+        public = self.names(sector='public')
+        for n in ('Quezon National High School', 'Lucena City National High School', 'Gulang-Gulang National High School', 'Cotta National High School',
+                  'Dalahican National High School'):
+            self.assertIn(n, public)  # each hidden record is shown again, under the name it already had
+        self.assertIn('Ibabang Talim Integrated High School', public)
+        self.assertEqual(School.objects.filter(name__icontains='Cotta').count(), 1)  # the hidden record is reused, not duplicated
+        self.assertTrue(School.objects.get(name__icontains='Cotta').is_active)
+        # an annex archived on purpose stays archived when the command runs again
+        make_school(name='Lucena City National High School - Barra Annex', school_type='public')
+        call_command('update_shs_directory')
+        call_command('update_shs_directory')
+        self.assertFalse(School.objects.get(name__icontains='Barra Annex').is_active)

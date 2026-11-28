@@ -173,6 +173,16 @@ def _similar(a, b):
     return len(ta & tb) / len(ta | tb) >= 0.5
 
 
+ARCHIVED_ON_PURPOSE = ('Archived as a duplicate', 'Left out of the Senior High results')
+
+
+def _listed(school):
+    """A school on the LYDO lists is shown. A record hidden by an older seeding command (seed_school_finder hides the schools it does not know) is made
+    active again, unless this command archived it on purpose (a duplicate, or a Junior High only annex)."""
+    if not school.is_active and not any(m in (school.verification_note or '') for m in ARCHIVED_ON_PURPOSE):
+        school.is_active = True
+
+
 def _note(school, text):
     if text and text not in (school.verification_note or ''):
         school.verification_note = ((school.verification_note or '').rstrip() + '\n' + text).strip()
@@ -197,6 +207,9 @@ class Command(BaseCommand):
                 self.flags.append(school.name)
             if shs and not school.offers_senior_high:
                 school.offers_senior_high = True
+            if kind == 'public':
+                school.school_type = 'public'  # a DepEd school is a public school, whatever an older record said
+            _listed(school)
             self.updated += 1
         if barangay and not school.barangay:
             school.barangay = barangay
@@ -236,6 +249,7 @@ class Command(BaseCommand):
                     else:
                         _note(school, f'Address discrepancy: the LYDO master list gives "{address}", the School Finder has "{school.address}". Kept the existing one: LYDO to confirm.')
                         self.flags.append(school.name)
+            _listed(school)
             before = (school.offers_college, school.offers_senior_high, school.offers_tvet, school.offers_tvl, school.tesda_provider)
             # a school the list does not give a College level (a TESDA center, a Senior High School) is not listed under College
             school.offers_college = 'college' in levels
@@ -310,7 +324,9 @@ class Command(BaseCommand):
                 defaults={'code': code, 'note': note, 'source_url': source, 'source_note': '', 'verification_status': 'verified', 'verified_at': now},
             )
 
-        total = School.objects.filter(offers_senior_high=True).count()
+        shown = School.objects.filter(offers_senior_high=True, is_active=True)
+        total = shown.count()
+        self.stdout.write(f"Shown on the Senior High list: {shown.filter(school_type='public').count()} public, {shown.filter(school_type='state_university').count()} state university, {shown.exclude(school_type__in=['public', 'state_university']).count()} private.")
         self.stdout.write(self.style.SUCCESS(f'Done. {self.added} schools added, {self.updated} updated. {total} Senior High schools in the finder.'))
         if self.flags:
             self.stdout.write('Address differences kept for LYDO to review:\n  ' + '\n  '.join(self.flags))
