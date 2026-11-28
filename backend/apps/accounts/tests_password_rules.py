@@ -4,7 +4,7 @@ from django.test import TestCase
 
 
 class PasswordRulesTests(TestCase):
-    """The sign-up page shows three rules (8 characters, a number, upper and lower case); the server enforces the same three."""
+    """The sign-up page shows rules (8 characters, a number, upper and lower case, a special character); the server enforces the same."""
 
     def messages(self, pw):
         try:
@@ -15,11 +15,13 @@ class PasswordRulesTests(TestCase):
 
     def test_a_password_with_all_three_rules_is_accepted(self):
         self.assertEqual(self.messages('Zq7-Lucena-Youth'), '')
-        self.assertEqual(self.messages('Nx4Kpm9Tz'), '')
+        self.assertEqual(self.messages('Nx4Kpm9Tz@'), '')
+        self.assertEqual(self.messages('Qv8!Rbn2Lk'), '')
 
     def test_each_missing_rule_is_named(self):
         self.assertIn('at least 8', self.messages('Ab1'))
         self.assertIn('Include one number', self.messages('Abcdefghij'))
         self.assertIn('upper and lower case', self.messages('abcdefg1'))
         self.assertIn('upper and lower case', self.messages('ABCDEFG1'))
-        self.assertIn('Include one number', self.messages('abcdefgH'))
+        self.assertIn('Include one number', self.messages('abcdefgH!'))
+        self.assertIn('special character', self.messages('Nx4Kpm9Tz'))
