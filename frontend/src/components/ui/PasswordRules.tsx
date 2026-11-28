@@ -6,7 +6,7 @@ export const PASSWORD_RULES = [
   { key: 'length', text: 'Password must be min 8 characters', ok: (p: string) => p.length >= 8 },
   { key: 'number', text: 'Include one number', ok: (p: string) => /\d/.test(p) },
   { key: 'case', text: 'Include upper and lower case characters', ok: (p: string) => /[a-z]/.test(p) && /[A-Z]/.test(p) },
-  { key: 'special', text: 'Include one special character (like @ or !)', ok: (p: string) => /[^A-Za-z0-9\s]/.test(p) },
+  { key: 'special', text: 'Include one special character', ok: (p: string) => /[^A-Za-z0-9\s]/.test(p) },
 ]
 
 export const passwordMeetsRules = (p: string) => PASSWORD_RULES.every(r => r.ok(p))
