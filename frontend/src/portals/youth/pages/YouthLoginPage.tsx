@@ -215,11 +215,8 @@ export default function YouthLoginPage() {
             <p className="mt-4 text-xs leading-relaxed text-ink-500">
               By signing in you agree to our <Link to="/terms" className="font-semibold text-primary-700 underline underline-offset-2">Terms of Use</Link>,{' '}
               <Link to="/privacy" className="font-semibold text-primary-700 underline underline-offset-2">Privacy Policy</Link> and{' '}
-              <Link to="/cookies" className="font-semibold text-primary-700 underline underline-offset-2">Cookie Policy</Link>.
-            </p>
-            {/* The sentence above already links the three policies: only the cookie settings are left here */}
-            <p className="mt-3">
-              <button type="button" onClick={openCookieSettings} className="text-xs text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Cookie settings</button>
+              <Link to="/cookies" className="font-semibold text-primary-700 underline underline-offset-2">Cookie Policy</Link>.{' '}
+              <button type="button" onClick={openCookieSettings} className="text-ink-500 underline-offset-2 hover:text-primary-700 hover:underline">Change cookie settings</button>
             </p>
           </div>
         </main>
