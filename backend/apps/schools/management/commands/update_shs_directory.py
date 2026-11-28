@@ -24,13 +24,13 @@ DASH = '–'
 GENERIC = {'', 'lucena city', 'lucena city, quezon'}
 LIST_NOTE = 'Name, address and classification come from the LYDO project list. Not yet checked against the DepEd SDO Lucena City or TESDA records.'
 PENDING_SHS = 'The Senior High School offering of this school is still being verified.'
-EXT_NOTE = ('Extension / annex: whether it offers Senior High School on its own, and its current operating status, are not verified. '
+EXT_NOTE = ('Extension / annex: it is listed as a school on the SDO Lucena City public secondary schools page (lucenacity.deped.gov.ph/secondary/), but that page does not say whether it offers Senior High School. '
             'Do not treat it as an independent Senior High provider until confirmed.')
-STRAND_NOTE = 'Provided by the LYDO project list as the published Senior High School offering of the school. Attach the official page when it is confirmed.'
 
 # (name, phrases that identify an existing record, type, address, barangay, techvoc, extra note)
 PUBLIC = [
-    ('Quezon National High School (QNHS)', ['Quezon National High School'], 'M.L. Tagarao Street, Barangay Iyam, Lucena City', 'Iyam', True, ''),
+    ('Quezon National High School (QNHS)', ['Quezon National High School'], 'M.L. Tagarao Street, Barangay Iyam, Lucena City', 'Iyam', True,
+     'Not listed on the SDO Lucena City public secondary schools page (lucenacity.deped.gov.ph/secondary/). To be confirmed with DepEd.'),
     ('Lucena City National High School (LCNHS)', ['Lucena City National High School'],
      'Purok Sariling Atin, Elvira Razon Aranilla Compound, Maharlika Highway, Barangay Ibabang Dupay, Lucena City', 'Ibabang Dupay', True, ''),
     ('Gulang-Gulang National High School', ['Gulang-gulang National High School'], 'Unson Street, Zaballero Subdivision, Barangay Gulang-Gulang, Lucena City', 'Gulang-Gulang', True, ''),
@@ -38,8 +38,9 @@ PUBLIC = [
     ('Lucena Dalahican National High School', ['Lucena Dalahican National High School', 'Dalahican National High School'], 'Dalahican Road, Barangay Dalahican, Lucena City', 'Dalahican', True, ''),
     ('Ibabang Talim Integrated High School', ['Ibabang Talim Integrated High School'], 'Purok Masayahin, Barangay Ibabang Talim, Lucena City', 'Ibabang Talim', False,
      'The SDO Lucena City profile lists "Gulang-gulang National High School - Ibabang Talim Extension". It may be the same school as this one. Not merged: LYDO to confirm.'),
-    ('Ransohan Integrated High School', ['Ransohan Integrated High School'], 'Barangay Ransohan, Lucena City', 'Ransohan', False,
-     'Not among the six public Senior High schools named on the SDO Lucena City profile that was read. SHS authorization to be confirmed.'),
+    ('Ransohan Integrated High School', ['Ransohan Integrated High School'], 'Purok Maligaya, Barangay Ransohan, Lucena City', 'Ransohan', False,
+     'Not among the six public Senior High schools named on the SDO Lucena City profile that was read. SHS authorization to be confirmed. '
+     'The address adds "Purok Maligaya" as written on the SDO public secondary schools page (the LYDO list gave "Barangay Ransohan").'),
 ]
 EXTENSIONS = [
     ('Lucena City National High School (LCNHS) ' + DASH + ' Mayao Crossing Extension', ['Mayao Crossing Extension'], 'Purok Langka II, Barangay Mayao Crossing, Lucena City', 'Mayao Crossing'),
@@ -49,11 +50,13 @@ EXTENSIONS = [
     ('Lucena Dalahican National High School ' + DASH + ' Barra Annex', ['Barra Annex'], 'Apolonia Subdivision, Barangay Barra, Lucena City', 'Barra'),
 ]
 PRIVATE = [
-    ('Sacred Heart College of Lucena City, Inc.', ['Sacred Heart College'], '1 Merchan Street, Lucena City', '', False, ''),
+    ('Sacred Heart College of Lucena City, Inc.', ['Sacred Heart College'], '1 Merchan Street, Lucena City', '', False,
+     'The school website (shc.edu.ph) shows Kindergarten to Grade 10 only and no Senior High School offering, while the SDO Lucena City private-school list has it under Senior High School. LYDO to confirm with the school.'),
     ('Maryhill College, Inc.', ['Maryhill'], 'M.L. Tagarao Street, Lucena City', '', False, ''),
     ('St. Anne College Lucena, Inc. (SACLI)', ['St. Anne College', 'Saint Anne College'], 'Diversion Road, Barangay Gulang-Gulang, Lucena City', 'Gulang-Gulang', False, ''),
     ('Manuel S. Enverga University Foundation (MSEUF)', ['Enverga'], 'Enverga Boulevard, University Site, Barangay Ibabang Dupay, Lucena City', 'Ibabang Dupay', False,
-     'The General Academic Strand (GAS) of MSEUF is offered at the San Antonio campus, not in Lucena City, so it is not listed here.'),
+     'The LYDO list gave Home Economics and HUMSS for Lucena, and the General Academic Strand (GAS) at the San Antonio campus. The MSEUF Lucena pages show six strands '
+     '"Offered in Lucena City" (HUMSS, ICT, HE, AD, STEM, ABM) and do not mention GAS. The strands are taken from the MSEUF pages; GAS is not listed here. LYDO to confirm.'),
     ('Calayan Educational Foundation, Inc. (CEFI)', ['Calayan', 'CEFI'], 'Maharlika Highway, Barangay Ibabang Dupay, Lucena City', 'Ibabang Dupay', False, ''),
     ('Bristol Integrated School', ['Bristol Integrated'], 'Km. 133 Diversion Road, Barangay Kanlurang Mayao, Lucena City', 'Kanlurang Mayao', False, ''),
     ('Children\'s House of Annunciation Montessori School (CHAMS)', ["Children's House", 'Annunciation Montessori'], 'Don Crisanto Street, Barangay Market View, Lucena City', 'Market View', False,
@@ -84,21 +87,58 @@ SLSU_NOTE = ('Southern Luzon State University (SLSU) ' + DASH + ' Lucena Campus 
              'However, this campus primarily offers college and TESDA programs. Its Senior High School program is located at the SLSU Main Campus '
              'in Lucban, Quezon, not in Lucena City.')
 
-# strands given with their source: (phrase of the school, [(name, code)], note)
-STRANDS = {
-    'STI College': [
-        ('Hospitality and Tourism ' + DASH + ' Culinary Arts', 'HTCUA'),
-        ('Hospitality and Tourism ' + DASH + ' Tourism Operations', 'HTTO'),
-        ('Arts, Social Sciences, and Humanities', 'ASSH'),
-        ('Business and Entrepreneurship', 'B&E'),
-        ('Science, Technology, Engineering, and Mathematics ' + DASH + ' Engineering, Technology, and Mathematics', 'STEM-ETM'),
-        ('ICT Support and Computer Programming Technologies', 'ICT-SCPT'),
-    ],
-    'Enverga': [
-        ('Home Economics', 'HE'),
-        ('Humanities and Social Sciences', 'HUMSS'),
-    ],
+# Read on the official pages below (nothing else is added). (school phrase, kind, name, code, note, source page)
+STI = 'https://www.sti.edu/campuses/lucena'
+CEFI = 'https://cefi.edu.ph/programs/'
+MSEUF = 'https://mseuf.edu.ph/bed/programs/'
+OFFERINGS = [
+    ('STI College', 'strand', 'Hospitality and Tourism ' + DASH + ' Culinary Arts', 'HTCUA', '', STI),
+    ('STI College', 'strand', 'Hospitality and Tourism ' + DASH + ' Tourism Operations', 'HTTO', '', STI),
+    ('STI College', 'strand', 'Arts, Social Sciences, and Humanities', 'ASSH', '', STI),
+    ('STI College', 'strand', 'Business and Entrepreneurship', 'B&E', '', STI),
+    ('STI College', 'strand', 'Science, Technology, Engineering, and Mathematics ' + DASH + ' Engineering, Technology, and Mathematics', 'STEM-ETM', '', STI),
+    ('STI College', 'strand', 'ICT Support and Computer Programming Technologies', 'ICT-SCPT', '', STI),
+    ('STI College', 'tesda', 'Data Collection and Annotation ' + DASH + ' Data Science-Artificial Intelligence', 'Level II', '', STI),
+    ('STI College', 'tesda', 'AI Prompting and Automation', 'Level III', '', STI),
+    ('Enverga', 'strand', 'Humanities and Social Sciences', 'HUMSS', 'Offered in Lucena City', MSEUF + 'shs-humss'),
+    ('Enverga', 'strand', 'Information and Communications Technology', 'ICT', 'Offered in Lucena City', MSEUF + 'shs-ict'),
+    ('Enverga', 'strand', 'Home Economics', 'HE', 'Offered in Lucena City', MSEUF + 'shs-he'),
+    ('Enverga', 'strand', 'Arts & Design', 'AD', 'Offered in Lucena City', MSEUF + 'shs-ad'),
+    ('Enverga', 'strand', 'Science, Technology, and Engineering', 'STEM', 'Offered in Lucena City', MSEUF + 'shs-stem'),
+    ('Enverga', 'strand', 'Accounting, Business, and Management', 'ABM', 'Offered in Lucena City', MSEUF + 'shs-abm-bed'),
+    ('Calayan', 'strand', 'Science, Technology, Engineering and Mathematics', 'STEM', 'Academic Track', CEFI),
+    ('Calayan', 'strand', 'Humanities and Social Sciences', 'HUMSS', 'Academic Track', CEFI),
+    ('Calayan', 'strand', 'Accountancy, Business and Management', 'ABM', 'Academic Track', CEFI),
+    ('Calayan', 'strand', 'Home Economics', 'HE', 'Technical-Vocational Track', CEFI),
+    ('Calayan', 'strand', 'Information and Communications Technology', 'ICT', 'Technical-Vocational Track', CEFI),
+    ('Calayan', 'tesda', 'Caregiving', 'NC II', '', CEFI),
+    ('Calayan', 'tesda', 'Health Care Services', 'NC II', '', CEFI),
+    ('Calayan', 'tesda', 'Cookery', 'NC II', '', CEFI),
+    ('Calayan', 'tesda', 'Food and Beverage Services', 'NC II', '', CEFI),
+]
+# contacts read on official pages; only an empty field is filled
+SDO = 'https://lucenacity.deped.gov.ph/secondary/'
+CONTACTS = {
+    'Lucena City National High School (LCNHS)': {'phone': '(042) 784-2557', 'email': '301501@deped.gov.ph', 'source_url': SDO},
+    'Gulang-Gulang National High School': {'phone': '(042) 713-0426', 'email': '308503@deped.gov.ph', 'source_url': SDO},
+    'Cotta National High School': {'phone': '(042) 785-0876', 'source_url': SDO},
+    'Lucena Dalahican National High School': {'phone': '(042) 784-2026', 'email': '308501@deped.gov.ph', 'source_url': SDO},
+    'Ibabang Talim Integrated High School': {'email': '308504@deped.gov.ph', 'source_url': SDO},
+    'Ransohan Integrated High School': {'phone': '(042) 717-3884', 'email': '500427@deped.gov.ph', 'source_url': SDO},
+    'Lucena City National High School (LCNHS) ' + DASH + ' Ilayang Dupay Extension': {'phone': '(042) 785-0814', 'email': '308509@deped.gov.ph'},
+    'Lucena City National High School (LCNHS) ' + DASH + ' Mayao Crossing Extension': {'phone': '(042) 785-6857'},
+    'Lucena City National High School (LCNHS) ' + DASH + ' Mayao Castillo Annex': {'email': 'mayaocastillolcnhs@gmail.com'},
+    'Lucena City National High School (LCNHS) ' + DASH + ' Silangang Mayao Annex': {'email': 'lcnhssmex@gmail.com'},
+    'Lucena Dalahican National High School ' + DASH + ' Barra Annex': {'email': '308507@deped.gov.ph'},
+    'STI College Lucena': {'phone': '(042) 717-3150', 'website': STI, 'facebook_url': 'https://www.facebook.com/lucena.sti.edu'},
+    'Calayan Educational Foundation, Inc. (CEFI)': {'phone': '(042) 710-2514', 'email': 'info@cefi.edu.ph', 'website': 'https://cefi.edu.ph', 'facebook_url': 'https://www.facebook.com/cefiph'},
+    'Maryhill College, Inc.': {'phone': '(042) 373-0165', 'email': 'maryhill@maryhillcollege.edu.ph', 'website': 'https://maryhillcollege.edu.ph', 'facebook_url': 'https://www.facebook.com/maryhillcollege'},
+    'Manuel S. Enverga University Foundation (MSEUF)': {'phone': '(042) 710-2541', 'website': 'https://mseuf.edu.ph', 'facebook_url': 'https://www.facebook.com/EnvergaU'},
+    'Sacred Heart College of Lucena City, Inc.': {'website': 'https://shc.edu.ph', 'facebook_url': 'https://www.facebook.com/sacred.heart.college.official'},
 }
+# schools whose name, address, contacts and strands were all read on an official page (marked Verified)
+VERIFIED = {'STI College Lucena', 'Calayan Educational Foundation, Inc. (CEFI)', 'Lucena City National High School (LCNHS)',
+            'Gulang-Gulang National High School', 'Cotta National High School', 'Lucena Dalahican National High School'}
 
 
 def _norm(text):
@@ -150,6 +190,12 @@ class Command(BaseCommand):
         if shs_note and not school.shs_note:
             school.shs_note = shs_note
         _note(school, extra)
+        for field, value in CONTACTS.get(name, {}).items():
+            if not getattr(school, field):
+                setattr(school, field, value)
+        if name in VERIFIED and school.info_status == 'pending':
+            school.info_status = 'verified'
+            school.last_verified_at = timezone.now()
         school.save()
         return school
 
@@ -180,18 +226,16 @@ class Command(BaseCommand):
         slsu.shs_note = SLSU_NOTE
         slsu.save()
 
-        # strands that came with their source
+        # strands and TESDA qualifications that were read on an official page
         now = timezone.now()
-        for phrase, rows in STRANDS.items():
+        for phrase, kind, name, code, note, source in OFFERINGS:
             school = _find(phrase, [phrase])
             if not school:
                 continue
-            for name, code in rows:
-                SchoolOffering.objects.update_or_create(
-                    school=school, kind='strand', name=name,
-                    defaults={'code': code, 'verification_status': 'verified', 'verified_at': now, 'source_note': STRAND_NOTE,
-                              'note': 'Lucena City' if phrase == 'Enverga' else ''},
-                )
+            SchoolOffering.objects.update_or_create(
+                school=school, kind=kind, name=name,
+                defaults={'code': code, 'note': note, 'source_url': source, 'source_note': '', 'verification_status': 'verified', 'verified_at': now},
+            )
 
         total = School.objects.filter(offers_senior_high=True).count()
         self.stdout.write(self.style.SUCCESS(f'Done. {self.added} schools added, {self.updated} updated. {total} Senior High schools in the finder.'))

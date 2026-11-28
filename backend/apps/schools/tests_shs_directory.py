@@ -83,16 +83,27 @@ class ShsDirectoryTests(TestCase):
         self.assertEqual(s.address, 'Nicodemus Street, Barangay Cotta, Lucena City')
         self.assertEqual(s.barangay, 'Cotta')
 
-    def test_strands_are_only_the_ones_given_and_mseuf_has_no_gas_in_lucena(self):
+    def test_only_what_was_read_on_an_official_page_is_added(self):
         call_command('update_shs_directory')
         mseuf = School.objects.get(name__icontains='Enverga')
         codes = set(mseuf.offerings.filter(kind='strand').values_list('code', flat=True))
-        self.assertEqual(codes, {'HE', 'HUMSS'})
+        self.assertEqual(codes, {'HE', 'HUMSS', 'ICT', 'AD', 'STEM', 'ABM'})  # GAS is not on the Lucena pages
         self.assertIn('San Antonio', mseuf.verification_note)
-        # no other school is given a strand
-        self.assertEqual(SchoolOffering.objects.exclude(school__in=School.objects.filter(name__icontains='STI College') | School.objects.filter(name__icontains='Enverga')).count(), 0)
-        # everything is pending until an administrator verifies it
-        self.assertFalse(School.objects.exclude(info_status='pending').exists())
+        self.assertTrue(all(o.source_url.startswith('https://mseuf.edu.ph/') for o in mseuf.offerings.all()))
+        sti = School.objects.get(name__icontains='STI College')
+        self.assertEqual(sti.offerings.filter(kind='strand').count(), 6)
+        self.assertEqual(sorted(sti.offerings.filter(kind='tesda').values_list('code', flat=True)), ['Level II', 'Level III'])
+        self.assertEqual(sti.phone, '(042) 717-3150')
+        # only STI, MSEUF and CEFI were given anything; no other school has a strand or a qualification
+        with_offerings = set(SchoolOffering.objects.values_list('school__name', flat=True))
+        self.assertEqual(len(with_offerings), 3)
+        # the TESDA list of CEFI stays separate from its strands
+        cefi = School.objects.get(name__icontains='Calayan')
+        self.assertEqual(cefi.offerings.filter(kind='tesda').count(), 4)
+        self.assertEqual(cefi.offerings.filter(kind='strand').count(), 5)
+        # a school with nothing read on an official page keeps its strands empty
+        self.assertEqual(School.objects.get(name='Cotta National High School').offerings.count(), 0)
+        self.assertEqual(School.objects.get(name='Cotta National High School').phone, '(042) 785-0876')
 
     def test_strands_need_an_account_and_are_separate_from_tesda(self):
         call_command('update_shs_directory')
@@ -104,7 +115,7 @@ class ShsDirectoryTests(TestCase):
         c = APIClient(); c.force_authenticate(self.user)
         d = c.get(f'/api/schools/{sti.id}/').data
         self.assertEqual(len(d['strands']), 6)  # the pending one is not shown
-        self.assertEqual([t['name'] for t in d['tesda_programs']], ['Cookery'])
+        self.assertIn('Cookery', [t['name'] for t in d['tesda_programs']])
         self.assertEqual(d['sector'], 'private')
         # search by strand and by qualification (signed in)
         self.assertIn(sti.name, self.names(c, search='Culinary'))

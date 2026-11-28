@@ -120,8 +120,8 @@ function ShsBadges({ s, small }: { s: School; small?: boolean }) {
         ? <span className={cn('font-semibold rounded-full border bg-sky-50 text-sky-800 border-sky-200', c)}>Senior High School</span>
         : <span className={cn('font-semibold rounded-full border bg-gray-50 text-gray-600 border-gray-200', c)}>No Senior High here</span>}
       {s.in_techvoc && <span className={cn('font-semibold rounded-full border bg-amber-50 text-amber-800 border-amber-300', c)}>Tech-Voc / TESDA</span>}
-      {s.info_status && s.info_status !== 'verified' && (
-        <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>{s.info_status === 'needs_update' ? 'Needs update' : 'Pending verification'}</span>
+      {s.info_status === 'needs_update' && (
+        <span className={cn('rounded-full border border-gray-200 bg-white text-gray-500', c)}>Needs update</span>
       )}
     </>
   )
@@ -313,10 +313,9 @@ function SchoolDetailDrawer({ school, onClose, seniorHigh }: { school: School; o
             )}
             {s._shs && (
               <div className="space-y-1 text-[11px] text-gray-500">
-                <p>
-                  Information status: <span className="font-semibold">{s.info_status === 'verified' ? 'Verified' : s.info_status === 'needs_update' ? 'Needs update' : 'Pending verification'}</span>
-                  {s.last_verified_at ? ` · last verified ${new Date(s.last_verified_at).toLocaleDateString()}` : ''}
-                </p>
+                {s.info_status === 'verified' && (
+                  <p className="inline-flex items-center gap-1 text-emerald-700"><BadgeCheck size={11} /> Verified{s.last_verified_at ? ` · ${new Date(s.last_verified_at).toLocaleDateString()}` : ''}</p>
+                )}
                 {s.source_url && <a href={s.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline">Reference <ExternalLink size={10} /></a>}
                 {s.address && <p><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name + ' ' + s.address)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary-700 hover:underline"><MapPin size={10} /> Open in Maps</a></p>}
               </div>
@@ -491,7 +490,7 @@ function SchoolCard({
             </div>
           )}
           <span className="inline-flex items-center gap-1 mt-2 text-xs font-bold text-primary-700">
-            {school._shs ? (visitor ? <><Lock size={12} /> School details · sign in for strands</> : <><BookOpen size={12} /> View details</>) : visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
+            {school._shs ? (!school.offers_senior_high ? <><BookOpen size={12} /> View details</> : visitor ? <><Lock size={12} /> School details · sign in for strands</> : <><BookOpen size={12} /> View details</>) : visitor ? <><Lock size={12} /> School details · sign in for {shsOnly(school) ? 'strands' : 'courses'}</> : <><BookOpen size={12} /> {shsOnly(school) ? 'View Strands' : 'View Courses'}</>}
           </span>
         </div>
       </div>
